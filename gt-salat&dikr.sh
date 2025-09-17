@@ -16,7 +16,47 @@ PID_FILE="$SCRIPT_DIR/.gt-salat&dikr-notify.pid"
 
 ALADHAN_API_URL="https://api.aladhan.com/v1/timings"
 
-# طرق الحساب و أرقامها حسب Aladhan API
+REPO_AZKAR_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/azkar.txt"
+REPO_SCRIPT_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/gt-salat&dikr.sh"
+
+# --- جلب ملف إذا لم يوجد محلياً ---
+fetch_if_missing() {
+    local file="$1"
+    local url="$2"
+    if [ ! -f "$file" ]; then
+        echo "يتم تحميل $file من المستودع..."
+        curl -fsSL "$url" -o "$file" || { echo "فشل تحميل $file."; exit 1; }
+        echo "تم التحميل."
+    fi
+}
+
+# --- التحقق من تحديث الأذكار في المستودع ---
+check_azkar_update() {
+    local local_hash remote_hash
+    if [ -f "$AZKAR_FILE" ]; then
+        local_hash=$(sha1sum "$AZKAR_FILE" | awk '{print $1}')
+    else
+        local_hash=""
+    fi
+    remote_hash=$(curl -fsSL "$REPO_AZKAR_URL" | sha1sum | awk '{print $1}')
+    if [ "$local_hash" != "" ] && [ "$remote_hash" != "$local_hash" ]; then
+        echo "يوجد تحديث جديد لملف الأذكار في المستودع."
+        read -p "هل ترغب في جلب آخر نسخة من الأذكار؟ [Y/n]: " ans
+        ans=${ans:-Y}
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            curl -fsSL "$REPO_AZKAR_URL" -o "$AZKAR_FILE" && echo "تم تحديث الأذكار."
+        else
+            echo "تم الإبقاء على ملف الأذكار الحالي."
+        fi
+    fi
+}
+
+# --- تحقق من وجود البرنامج الأساسي وملف الأذكار وجلبهم عند الحاجة ---
+fetch_if_missing "$0" "$REPO_SCRIPT_URL"
+fetch_if_missing "$AZKAR_FILE" "$REPO_AZKAR_URL"
+check_azkar_update
+
+# --- طرق الحساب حسب Aladhan API ---
 METHODS=("Muslim World League"
 "Islamic Society of North America"
 "Egyptian General Authority of Survey"
@@ -42,8 +82,7 @@ METHODS=("Muslim World League"
 
 METHOD_IDS=(3 2 5 4 1 7 8 9 10 11 12 13 14 15 16 18 24 19 20 21 22 23)
 
-# ----------------- دوال مساعدة -----------------
-
+# ----------------- دوال -----------------
 auto_detect_location() {
     local info
     info=$(curl -fsSL "http://ip-api.com/json/")
