@@ -1,7 +1,14 @@
 #!/bin/bash
 
-# إعداد المسارات
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# --- معالجة المسار الصحيح للسكربت عند التنفيذ كرابط رمزي (symlink) ---
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+
 AZKAR_FILE="$SCRIPT_DIR/azkar.txt"
 CONFIG_FILE="$SCRIPT_DIR/settings.conf"
 TIMETABLE_FILE="$SCRIPT_DIR/timetable.json"
@@ -9,7 +16,7 @@ PID_FILE="$SCRIPT_DIR/.gt-salat&dikr-notify.pid"
 
 ALADHAN_API_URL="https://api.aladhan.com/v1/timings"
 
-# قائمة طرق الحساب حسب https://aladhan.com/calculation-methods
+# طرق الحساب و أرقامها حسب Aladhan API
 METHODS=("Muslim World League"
 "Islamic Society of North America"
 "Egyptian General Authority of Survey"
@@ -37,9 +44,7 @@ METHOD_IDS=(3 2 5 4 1 7 8 9 10 11 12 13 14 15 16 18 24 19 20 21 22 23)
 
 # ----------------- دوال مساعدة -----------------
 
-# استعلام الموقع تلقائيا
 auto_detect_location() {
-    # استخدم ip-api.com
     local info
     info=$(curl -fsSL "http://ip-api.com/json/")
     LAT=$(echo "$info" | jq '.lat')
@@ -52,7 +57,6 @@ auto_detect_location() {
     return 0
 }
 
-# استعلام الموقع يدويا
 manual_location() {
     read -p "أدخل خط العرض (مثال 24.7136): " LAT
     read -p "أدخل خط الطول (مثال 46.6753): " LON
@@ -60,7 +64,6 @@ manual_location() {
     read -p "أدخل الدولة: " COUNTRY
 }
 
-# اختيار طريقة الحساب
 choose_method() {
     echo "يرجى اختيار طريقة حساب مواقيت الصلاة:"
     for i in "${!METHODS[@]}"; do
@@ -79,7 +82,6 @@ choose_method() {
     done
 }
 
-# حفظ الإعدادات
 save_config() {
     cat > "$CONFIG_FILE" <<EOF
 LAT="$LAT"
@@ -93,7 +95,6 @@ ZIKR_NOTIFY_INTERVAL=300
 EOF
 }
 
-# قراءة الإعدادات
 load_config() {
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
@@ -102,7 +103,6 @@ load_config() {
     fi
 }
 
-# تغيير الإعدادات
 change_settings() {
     echo "---- إعدادات GT-salat&dikr ----"
     echo "1) الموقع الحالي: $CITY, $COUNTRY (خط العرض: $LAT, خط الطول: $LON)"
@@ -141,7 +141,6 @@ change_settings() {
     esac
 }
 
-# معالج الإعدادات الأولية
 setup_wizard() {
     echo "---- إعداد الموقع ----"
     if auto_detect_location; then
@@ -159,7 +158,6 @@ setup_wizard() {
     save_config
 }
 
-# جلب مواقيت الصلاة وتخزينها محليًا
 fetch_timetable() {
     local today
     today=$(date +%Y-%m-%d)
@@ -174,7 +172,6 @@ fetch_timetable() {
     return 0
 }
 
-# قراءة مواقيت الصلاة من الملف
 read_timetable() {
     if [ ! -f "$TIMETABLE_FILE" ]; then
         fetch_timetable || return 1
@@ -187,7 +184,6 @@ read_timetable() {
     fi
 }
 
-# عرض جميع المواقيت
 show_timetable() {
     read_timetable || { echo "تعذر قراءة جدول المواقيت."; return 1; }
     echo "مواقيت الصلاة اليوم ($CITY):"
@@ -198,7 +194,6 @@ show_timetable() {
     local min_diff=99999
     for i in "${!names[@]}"; do
         time=$(jq -r ".data.timings.${names[$i]}" "$TIMETABLE_FILE" | cut -d' ' -f1)
-        # تنسيق الوقت
         h=$(echo "$time" | cut -d: -f1)
         m=$(echo "$time" | cut -d: -f2)
         prayer_secs=$(date -d "$(date +%Y-%m-%d) $h:$m" +%s)
@@ -216,7 +211,6 @@ show_timetable() {
     done
 }
 
-# حساب الصلاة القادمة
 get_next_prayer() {
     read_timetable || return 1
     local names=("Fajr" "Dhuhr" "Asr" "Maghrib" "Isha")
@@ -242,7 +236,6 @@ get_next_prayer() {
     return 0
 }
 
-# عرض ذكر عشوائي
 show_random_zekr() {
     awk -v RS='%' '{gsub(/^[ \t\r\n]+|[ \t\r\n]+$/, "", $0); if(length($0)>0) print $0}' "$AZKAR_FILE" | shuf -n 1
 }
@@ -257,7 +250,6 @@ show_zekr_terminal() {
     echo "$zekr"
 }
 
-# إشعار ذكر عشوائي
 show_zekr_notify() {
     local zekr
     zekr=$(show_random_zekr)
@@ -268,7 +260,6 @@ show_zekr_notify() {
     fi
 }
 
-# إشعار بالصلاة
 show_prayer_notify() {
     get_next_prayer
     local p="$PRAYER_NAME"
@@ -276,7 +267,6 @@ show_prayer_notify() {
     notify-send "GT-salat&dikr" "حان الآن وقت صلاة $p ($t)"
 }
 
-# إشعار قبل الصلاة بـ10 دقائق
 show_pre_prayer_notify() {
     get_next_prayer
     local p="$PRAYER_NAME"
@@ -284,19 +274,15 @@ show_pre_prayer_notify() {
     notify-send "GT-salat&dikr" "تبقى 10 دقائق على صلاة $p ($t)"
 }
 
-# حلقة الإشعار الدورية
 notify_loop() {
     while true; do
-        # إشعار الذكر
         show_zekr_notify
-        # تحقق من وقت الصلاة
         get_next_prayer
         local now_secs=$(date +%s)
         local notify_flag_file="$SCRIPT_DIR/.last-prayer-notified"
         local pre_notify_flag_file="$SCRIPT_DIR/.last-preprayer-notified"
         # إشعار قبل الصلاة بـ10 دقائق
         if [ "$PRE_PRAYER_NOTIFY" = "1" ] && [ $PRAYER_LEFT -le 600 ] && [ $PRAYER_LEFT -gt 540 ]; then
-            # لا تعيد الإشعار لنفس الصلاة
             if [ ! -f "$pre_notify_flag_file" ] || [ "$(cat "$pre_notify_flag_file")" != "$PRAYER_NAME" ]; then
                 show_pre_prayer_notify
                 echo "$PRAYER_NAME" > "$pre_notify_flag_file"
@@ -313,7 +299,6 @@ notify_loop() {
     done
 }
 
-# بدء إشعارات النظام
 start_notify() {
     if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE") 2>/dev/null; then
         echo "الإشعارات تعمل بالفعل (PID: $(cat "$PID_FILE"))"
@@ -325,7 +310,6 @@ start_notify() {
     echo "تم بدء إشعارات GT-salat&dikr"
 }
 
-# إيقاف إشعارات النظام
 stop_notify() {
     if [ -f "$PID_FILE" ]; then
         local pid
@@ -351,7 +335,7 @@ fi
 load_config
 
 case "$1" in
-    --show-timetable)
+    --show-timetable | t)
         show_timetable
         ;;
     --settings)
