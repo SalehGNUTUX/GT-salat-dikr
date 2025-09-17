@@ -50,19 +50,34 @@ add_to_shell_rc() {
 add_to_shell_rc "$HOME/.bashrc"
 add_to_shell_rc "$HOME/.zshrc"
 
+# --- إنشاء اختصار في ~/.local/bin/gtsalat ---
+LOCAL_BIN="$HOME/.local/bin"
+mkdir -p "$LOCAL_BIN"
+ln -sf "$INSTALL_DIR/$SCRIPT_NAME" "$LOCAL_BIN/gtsalat"
+
+# --- فحص PATH ---
+if ! echo "$PATH" | grep -q "$LOCAL_BIN" ; then
+    echo ""
+    echo "تنبيه: مجلد $LOCAL_BIN ليس في متغير PATH لديك."
+    echo "أضف السطر التالي إلى ملف .bashrc أو .zshrc ثم أعد تحميل الطرفية:"
+    echo "export PATH=\"\$HOME/.local/bin:\$PATH\""
+fi
+
 # --- بدء الإشعار التلقائي (افتراضي كل 5 دقائق) ---
 "$INSTALL_DIR/$SCRIPT_NAME" --notify-start
 
 echo ""
 echo "تم تثبيت GT-salat&dikr في $INSTALL_DIR"
+echo "تم إنشاء اختصار gtsalat ويمكنك تشغيل البرنامج مباشرة بهذا الأمر:"
+echo "  gtsalat"
+echo ""
+echo "لعرض مواقيت الصلاة:   gtsalat --show-timetable"
+echo "لإيقاف الإشعار:      gtsalat --notify-stop"
+echo "لتغيير الإعدادات:    gtsalat --settings"
 if [ "$added" = true ]; then
+    echo ""
     echo "تمت إضافة السطر للـ bashrc أو zshrc وسيظهر لك ذكر وصلاة عند كل مرة تفتح فيها الطرفية."
 else
     echo "أضف يدويًا السطر التالي لملف إعدادات الطرفية:"
     echo "\"$INSTALL_DIR/$SCRIPT_NAME\""
 fi
-echo ""
-echo "تم تفعيل إشعار دوري تلقائيًا كل 5 دقائق."
-echo "لإيقاف الإشعار: \"$INSTALL_DIR/$SCRIPT_NAME\" --notify-stop"
-echo "لتغيير الإعدادات: \"$INSTALL_DIR/$SCRIPT_NAME\" --settings"
-echo "لعرض مواقيت الصلاة: \"$INSTALL_DIR/$SCRIPT_NAME\" --show-timetable"
