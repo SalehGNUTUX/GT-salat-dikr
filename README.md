@@ -132,6 +132,13 @@
 - **التبعيات:** curl, jq, awk, notify-send
 - **التخزين:** `~/.GT-salat-dikr/`
 - **الاختصار:** `gtsalat`
+- **الترخيص:** رخصة جنو العمومية (GPL)
+
+---
+
+## الترخيص
+
+هذا البرنامج مفتوح المصدر مرخص تحت [رخصة جنو العمومية (GPL)](https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/LICENSE).
 
 ---
 
