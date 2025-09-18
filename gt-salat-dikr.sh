@@ -1,20 +1,27 @@
 #!/bin/bash
 
-# --- إصلاح PATH لإضافة ~/.local/bin تلقائيًا إن لم يكن موجود ---
+# --- إصلاح PATH لإضافة ~/.local/bin تلقائيًا ---
 case ":$PATH:" in
   *":$HOME/.local/bin:"*) ;; # موجود بالفعل
   *) export PATH="$HOME/.local/bin:$PATH" ;;
 esac
 # ----------------------------------------------------------------
 
-# --- معالجة المسار الصحيح للسكربت عند التنفيذ كرابط رمزي (symlink) ---
-SOURCE="${BASH_SOURCE[0]}"
-while [ -h "$SOURCE" ]; do
-  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
-  SOURCE="$(readlink "$SOURCE")"
-  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+# --- دعم جميع أنواع الطرفيات ---
+if [ -n "$BASH" ]; then
+    SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+elif [ -n "$ZSH_VERSION" ]; then
+    SCRIPT_SOURCE="${(%):-%x}"
+else
+    SCRIPT_SOURCE="$0"
+fi
+
+while [ -h "$SCRIPT_SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
+  SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+  [[ $SCRIPT_SOURCE != /* ]] && SCRIPT_SOURCE="$DIR/$SCRIPT_SOURCE"
 done
-SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+SCRIPT_DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
 
 AZKAR_FILE="$SCRIPT_DIR/azkar.txt"
 CONFIG_FILE="$SCRIPT_DIR/settings.conf"
@@ -392,6 +399,10 @@ case "$1" in
         ;;
     --notify-stop)
         stop_notify
+        ;;
+    --update-azkar)
+        echo "جلب أحدث نسخة من الأذكار..."
+        curl -fsSL "$REPO_AZKAR_URL" -o "$AZKAR_FILE" && echo "✅ تم تحديث الأذكار بنجاح"
         ;;
     *)
         # الوضع الافتراضي: عند فتح الطرفية
