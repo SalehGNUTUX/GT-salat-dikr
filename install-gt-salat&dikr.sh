@@ -10,7 +10,7 @@ REPO_RAW_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main"
 echo "تثبيت GT-salat&dikr في $INSTALL_DIR ..."
 mkdir -p "$INSTALL_DIR"
 
-# --- الحصول على ملف الأذكار من الريبو أو من نفس المجلد ---
+# --- الحصول على ملف الأذكار من المستودع أو من نفس المجلد ---
 if [ -f "$AZKAR_FILE" ]; then
     cp "$AZKAR_FILE" "$INSTALL_DIR/$AZKAR_FILE"
 elif curl -fsSL "$REPO_RAW_URL/$AZKAR_FILE" -o "$INSTALL_DIR/$AZKAR_FILE"; then
@@ -20,7 +20,7 @@ else
     exit 2
 fi
 
-# --- الحصول على السكربت الرئيسي من الريبو أو من نفس المجلد ---
+# --- الحصول على السكربت الرئيسي من المستودع أو من نفس المجلد ---
 if [ -f "$SCRIPT_NAME" ]; then
     cp "$SCRIPT_NAME" "$INSTALL_DIR/$SCRIPT_NAME"
 elif curl -fsSL "$REPO_RAW_URL/$SCRIPT_NAME" -o "$INSTALL_DIR/$SCRIPT_NAME"; then
