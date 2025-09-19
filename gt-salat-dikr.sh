@@ -328,12 +328,17 @@ show_pre_prayer_notify() {
 }
 
 notify_loop() {
+    # تعيين trap لتنظيف PID عند الخروج
+    trap 'rm -f "$PID_FILE" 2>/dev/null' EXIT
+    
     while true; do
         show_zekr_notify
         get_next_prayer
+        
         local now_secs=$(date +%s)
         local notify_flag_file="$SCRIPT_DIR/.last-prayer-notified"
         local pre_notify_flag_file="$SCRIPT_DIR/.last-preprayer-notified"
+        
         # إشعار قبل الصلاة بـ10 دقائق
         if [ "$PRE_PRAYER_NOTIFY" = "1" ] && [ $PRAYER_LEFT -le 600 ] && [ $PRAYER_LEFT -gt 540 ]; then
             if [ ! -f "$pre_notify_flag_file" ] || [ "$(cat "$pre_notify_flag_file")" != "$PRAYER_NAME" ]; then
@@ -341,6 +346,7 @@ notify_loop() {
                 echo "$PRAYER_NAME" > "$pre_notify_flag_file"
             fi
         fi
+        
         # إشعار دخول وقت الصلاة
         if [ $PRAYER_LEFT -le 10 ] && [ $PRAYER_LEFT -ge -10 ]; then
             if [ ! -f "$notify_flag_file" ] || [ "$(cat "$notify_flag_file")" != "$PRAYER_NAME" ]; then
@@ -348,35 +354,89 @@ notify_loop() {
                 echo "$PRAYER_NAME" > "$notify_flag_file"
             fi
         fi
+        
         sleep "$ZIKR_NOTIFY_INTERVAL"
     done
 }
 
 start_notify() {
-    if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE") 2>/dev/null; then
-        echo "الإشعارات تعمل بالفعل (PID: $(cat "$PID_FILE"))"
-        exit 0
+    # التحقق إذا كانت الإشعارات تعمل بالفعل
+    if [ -f "$PID_FILE" ]; then
+        local pid=$(cat "$PID_FILE")
+        if kill -0 $pid 2>/dev/null; then
+            echo "الإشعارات تعمل بالفعل (PID: $pid)"
+            return 0
+        else
+            # تنظيف ملف PID إذا كانت العملية غير موجودة
+            rm -f "$PID_FILE"
+        fi
     fi
-    (notify_loop &)
-    echo $! > "$PID_FILE"
-    disown
-    echo "تم بدء إشعارات GT-salat-dikr"
+
+    echo "بدء إشعارات GT-salat-dikr..."
+    
+    # بدء عملية الإشعارات في الخلفية بشكل صحيح
+    nohup bash -c '
+        while true; do
+            # استدعاء دالة الإشعارات
+            source "$0"  # إعادة تحميل الدوال
+            notify_loop
+        done
+    ' "$SCRIPT_SOURCE" > /dev/null 2>&1 &
+    
+    local loop_pid=$!
+    echo $loop_pid > "$PID_FILE"
+    
+    # الانتظار قليلاً للتأكد من بدء العملية
+    sleep 2
+    
+    if kill -0 $loop_pid 2>/dev/null; then
+        echo "✅ تم بدء إشعارات GT-salat-dikr (PID: $loop_pid)"
+    else
+        echo "❌ فشل في بدء الإشعارات"
+        rm -f "$PID_FILE"
+        return 1
+    fi
 }
 
 stop_notify() {
     if [ -f "$PID_FILE" ]; then
-        local pid
-        pid=$(cat "$PID_FILE")
+        local pid=$(cat "$PID_FILE")
+        
         if kill -0 $pid 2>/dev/null; then
-            kill $pid
-            echo "تم إيقاف إشعارات GT-salat-dikr (PID: $pid)"
+            # إيقاف العملية الرئيسية وكل العمليات الفرعية
+            pkill -P $pid 2>/dev/null
+            kill $pid 2>/dev/null
+            
+            # الانتظار للتأكد من التوقف
+            sleep 1
+            
+            if kill -0 $pid 2>/dev/null; then
+                # إذا لم تتوقف، استخدام kill قوي
+                kill -9 $pid 2>/dev/null
+            fi
+            
+            rm -f "$PID_FILE"
+            echo "✅ تم إيقاف إشعارات GT-salat-dikr (PID: $pid)"
         else
-            echo "لم يكن هناك إشعارات قيد التشغيل."
+            echo "⚠️  لم تكن هناك إشعارات قيد التشغيل (PID: $pid غير نشط)"
+            rm -f "$PID_FILE"
         fi
-        rm -f "$PID_FILE"
     else
-        echo "لا يوجد إشعارات قيد التشغيل."
+        echo "ℹ️  لا يوجد إشعارات قيد التشغيل (لا يوجد ملف PID)"
+        
+        # محاولة إيجاد وإيقاف أي عمليات متبقية
+        local pids=$(pgrep -f "gt-salat-dikr" | grep -v $$ | tr '\n' ' ')
+        if [ -n "$pids" ]; then
+            echo "⚠️  وجد عمليات متبقية، يتم إيقافها: $pids"
+            pkill -f "gt-salat-dikr" 2>/dev/null
+            sleep 1
+            pkill -9 -f "gt-salat-dikr" 2>/dev/null
+            echo "✅ تم تنظيف العمليات المتبقية"
+        fi
     fi
+    
+    # تنظيف ملفات flag
+    rm -f "$SCRIPT_DIR/.last-prayer-notified" "$SCRIPT_DIR/.last-preprayer-notified" 2>/dev/null
 }
 
 # -------------- تنفيذ السكربت --------------
