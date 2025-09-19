@@ -57,23 +57,23 @@ echo "تم إنشاء اختصار gtsalat في $LOCAL_BIN/"
 # --- الكشف التلقائي عن نوع الطرفية وإضافة الإعدادات ---
 detect_and_add_to_shell() {
     local shells_added=0
-
+    
     # قائمة بجميع ملفات الإعداد المحتملة
     local shell_files=(
         "$HOME/.bashrc"
-        "$HOME/.zshrc"
+        "$HOME/.zshrc" 
         "$HOME/.profile"
         "$HOME/.bash_profile"
         "$HOME/.bash_login"
         "$HOME/.config/fish/config.fish"
     )
-
+    
     for rc_file in "${shell_files[@]}"; do
         if [ -f "$rc_file" ]; then
             if ! grep -Fq "GT-salat-dikr" "$rc_file"; then
                 echo "" >> "$rc_file"
                 echo "# GT-salat-dikr: ذكر وصلاة عند فتح الطرفية" >> "$rc_file"
-
+                
                 # إضافة الأمر المناسب لنوع الطرفية
                 if [[ "$rc_file" == *"fish"* ]]; then
                     echo "bash \"$INSTALL_DIR/$SCRIPT_NAME\"" >> "$rc_file"
@@ -82,13 +82,13 @@ detect_and_add_to_shell() {
                     echo "bash \"$INSTALL_DIR/$SCRIPT_NAME\"" >> "$rc_file"
                     echo "alias gtsalat=\"$INSTALL_DIR/$SCRIPT_NAME\"" >> "$rc_file"
                 fi
-
+                
                 echo "تم الإضافة إلى $rc_file"
                 shells_added=$((shells_added + 1))
             fi
         fi
     done
-
+    
     # إذا لم يتم الإضافة إلى أي ملف، ننشئ ملف .profile افتراضي
     if [ $shells_added -eq 0 ] && [ ! -f "$HOME/.profile" ]; then
         touch "$HOME/.profile"
@@ -101,6 +101,30 @@ detect_and_add_to_shell() {
 }
 
 detect_and_add_to_shell
+
+# --- إضافة خدمة للإشعارات التلقائية عند بدء النظام ---
+add_autostart_service() {
+    local autostart_dir="$HOME/.config/autostart"
+    local service_file="$autostart_dir/gt-salat-dikr.desktop"
+    
+    mkdir -p "$autostart_dir"
+    
+    cat > "$service_file" <<EOF
+[Desktop Entry]
+Type=Application
+Name=GT-salat-dikr Notifications
+Exec=bash -c "sleep 10 && $INSTALL_DIR/$SCRIPT_NAME --notify-start"
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Comment[ar]=إشعارات تلقائية لمواقيت الصلاة والأذكار
+Comment=Automatic prayer times and azkar notifications
+EOF
+
+    echo "تم إضافة خدمة التشغيل التلقائي عند بدء النظام"
+}
+
+add_autostart_service
 
 # --- تشغيل معالج الإعدادات الأولية ---
 echo "بدء إعدادات التهيئة الأولى..."
