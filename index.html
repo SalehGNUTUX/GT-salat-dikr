@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GT-salat-dikr - تذكير الصلاة والأذكار على سطر الأوامر</title>
     <meta name="description" content="برنامج مواقيت الصلاة والأذكار يعمل على الطرفية (لينكس) - مفتوح المصدر ومرخص تحت GPL">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --primary: #2e7d32;
@@ -14,6 +15,23 @@
             --text-light: #666;
             --accent: #8bc34a;
             --background: #fff;
+            --card-bg: #f8f8f8;
+            --code-bg: #f1f1f1;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        [data-theme="dark"] {
+            --primary: #4caf50;
+            --primary-dark: #3d8b40;
+            --secondary: #2a2a2a;
+            --text: #f0f0f0;
+            --text-light: #b0b0b0;
+            --accent: #689f38;
+            --background: #1e1e1e;
+            --card-bg: #2d2d2d;
+            --code-bg: #252525;
+            --shadow: rgba(0, 0, 0, 0.3);
         }
         
         * {
@@ -21,19 +39,24 @@
             padding: 0;
             box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: var(--transition);
         }
         
         body {
             background-color: var(--background);
             color: var(--text);
             line-height: 1.6;
+            padding: 0;
+            margin: 0;
         }
         
+        /* تذييل الصفحة */
         header {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             padding: 2rem 1rem;
             text-align: center;
+            position: relative;
         }
         
         header h1 {
@@ -45,6 +68,22 @@
             font-size: 1.2rem;
             max-width: 800px;
             margin: 0 auto;
+        }
+        
+        .theme-toggle {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .container {
@@ -72,11 +111,13 @@
         }
         
         .feature-card {
-            background-color: var(--secondary);
+            background-color: var(--card-bg);
             border-radius: 8px;
             padding: 1.5rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px var(--shadow);
             transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
         
         .feature-card:hover {
@@ -86,25 +127,32 @@
         .feature-card h3 {
             color: var(--primary);
             margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .feature-card h3 i {
+            font-size: 1.5rem;
         }
         
         .code-block {
-            background-color: #f8f8f8;
+            background-color: var(--code-bg);
             border-radius: 6px;
             padding: 1rem;
             overflow-x: auto;
             margin: 1rem 0;
             direction: ltr;
             text-align: left;
-        }
-        
-        .code-block code {
             font-family: 'Courier New', monospace;
-            color: #333;
+            color: var(--text);
+            border-right: 4px solid var(--primary);
         }
         
         .btn {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             background-color: var(--primary);
             color: white;
             padding: 0.8rem 1.5rem;
@@ -113,6 +161,8 @@
             font-weight: bold;
             transition: background-color 0.3s;
             margin: 0.5rem 0.5rem 0.5rem 0;
+            border: none;
+            cursor: pointer;
         }
         
         .btn:hover {
@@ -133,6 +183,7 @@
             text-align: center;
             padding: 2rem 1rem;
             margin-top: 3rem;
+            color: var(--text);
         }
         
         .screenshot {
@@ -141,7 +192,33 @@
             margin: 1rem auto;
             display: block;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 8px var(--shadow);
+            border: 1px solid var(--accent);
+        }
+        
+        .logo {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+        
+        .commands {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        
+        .command-item {
+            background-color: var(--card-bg);
+            padding: 1rem;
+            border-radius: 6px;
+            border-right: 3px solid var(--primary);
+        }
+        
+        .command-item code {
+            font-weight: bold;
+            color: var(--primary);
         }
         
         @media (max-width: 768px) {
@@ -152,88 +229,131 @@
             .features {
                 grid-template-columns: 1fr;
             }
+            
+            .commands {
+                grid-template-columns: 1fr;
+            }
+            
+            .theme-toggle {
+                top: 0.5rem;
+                left: 0.5rem;
+                width: 35px;
+                height: 35px;
+            }
         }
     </style>
 </head>
 <body>
     <header>
+        <button class="theme-toggle" id="themeToggle">
+            <i class="fas fa-moon"></i>
+        </button>
+        <div class="logo">
+            <i class="fas fa-pray"></i>
+        </div>
         <h1>GT-salat-dikr</h1>
         <p>برنامج مواقيت الصلاة والأذكار يعمل على الطرفية (لينكس) - مفتوح المصدر ومرخص تحت GPL</p>
     </header>
     
     <div class="container">
         <section id="intro">
-            <h2>مقدمة</h2>
+            <h2><i class="fas fa-info-circle"></i> مقدمة</h2>
             <p>GT-salat-dikr هو سكربت Bash خفيف الوزن يجمع بين بساطة سطر الأوامر وقوة التذكير المستمر للصلاة والأذكار. مصمم خصيصًا لمستخدمي نظام لينكس الذين يبحثون عن حلول تقنية تساعدهم على الالتزام بالعبادات والذكر.</p>
             
             <div class="code-block">
-                <code># مثال لمخرجات البرنامج<br>يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ...<br>الصلاة القادمة: المغرب عند 19:33 (باقي 01:10)</code>
+# مثال لمخرجات البرنامج<br>يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ...<br>الصلاة القادمة: المغرب عند 19:33 (باقي 01:10)
             </div>
             
-            <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">⭐ استعراض على GitHub</a>
-            <a href="#installation" class="btn btn-secondary">التثبيت السريع</a>
+            <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">
+                <i class="fab fa-github"></i> استعراض على GitHub
+            </a>
+            <a href="#installation" class="btn btn-secondary">
+                <i class="fas fa-download"></i> التثبيت السريع
+            </a>
         </section>
         
         <section id="features">
-            <h2>الميزات الرئيسية</h2>
+            <h2><i class="fas fa-star"></i> الميزات الرئيسية</h2>
             <div class="features">
                 <div class="feature-card">
-                    <h3>📖 تذكير الأذكار العشوائية</h3>
+                    <h3><i class="fas fa-book"></i> تذكير الأذكار العشوائية</h3>
                     <p>عرض ذكر مختلف في كل مرة تفتح فيها الطرفية مع قاعدة بيانات شاملة للأذكار الإسلامية وتحديث تلقائي من المصادر الموثوقة.</p>
                 </div>
                 
                 <div class="feature-card">
-                    <h3>🕌 مواقيت الصلاة الدقيقة</h3>
+                    <h3><i class="fas fa-mosque"></i> مواقيت الصلاة الدقيقة</h3>
                     <p>حساب تلقائي لمواقيت الصلاة بناءً على موقعك مع دعم 22 طريقة حساب مختلفة من جميع أنحاء العالم.</p>
                 </div>
                 
                 <div class="feature-card">
-                    <h3>🔔 إشعارات تلقائية</h3>
+                    <h3><i class="fas fa-bell"></i> إشعارات تلقائية</h3>
                     <p>إشعارات للأذكار على فترات زمنية قابلة للتخصيص، تنبيه قبل الصلاة بـ10 دقائق، وإشعارات دخول وقت الصلاة.</p>
                 </div>
                 
                 <div class="feature-card">
-                    <h3>🌐 دعم متعدد اللغات</h3>
+                    <h3><i class="fas fa-globe"></i> دعم متعدد اللغات</h3>
                     <p>واجهة عربية كاملة مع دعم جميع أنواع الطرفيات (Bash, Zsh, Fish) وتوافق مع مختلف توزيعات لينكس.</p>
                 </div>
             </div>
         </section>
         
         <section id="installation">
-            <h2>طريقة التثبيت</h2>
+            <h2><i class="fas fa-download"></i> طريقة التثبيت</h2>
             
-            <h3>التثبيت التلقائي (مستحسن)</h3>
+            <h3><i class="fas fa-bolt"></i> التثبيت التلقائي (مستحسن)</h3>
             <div class="code-block">
-                <code>bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install-gt-salat-dikr.sh)"</code>
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install-gt-salat-dikr.sh)"
             </div>
             
-            <h3>التثبيت اليدوي</h3>
+            <h3><i class="fas fa-cogs"></i> التثبيت اليدوي</h3>
             <div class="code-block">
-                <code>git clone https://github.com/SalehGNUTUX/GT-salat-dikr.git<br>cd GT-salat-dikr<br>chmod +x install-gt-salat-dikr.sh<br>./install-gt-salat-dikr.sh</code>
+git clone https://github.com/SalehGNUTUX/GT-salat-dikr.git<br>cd GT-salat-dikr<br>chmod +x install-gt-salat-dikr.sh<br>./install-gt-salat-dikr.sh
             </div>
         </section>
         
         <section id="usage">
-            <h2>الاستخدام</h2>
+            <h2><i class="fas fa-terminal"></i> أوامر الاستخدام</h2>
             
-            <div class="code-block">
-                <code># التشغيل العادي - عرض ذكر ومعلومات الصلاة القادمة<br>gtsalat<br><br># عرض مواقيت الصلاة كاملة لليوم<br>gtsalat --show-timetable<br>gtsalat t  # اختصار<br><br># إدارة الإعدادات<br>gtsalat --settings<br><br># تشغيل الإشعارات التلقائية<br>gtsalat --notify-start<br><br># إيقاف الإشعارات<br>gtsalat --notify-stop<br><br># تحديث الأذكار من الإنترنت<br>gtsalat --update-azkar</code>
+            <div class="commands">
+                <div class="command-item">
+                    <p><code>gtsalat</code> - التشغيل العادي (عرض ذكر ومعلومات الصلاة القادمة)</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --show-timetable</code> - عرض مواقيت الصلاة كاملة لليوم</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat t</code> - اختصار لعرض مواقيت الصلاة</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --settings</code> - إدارة الإعدادات</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --notify-start</code> - تشغيل الإشعارات التلقائية</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --notify-stop</code> - إيقاف الإشعارات</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --update-azkar</code> - تحديث الأذكار من الإنترنت</p>
+                </div>
             </div>
         </section>
         
         <section id="screenshots">
-            <h2>أمثلة على المخرجات</h2>
+            <h2><i class="fas fa-desktop"></i> أمثلة على المخرجات</h2>
             
             <div class="code-block">
-                <code># مثال 1: العرض الأساسي<br>اللهم إني أعوذ بك من شر ما عملت ومن شر ما لم أعمل<br>الصلاة القادمة: المغرب عند 18:45 (باقي 02:15)<br><br># مثال 2: جدول المواقيت الكامل<br>مواقيت الصلاة اليوم (الرياض):<br>      الفجر: 04:30 (باقي 08:20)<br>     الشروق: 05:45 (باقي 09:35)<br>      الظهر: 12:15 (باقي 16:05)<br>      العصر: 15:30 (باقي 19:20)  ← القادمة<br>     المغرب: 18:45<br>     العشاء: 20:00</code>
+# مثال 1: العرض الأساسي<br>اللهم إني أعوذ بك من شر ما عملت ومن شر ما لم أعمل<br>الصلاة القادمة: المغرب عند 18:45 (باقي 02:15)<br><br># مثال 2: جدول المواقيت الكامل<br>مواقيت الصلاة اليوم (الرياض):<br>      الفجر: 04:30 (باقي 08:20)<br>     الشروق: 05:45 (باقي 09:35)<br>      الظهر: 12:15 (باقي 16:05)<br>      العصر: 15:30 (باقي 19:20)  ← القادمة<br>     المغرب: 18:45<br>     العشاء: 20:00
             </div>
         </section>
         
         <section id="license">
-            <h2>الترخيص</h2>
+            <h2><i class="fas fa-balance-scale"></i> الترخيص</h2>
             <p>هذا البرنامج مرخص تحت <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/LICENSE">رخصة جنو العمومية (GPL)</a>. يمكنك استخدام البرنامج مجانًا، تعديل الشفرة المصدرية، توزيع نسخ معدلة، واستخدام البرنامج لأي غرض.</p>
             
-            <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">استعراض الكود المصدري</a>
+            <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">
+                <i class="fas fa-code"></i> استعراض الكود المصدري
+            </a>
         </section>
     </div>
     
@@ -243,5 +363,52 @@
             <p>تم التطوير بواسطة <a href="https://github.com/SalehGNUTUX">SalehGNUTUX</a> - مرخص تحت <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/LICENSE">GPL</a></p>
         </div>
     </footer>
+
+    <script>
+        // تبديل الوضع المظلم
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = themeToggle.querySelector('i');
+        
+        // التحقق من التفضيل المحفوظ
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
+        }
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            
+            if (currentTheme === 'dark') {
+                document.documentElement.removeAttribute('data-theme');
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+        
+        // تأثيرات scroll suave
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                
+                const targetId = this.getAttribute('href');
+                if (targetId === '#') return;
+                
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+    </script>
 </body>
 </html>
