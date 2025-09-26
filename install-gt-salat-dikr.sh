@@ -48,13 +48,16 @@ else
 fi
 chmod +x "$INSTALL_DIR/$SCRIPT_NAME"
 
-# --- إذا وُجد ملف adhan.ogg في نفس مجلد التثبيت، انسخه ---
+# --- جلب أو نسخ ملف الآذان ---
 if [ -f "adhan.ogg" ]; then
     cp "adhan.ogg" "$INSTALL_DIR/adhan.ogg"
-    echo "تم نسخ ملف الآذان (adhan.ogg) إلى مجلد التثبيت."
+    echo "تم نسخ ملف الآذان محليًا."
+elif curl -fsSL "$REPO_RAW_URL/adhan.ogg" -o "$INSTALL_DIR/adhan.ogg"; then
+    echo "تم جلب ملف الآذان من الإنترنت."
 else
-    echo "لم يتم العثور على adhan.ogg محليًا. يمكنك وضع ملف adhan.ogg في $INSTALL_DIR لاحقًا."
+    echo "⚠️ لم أجد ملف الآذان لا محليًا ولا في المستودع."
 fi
+
 
 # --- إنشاء اختصار في ~/.local/bin/gtsalat ---
 LOCAL_BIN="$HOME/.local/bin"
