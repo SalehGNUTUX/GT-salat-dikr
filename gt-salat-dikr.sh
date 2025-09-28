@@ -419,3 +419,36 @@ case "${1:-}" in
 esac
 
 exit 0
+
+
+# ==== إضافات جديدة: إدارة الإشعارات بالاختصارات ====
+INSTALL_DIR="$HOME/.GT-salat-dikr"
+PID_FILE="$INSTALL_DIR/notify.pid"
+
+start_notify() {
+    echo "بدء إشعارات GT-salat-dikr..."
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+        echo "⚠️ الإشعارات تعمل مسبقًا."
+        exit 0
+    fi
+
+    nohup "$INSTALL_DIR/notify-service.sh" >/dev/null 2>&1 &
+    echo $! > "$PID_FILE"
+    echo "✅ تم تشغيل الإشعارات."
+}
+
+stop_notify() {
+    if [ -f "$PID_FILE" ]; then
+        kill "$(cat "$PID_FILE")" 2>/dev/null || true
+        rm -f "$PID_FILE"
+        echo "🛑 تم إيقاف الإشعارات."
+    else
+        echo "⚠️ الإشعارات غير مفعّلة."
+    fi
+}
+
+# دعم الاختصارات nsr / nsp
+case "${1:-}" in
+    nsr) start_notify ;;
+    nsp) stop_notify ;;
+esac
