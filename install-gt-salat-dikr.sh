@@ -1,13 +1,29 @@
 #!/bin/bash
-# مثبت GT-salat-dikr (مُحدّث) — ينسخ adhan.ogg إن وُجد ويتيح تفعيل self-update في الإعداد
-# مبني على المثبّت الذي زودتني به سابقًا. :contentReference[oaicite:3]{index=3}
-
 set -euo pipefail
 
 INSTALL_DIR="$HOME/.GT-salat-dikr"
 SCRIPT_NAME="gt-salat-dikr.sh"
+LOCAL_BIN="$HOME/.local/bin"
 AZKAR_FILE="azkar.txt"
 REPO_RAW_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main"
+
+uninstall() {
+    echo "🗑️ جارٍ إزالة GT-salat-dikr..."
+    rm -rf "$INSTALL_DIR"
+    rm -f "$LOCAL_BIN/gtsalat"
+    sed -i '/GT-salat-dikr/d' "$HOME/.bashrc" 2>/dev/null || true
+    sed -i '/GT-salat-dikr/d' "$HOME/.zshrc" 2>/dev/null || true
+    sed -i '/GT-salat-dikr/d' "$HOME/.profile" 2>/dev/null || true
+    rm -f "$HOME/.config/autostart/gt-salat-dikr.desktop" 2>/dev/null || true
+    echo "✅ تمت الإزالة بنجاح."
+    exit 0
+}
+
+if [[ "${1:-}" == "--uninstall" ]]; then
+    uninstall
+fi
+
+# النسخة الأصلية للتثبيت (من ملفك السابق)
 
 echo "تثبيت GT-salat-dikr في $INSTALL_DIR ..."
 mkdir -p "$INSTALL_DIR"
