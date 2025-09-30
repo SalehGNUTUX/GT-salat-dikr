@@ -12,20 +12,23 @@ USER_HOME="${HOME}"
 INSTALL_DIR="${USER_HOME}/.GT-salat-dikr"
 SCRIPT_NAME="$(basename "${0}")"
 
+# تحديد مسار السكربت الحقيقي (متوافق مع جميع الطرفيات)
 if [ -n "${BASH_SOURCE:-}" ]; then
     SCRIPT_SOURCE="${BASH_SOURCE[0]}"
 else
     SCRIPT_SOURCE="$0"
 fi
 
+# حل الروابط الرمزية
 while [ -h "$SCRIPT_SOURCE" ]; do
-  DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
-  SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
-  [[ $SCRIPT_SOURCE != /* ]] && SCRIPT_SOURCE="$DIR/$SCRIPT_SOURCE"
+    DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
+    SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+    [[ $SCRIPT_SOURCE != /* ]] && SCRIPT_SOURCE="$DIR/$SCRIPT_SOURCE"
 done
 SCRIPT_DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
 SCRIPT_SOURCE_ABS="$SCRIPT_DIR/$SCRIPT_NAME"
 
+# ملفات التهيئة
 AZKAR_FILE="$SCRIPT_DIR/azkar.txt"
 CONFIG_FILE="$SCRIPT_DIR/settings.conf"
 TIMETABLE_FILE="$SCRIPT_DIR/timetable.json"
@@ -34,10 +37,12 @@ NOTIFY_LOG="$SCRIPT_DIR/notify.log"
 ADHAN_FILE="$SCRIPT_DIR/adhan.ogg"
 ADHAN_PLAYER_SCRIPT="$SCRIPT_DIR/adhan-player.sh"
 
+# روابع المستودع
 REPO_AZKAR_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/azkar.txt"
 REPO_SCRIPT_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/gt-salat-dikr.sh"
 ALADHAN_API_URL="https://api.aladhan.com/v1/timings"
 
+# القيم الافتراضية
 DEFAULT_ZIKR_INTERVAL=300
 DEFAULT_PRE_NOTIFY=1
 
@@ -48,7 +53,7 @@ log() {
 }
 
 fetch_if_missing() {
-    local file="$1"; local url="$2"
+    local file="$1" url="$2"
     if [ ! -f "$file" ]; then
         log "تحميل $file ..."
         if curl -fsSL "$url" -o "$file"; then
@@ -90,7 +95,7 @@ check_tools() {
 
 # ------------- ضبط DBUS - محسّن للتوافق مع جميع التوزيعات -------------
 ensure_dbus() {
-    if [[ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
+    if [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
         return 0
     fi
 
@@ -99,26 +104,6 @@ ensure_dbus() {
         export DBUS_SESSION_BUS_ADDRESS="unix:path=$bus"
         log "DBUS: استخدام المسار القياسي $bus"
         return 0
-    fi
-
-    local tmp_bus="/tmp/dbus-$(whoami)"
-    if [ -d "$tmp_bus" ]; then
-        local sock=$(find "$tmp_bus" -name "session-*" -type s 2>/dev/null | head -1)
-        if [ -n "$sock" ]; then
-            export DBUS_SESSION_BUS_ADDRESS="unix:path=$sock"
-            log "DBUS: استخدام $sock"
-            return 0
-        fi
-    fi
-
-    local dbus_pid=$(pgrep -u "$(id -u)" dbus-daemon | head -1)
-    if [ -n "$dbus_pid" ]; then
-        local dbus_addr=$(grep -z DBUS_SESSION_BUS_ADDRESS /proc/$dbus_pid/environ 2>/dev/null | cut -d= -f2- | tr -d '\0')
-        if [ -n "$dbus_addr" ]; then
-            export DBUS_SESSION_BUS_ADDRESS="$dbus_addr"
-            log "DBUS: استخراج من العملية $dbus_pid"
-            return 0
-        fi
     fi
 
     log "تحذير: لم يتم العثور على DBUS - قد تفشل الإشعارات"
@@ -185,7 +170,8 @@ play_adhan() {
 
 stop_adhan() {
     if [ -f "$PLAYER_PID_FILE" ]; then
-        local pid=$(cat "$PLAYER_PID_FILE")
+        local pid
+        pid=$(cat "$PLAYER_PID_FILE")
         kill "$pid" 2>/dev/null || true
         kill -9 "$pid" 2>/dev/null || true
         rm -f "$PLAYER_PID_FILE"
@@ -260,6 +246,7 @@ EOF
 
 load_config() {
     if [ -f "$CONFIG_FILE" ]; then
+        # shellcheck disable=SC1090
         source "$CONFIG_FILE"
         return 0
     else
@@ -284,7 +271,7 @@ auto_detect_location() {
     LON=$(echo "$info" | jq -r '.lon // empty')
     CITY=$(echo "$info" | jq -r '.city // empty')
     COUNTRY=$(echo "$info" | jq -r '.country // empty')
-    if [[ -z "$LAT" || -z "$LON" ]]; then return 1; fi
+    if [ -z "$LAT" ] || [ -z "$LON" ]; then return 1; fi
     return 0
 }
 
@@ -317,16 +304,22 @@ setup_wizard() {
     echo "=== إعداد GT-salat-dikr ==="
     if auto_detect_location; then
         echo "تم اكتشاف الموقع تلقائيًا: $CITY, $COUNTRY (LAT=$LAT LON=$LON)"
-        read -p "هل تريد استخدامه؟ [Y/n]: " ans; ans=${ans:-Y}
+        read -p "هل تريد استخدامه؟ [Y/n]: " ans
+        ans=${ans:-Y}
         if [[ ! "$ans" =~ ^[Yy]$ ]]; then manual_location; fi
     else
         echo "تعذر اكتشاف الموقع تلقائيًا — أدخل البيانات يدويًا."
         manual_location
     fi
     choose_method
-    read -p "تفعيل تنبيه قبل الصلاة بـ10 دقائق؟ [Y/n]: " p; p=${p:-Y}; PRE_PRAYER_NOTIFY=$([ "$p" =~ ^[Yy]$ ] && echo 1 || echo 0)
-    read -p "فاصل الأذكار بالثواني (افتراضي $DEFAULT_ZIKR_INTERVAL): " z; ZIKR_NOTIFY_INTERVAL=${z:-$DEFAULT_ZIKR_INTERVAL}
-    read -p "تفعيل التحديث الذاتي للسكريبت عند توفر تحديث؟ [y/N]: " up; up=${up:-N}; AUTO_SELF_UPDATE=$([ "$up" =~ ^[Yy]$ ] && echo 1 || echo 0)
+    read -p "تفعيل تنبيه قبل الصلاة بـ10 دقائق؟ [Y/n]: " p
+    p=${p:-Y}
+    PRE_PRAYER_NOTIFY=$([ "$p" =~ ^[Yy]$ ] && echo 1 || echo 0)
+    read -p "فاصل الأذكار بالثواني (افتراضي $DEFAULT_ZIKR_INTERVAL): " z
+    ZIKR_NOTIFY_INTERVAL=${z:-$DEFAULT_ZIKR_INTERVAL}
+    read -p "تفعيل التحديث الذاتي للسكريبت عند توفر تحديث؟ [y/N]: " up
+    up=${up:-N}
+    AUTO_SELF_UPDATE=$([ "$up" =~ ^[Yy]$ ] && echo 1 || echo 0)
     save_config
 }
 
@@ -336,9 +329,9 @@ fetch_timetable() {
         log "لا يمكن جلب المواقيت - curl أو jq غير متوفر."
         return 1
     fi
-    local today=$(date +%Y-%m-%d)
-    local url="${ALADHAN_API_URL}?latitude=${LAT}&longitude=${LON}&method=${METHOD_ID}&date=${today}"
-    local resp
+    local today url resp
+    today=$(date +%Y-%m-%d)
+    url="${ALADHAN_API_URL}?latitude=${LAT}&longitude=${LON}&method=${METHOD_ID}&date=${today}"
     resp=$(curl -fsSL "$url") || { log "تعذر جلب مواقيت الصلاة من الإنترنت."; return 1; }
     echo "$resp" > "$TIMETABLE_FILE"
     log "تم جلب جدول المواقيت وحفظه في $TIMETABLE_FILE"
@@ -349,9 +342,9 @@ read_timetable() {
     if [ ! -f "$TIMETABLE_FILE" ]; then 
         fetch_timetable || return 1
     fi
-    local tdate
+    local tdate current_date
     tdate=$(jq -r '.data.date.readable' "$TIMETABLE_FILE" 2>/dev/null || echo "")
-    local current_date=$(date +"%d %b %Y")
+    current_date=$(date +"%d %b %Y")
     if [ "$tdate" != "$current_date" ]; then
         fetch_timetable || return 1
     fi
@@ -367,6 +360,7 @@ show_timetable() {
         local names=("Fajr" "Sunrise" "Dhuhr" "Asr" "Maghrib" "Isha")
         local arnames=("الفجر" "الشروق" "الظهر" "العصر" "المغرب" "العشاء")
         for i in "${!names[@]}"; do
+            local time
             time=$(jq -r ".data.timings.${names[$i]}" "$TIMETABLE_FILE" | cut -d' ' -f1)
             printf "║ %-8s : %-8s ║\n" "${arnames[$i]}" "$time"
         done
@@ -384,7 +378,8 @@ show_random_zekr() {
 }
 
 show_zekr_terminal() {
-    local zekr; zekr=$(show_random_zekr) || { echo "لا يوجد أذكار."; return 1; }
+    local zekr
+    zekr=$(show_random_zekr) || { echo "لا يوجد أذكار."; return 1; }
     
     echo "╔══════════════════════════════════════════════╗"
     echo "║                   ذكر اليوم                 ║"
@@ -392,10 +387,9 @@ show_zekr_terminal() {
     echo "║                                              ║"
     
     # تقسيم الذكر إلى أسطر
-    local words=($zekr)
-    local line=""
-    local max_length=40
-    local current_line=""
+    local words line current_line max_length=40
+    words=($zekr)
+    current_line=""
     
     for word in "${words[@]}"; do
         if [ $((${#current_line} + ${#word} + 1)) -lt $max_length ]; then
@@ -419,7 +413,8 @@ show_zekr_terminal() {
 }
 
 show_zekr_notify() {
-    local zekr; zekr=$(show_random_zekr)
+    local zekr
+    zekr=$(show_random_zekr)
     if [ -z "$zekr" ]; then
         notify-send "GT-salat-dikr" "لم يتم العثور على ذكر!"
     else
@@ -447,7 +442,9 @@ get_next_prayer() {
     
     local names=("Fajr" "Dhuhr" "Asr" "Maghrib" "Isha")
     local arnames=("الفجر" "الظهر" "العصر" "المغرب" "العشاء")
-    local now_secs=$(date +%s)
+    local now_secs h m time prayer_secs diff
+    
+    now_secs=$(date +%s)
     
     for i in "${!names[@]}"; do
         time=$(jq -r ".data.timings.${names[$i]}" "$TIMETABLE_FILE" | cut -d' ' -f1)
@@ -455,7 +452,8 @@ get_next_prayer() {
             continue
         fi
         
-        h=${time%%:*}; m=${time#*:}
+        h=${time%%:*}
+        m=${time#*:}
         prayer_secs=$(date -d "$(date +%Y-%m-%d) $h:$m" +%s 2>/dev/null || date -d "$h:$m" +%s 2>/dev/null)
         if [ -z "$prayer_secs" ]; then
             continue
@@ -471,8 +469,9 @@ get_next_prayer() {
     done
     
     # إذا انتهت جميع الصلوات، نعود للفجر في اليوم التالي
+    local fajr_time
     PRAYER_NAME="الفجر"
-    local fajr_time=$(jq -r ".data.timings.Fajr" "$TIMETABLE_FILE" | cut -d' ' -f1)
+    fajr_time=$(jq -r ".data.timings.Fajr" "$TIMETABLE_FILE" | cut -d' ' -f1)
     PRAYER_TIME="$fajr_time"
     PRAYER_LEFT=$(( $(date -d "tomorrow $fajr_time" +%s 2>/dev/null || echo $((now_secs + 86400))) - now_secs ))
     return 0
@@ -511,10 +510,11 @@ notify_loop() {
     local zekr_interval="${ZIKR_NOTIFY_INTERVAL:-$DEFAULT_ZIKR_INTERVAL}"
 
     while true; do
-        local current_time=$(date +%s)
+        local current_time
+        current_time=$(date +%s)
         
         # إرسال ذكر عشوائي كل فترة
-        if [ $((current_time - last_zekr_time)) -ge $zekr_interval ]; then
+        if [ $((current_time - last_zekr_time)) -ge "$zekr_interval" ]; then
             show_zekr_notify || true
             last_zekr_time=$current_time
         fi
@@ -554,7 +554,8 @@ notify_loop() {
 # ---------------- start/stop notify - محسّن ----------------
 start_notify_bg() {
     if [ -f "$PID_FILE" ]; then
-        local pid; pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
+        local pid
+        pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
             echo "✅ الإشعارات تعمل بالفعل (PID: $pid)"
             return 0
@@ -576,7 +577,7 @@ start_notify_bg() {
     # تشغيل حلقة الإشعارات في الخلفية مباشرة
     (
         cd "$SCRIPT_DIR"
-        if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
+        if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
             export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus" 2>/dev/null || true
         fi
         notify_loop &
@@ -586,11 +587,11 @@ start_notify_bg() {
         wait $loop_pid
     ) >/dev/null 2>&1 &
     
-    local bg_pid=$!
     sleep 2
     
     if [ -f "$PID_FILE" ]; then
-        local main_pid=$(cat "$PID_FILE" 2>/dev/null)
+        local main_pid
+        main_pid=$(cat "$PID_FILE" 2>/dev/null)
         if [ -n "$main_pid" ] && kill -0 "$main_pid" 2>/dev/null; then
             echo "✅ تم بدء إشعارات GT-salat-dikr (PID: $main_pid)"
             return 0
@@ -604,7 +605,8 @@ start_notify_bg() {
 
 stop_notify_bg() {
     if [ -f "$PID_FILE" ]; then
-        local pid; pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
+        local pid
+        pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
             kill "$pid" 2>/dev/null || true
             sleep 1
@@ -639,7 +641,8 @@ check_script_update() {
     remote_hash=$(curl -fsSL "$REPO_SCRIPT_URL" | sha1sum | awk '{print $1}') || return 1
     if [ "$local_hash" != "" ] && [ "$local_hash" != "$remote_hash" ]; then
         echo "يوجد تحديث جديد للسكريبت."
-        read -p "هل ترغب بتحديث السكربت تلقائيًا الآن؟ [Y/n]: " ans; ans=${ans:-Y}
+        read -p "هل ترغب بتحديث السكربت تلقائيًا الآن؟ [Y/n]: " ans
+        ans=${ans:-Y}
         if [[ "$ans" =~ ^[Yy]$ ]]; then
             tmpf=$(mktemp) || return 1
             curl -fsSL "$REPO_SCRIPT_URL" -o "$tmpf" || { echo "فشل تحميل النسخة الجديدة."; rm -f "$tmpf"; return 1; }
@@ -671,7 +674,7 @@ uninstall_self() {
 }
 
 # ---------------- child mode ----------------
-if [[ "${1:-}" == "--child-notify" ]]; then
+if [ "${1:-}" = "--child-notify" ]; then
     ensure_dbus
     check_tools
     notify_loop
@@ -745,30 +748,34 @@ case "${1:-}" in
         check_script_update
         ;;
     --status)
-        echo "📊 حالة GT-salat-dikr:"
-        echo "══════════════════════════════════════════════"
-        if [ -f "$PID_FILE" ]; then
-            local pid; pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
-            if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-                echo "✅ الإشعارات: نشطة (PID: $pid)"
+        show_status() {
+            echo "📊 حالة GT-salat-dikr:"
+            echo "══════════════════════════════════════════════"
+            if [ -f "$PID_FILE" ]; then
+                local pid
+                pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
+                if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+                    echo "✅ الإشعارات: نشطة (PID: $pid)"
+                else
+                    echo "❌ الإشعارات: متوقفة"
+                    rm -f "$PID_FILE" 2>/dev/null || true
+                fi
             else
                 echo "❌ الإشعارات: متوقفة"
-                rm -f "$PID_FILE" 2>/dev/null || true
             fi
-        else
-            echo "❌ الإشعارات: متوقفة"
-        fi
-        
-        if [ -f "$CONFIG_FILE" ]; then
-            echo "📍 الموقع: ${CITY:-غير معين}, ${COUNTRY:-غير معين}"
-            echo "📅 طريقة الحساب: ${METHOD_NAME:-غير معين}"
-            echo "⏰ تنبيه قبل الصلاة: $([ "${PRE_PRAYER_NOTIFY:-1}" = "1" ] && echo "مفعل" || echo "معطل")"
-            echo "🔄 فاصل الأذكار: ${ZIKR_NOTIFY_INTERVAL:-$DEFAULT_ZIKR_INTERVAL} ثانية"
-        else
-            echo "⚠️  الإعدادات: غير مهيئة"
-        fi
-        echo "📁 مجلد التثبيت: $INSTALL_DIR"
-        echo "══════════════════════════════════════════════"
+            
+            if [ -f "$CONFIG_FILE" ]; then
+                echo "📍 الموقع: ${CITY:-غير معين}, ${COUNTRY:-غير معين}"
+                echo "📅 طريقة الحساب: ${METHOD_NAME:-غير معين}"
+                echo "⏰ تنبيه قبل الصلاة: $([ "${PRE_PRAYER_NOTIFY:-1}" = "1" ] && echo "مفعل" || echo "معطل")"
+                echo "🔄 فاصل الأذكار: ${ZIKR_NOTIFY_INTERVAL:-$DEFAULT_ZIKR_INTERVAL} ثانية"
+            else
+                echo "⚠️  الإعدادات: غير مهيئة"
+            fi
+            echo "📁 مجلد التثبيت: $INSTALL_DIR"
+            echo "══════════════════════════════════════════════"
+        }
+        show_status
         ;;
     --help|-h)
         echo "🕌 GT-salat-dikr - مساعد مواقيت الصلاة والأذكار"
@@ -801,12 +808,15 @@ case "${1:-}" in
         if [ -f "$CONFIG_FILE" ]; then
             show_timetable 2>/dev/null || echo "⚠️  تعذر تحميل مواقيت الصلاة"
             echo ""
-            get_next_prayer 2>/dev/null && {
+            if get_next_prayer 2>/dev/null; then
+                local leftmin lefth leftm
                 leftmin=$((PRAYER_LEFT/60))
                 lefth=$((leftmin/60))
                 leftm=$((leftmin%60))
                 printf "🕌 الصلاة القادمة: %s عند %s (باقي %02d:%02d)\n" "${PRAYER_NAME:-?}" "${PRAYER_TIME:-??:??}" "$lefth" "$leftm"
-            } || echo "⚠️  تعذر تحديد موعد الصلاة القادمة"
+            else
+                echo "⚠️  تعذر تحديد موعد الصلاة القادمة"
+            fi
         else
             echo "💡 استخدم 'gtsalat --settings' لتهيئة الإعدادات أولاً"
         fi
@@ -815,4 +825,6 @@ case "${1:-}" in
         echo "💡 استخدم '$0 --help' لعرض جميع الخيارات المتاحة"
         ;;
 esac
+
+exit 0
 [file content end]
