@@ -1,49 +1,98 @@
 #!/bin/bash
-# المثبت المبسط لـ GT-salat-dikr
-# Author: gnutux
+# مثبت GT-salat-dikr - نسخة مُصلحة تماماً للإشعارات
 
 set -euo pipefail
 
 INSTALL_DIR="$HOME/.GT-salat-dikr"
 SCRIPT_NAME="gt-salat-dikr.sh"
 AZKAR_FILE="azkar.txt"
-ADHAN_FILE="adhan.ogg"
-LOCAL_BIN="$HOME/.local/bin"
-REPO_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main"
+REPO_RAW_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main"
 
 echo "🔄 تثبيت GT-salat-dikr في $INSTALL_DIR ..."
 mkdir -p "$INSTALL_DIR"
 
+# --- إضافة ~/.local/bin إلى PATH ---
+add_to_path() {
+    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        echo "📝 إضافة ~/.local/bin إلى PATH..."
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc" 2>/dev/null || true
+        export PATH="$HOME/.local/bin:$PATH"
+        echo "✅ تم إضافة ~/.local/bin إلى PATH"
+    fi
+}
+add_to_path
+
 # --- تحميل الملفات ---
 echo "📥 جلب الملفات المطلوبة..."
-curl -fsSL "$REPO_URL/$SCRIPT_NAME" -o "$INSTALL_DIR/$SCRIPT_NAME"
-curl -fsSL "$REPO_URL/$AZKAR_FILE" -o "$INSTALL_DIR/$AZKAR_FILE"
-curl -fsSL "$REPO_URL/$ADHAN_FILE" -o "$INSTALL_DIR/$ADHAN_FILE" || echo "⚠️ لم يتم جلب ملف الآذان (اختياري)"
+
+# تحميل azkar.txt
+if curl -fsSL "$REPO_RAW_URL/$AZKAR_FILE" -o "$INSTALL_DIR/$AZKAR_FILE"; then
+    echo "✅ تم جلب azkar.txt"
+else
+    echo "❌ فشل جلب azkar.txt"
+    exit 1
+fi
+
+# تحميل السكربت الرئيسي
+if curl -fsSL "$REPO_RAW_URL/$SCRIPT_NAME" -o "$INSTALL_DIR/$SCRIPT_NAME"; then
+    echo "✅ تم جلب $SCRIPT_NAME"
+else
+    echo "❌ فشل جلب $SCRIPT_NAME"
+    exit 1
+fi
+
+# تحميل ملف الآذان (اختياري)
+if curl -fsSL "$REPO_RAW_URL/adhan.ogg" -o "$INSTALL_DIR/adhan.ogg"; then
+    echo "✅ تم جلب ملف الآذان"
+else
+    echo "⚠️ تعذر جلب ملف الآذان (اختياري)"
+fi
+
 chmod +x "$INSTALL_DIR/$SCRIPT_NAME"
 
-# --- إنشاء الرابط الرمزي ---
+# --- إنشاء اختصار ---
+LOCAL_BIN="$HOME/.local/bin"
 mkdir -p "$LOCAL_BIN"
 ln -sf "$INSTALL_DIR/$SCRIPT_NAME" "$LOCAL_BIN/gtsalat"
-chmod +x "$LOCAL_BIN/gtsalat"
-echo "✅ تم إنشاء الرابط الرمزي gtsalat في $LOCAL_BIN/"
+echo "✅ تم إنشاء اختصار gtsalat في $LOCAL_BIN/"
 
-# --- إنشاء autostart ---
-mkdir -p "$HOME/.config/autostart"
-cat > "$HOME/.config/autostart/gt-salat-dikr.desktop" <<EOF
+# --- إعداد التشغيل التلقائي ---
+add_autostart_service() {
+    local autostart_dir="$HOME/.config/autostart"
+    local service_file="$autostart_dir/gt-salat-dikr.desktop"
+    mkdir -p "$autostart_dir"
+
+    cat > "$service_file" <<EOF
 [Desktop Entry]
 Type=Application
 Name=GT-salat-dikr Notifications
-Exec=bash -c "sleep 30 && $INSTALL_DIR/$SCRIPT_NAME --notify-start"
+Exec=bash -c "cd '$INSTALL_DIR' && sleep 25 && './$SCRIPT_NAME' --notify-start"
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
 Comment=Automatic prayer times and azkar notifications
 EOF
-echo "✅ تم إنشاء خدمة autostart"
+    echo "✅ تم إضافة خدمة التشغيل التلقائي"
+}
+add_autostart_service
+
+# --- الإعدادات الأولية ---
+echo "⚙️  بدء إعدادات التهيئة الأولى..."
+cd "$INSTALL_DIR" && bash "$SCRIPT_NAME" --settings
+
+# --- بدء الإشعارات فوراً ---
+echo "🔔 بدء إشعارات التذكير التلقائية..."
+cd "$INSTALL_DIR" && nohup bash -c "sleep 10 && ./'$SCRIPT_NAME' --notify-start" > notify.log 2>&1 &
 
 echo ""
 echo "🎉 تم التثبيت بنجاح!"
-echo "🔧 يمكنك الآن تشغيل الإشعارات: gtsalat --notify-start"
-echo "ℹ️ لإيقاف الإشعارات: gtsalat --notify-stop"
+echo ""
+echo "🔧 للتحكم في الإشعارات:"
+echo "   gtsalat --notify-start    # بدء الإشعارات"
+echo "   gtsalat --notify-stop     # إيقاف الإشعارات"
+echo "   gtsalat --show-timetable  # عرض مواقيت الصلاة"
+echo "   gtsalat --settings        # تغيير الإعدادات"
+echo ""
 echo "📋 السجلات: $INSTALL_DIR/notify.log"
 echo "📁 مجلد التثبيت: $INSTALL_DIR"
