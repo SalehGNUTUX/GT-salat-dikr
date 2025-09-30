@@ -860,12 +860,17 @@ case "${1:-}" in
 EOF
         ;;
     '')
-        show_zekr_terminal || true
-        get_next_prayer || true
-        leftmin=$((PRAYER_LEFT/60))
-        lefth=$((leftmin/60))
-        leftm=$((leftmin%60))
-        printf "\e[1;34m🕌 الصلاة القادمة: %s عند %s (باقي %02d:%02d)\e[0m\n" "${PRAYER_NAME:-?}" "${PRAYER_TIME:-??:??}" "$lefth" "$leftm"
+       show_zekr_terminal || true
+get_next_prayer || true
+leftmin=$((PRAYER_LEFT/60))
+lefth=$((leftmin/60))
+leftm=$((leftmin%60))
+printf "🕌 الصلاة القادمة: %s عند %s (%02d:%02d متبقي)\n" \
+    "${PRAYER_NAME:-?}" "${PRAYER_TIME:-??:??}" "$lefth" "$leftm"
+
+# عرض ذكر واحد فقط
+zekr=$(show_random_zekr)
+[[ -n "$zekr" ]] && echo "$zekr"
         ;;
     *)
         echo "❌ خيار غير معروف: $1"
