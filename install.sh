@@ -12,7 +12,7 @@ echo "════════════════════════�
 echo ""
 
 # التحقق من الصلاحيات
-if [ "$EUID" -eq 0 ]; then
+if [ "$EUID" -eq 0 ]; then 
     echo "⚠️  تحذير: لا تشغل هذا السكربت بصلاحيات root"
     echo "   استخدم حساب المستخدم العادي."
     exit 1
@@ -123,18 +123,40 @@ echo "  → إنشاء اختصار gtsalat..."
 mkdir -p "$HOME/.local/bin"
 ln -sf "$INSTALL_DIR/gt-salat-dikr.sh" "$HOME/.local/bin/gtsalat"
 
-# التأكد من أن ~/.local/bin في PATH
-if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-    echo "  → إضافة ~/.local/bin إلى PATH..."
-    for rc_file in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
-        if [ -f "$rc_file" ]; then
-            if ! grep -q '.local/bin' "$rc_file"; then
-                echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$rc_file"
-            fi
-        fi
-    done
-    export PATH="$HOME/.local/bin:$PATH"
+# إعداد الطرفيات لدعم التشغيل التلقائي لجميع الأنواع
+echo "  → إعداد الطرفيات لدعم تشغيل GT-salat-dikr تلقائياً..."
+
+# bash
+BASHRC="$HOME/.bashrc"
+if [ -f "$BASHRC" ] && ! grep -q 'gt-salat-dikr' "$BASHRC"; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASHRC"
+    echo '[[ -f "$HOME/.GT-salat-dikr/gt-salat-dikr.sh" ]] && source "$HOME/.GT-salat-dikr/gt-salat-dikr.sh"' >> "$BASHRC"
 fi
+
+# zsh
+ZSHRC="$HOME/.zshrc"
+if [ -f "$ZSHRC" ] && ! grep -q 'gt-salat-dikr' "$ZSHRC"; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$ZSHRC"
+    echo '[[ -f "$HOME/.GT-salat-dikr/gt-salat-dikr.sh" ]] && source "$HOME/.GT-salat-dikr/gt-salat-dikr.sh"' >> "$ZSHRC"
+fi
+
+# fish
+FISH_CONFIG="$HOME/.config/fish/config.fish"
+mkdir -p "$(dirname "$FISH_CONFIG")"
+if [ ! -f "$FISH_CONFIG" ] || ! grep -q 'gt-salat-dikr' "$FISH_CONFIG"; then
+    echo 'set -gx PATH $HOME/.local/bin $PATH' >> "$FISH_CONFIG"
+    echo 'source $HOME/.GT-salat-dikr/gt-salat-dikr.sh' >> "$FISH_CONFIG"
+fi
+
+# ksh أو طرفيات أخرى باستخدام .profile
+PROFILE="$HOME/.profile"
+if [ -f "$PROFILE" ] && ! grep -q 'gt-salat-dikr' "$PROFILE"; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$PROFILE"
+    echo '[[ -f "$HOME/.GT-salat-dikr/gt-salat-dikr.sh" ]] && source "$HOME/.GT-salat-dikr/gt-salat-dikr.sh"' >> "$PROFILE"
+fi
+
+# تحديث PATH الحالي للجلسة
+export PATH="$HOME/.local/bin:$PATH"
 
 echo ""
 echo "✅ تم التثبيت بنجاح!"
@@ -169,11 +191,11 @@ setup_now=${setup_now:-Y}
 if [[ "$setup_now" =~ ^[Yy]$ ]]; then
     echo ""
     "$INSTALL_DIR/gt-salat-dikr.sh" --settings
-
+    
     echo ""
     read -p "هل تريد بدء الإشعارات الآن؟ [Y/n]: " start_now
     start_now=${start_now:-Y}
-
+    
     if [[ "$start_now" =~ ^[Yy]$ ]]; then
         "$INSTALL_DIR/gt-salat-dikr.sh" --notify-start
         echo ""
