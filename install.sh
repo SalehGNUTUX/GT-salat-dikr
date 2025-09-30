@@ -6,30 +6,31 @@ CONFIG_DIR="$HOME/.GT-salat-dikr"
 APP_NAME="gtsalat"
 SCRIPT_NAME="gt-salat-dikr.sh"
 DESKTOP_FILE="$HOME/.local/share/applications/$APP_NAME.desktop"
+REPO_BASE="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main"
 
 echo "🔹 تثبيت $APP_NAME ..."
 
-# إنشاء مجلدات أساسية
-mkdir -p "$INSTALL_DIR"
-mkdir -p "$CONFIG_DIR"
-mkdir -p "$(dirname "$DESKTOP_FILE")"
+# إنشاء المجلدات
+mkdir -p "$INSTALL_DIR" "$CONFIG_DIR" "$(dirname "$DESKTOP_FILE")"
 
-# نسخ الملف التنفيذي
-if [[ -f "$SCRIPT_NAME" ]]; then
-    cp "$SCRIPT_NAME" "$INSTALL_DIR/$APP_NAME"
-    chmod +x "$INSTALL_DIR/$APP_NAME"
-    echo "✅ تم نسخ الملف التنفيذي إلى $INSTALL_DIR/$APP_NAME"
+# التحقق من وجود الملف محليًا أو تحميله من GitHub
+if [[ -f "./$SCRIPT_NAME" ]]; then
+    echo "📂 وُجد $SCRIPT_NAME محليًا — سيتم استخدامه"
+    cp "./$SCRIPT_NAME" "$INSTALL_DIR/$APP_NAME"
 else
-    echo "❌ لم أجد الملف $SCRIPT_NAME"
-    exit 1
+    echo "⬇️ لم أجد $SCRIPT_NAME محليًا — تنزيل من GitHub..."
+    curl -fsSL "$REPO_BASE/$SCRIPT_NAME" -o "$INSTALL_DIR/$APP_NAME"
 fi
 
-# نسخ ملف الأذان إن وُجد
-if [[ -f "adhan.ogg" ]]; then
-    cp "adhan.ogg" "$CONFIG_DIR/"
-    echo "✅ تم نسخ adhan.ogg إلى $CONFIG_DIR/"
+chmod +x "$INSTALL_DIR/$APP_NAME"
+echo "✅ تم تثبيت الملف التنفيذي: $INSTALL_DIR/$APP_NAME"
+
+# تنزيل ملف الأذان إن وُجد
+if curl --output /dev/null --silent --head --fail "$REPO_BASE/adhan.ogg"; then
+    curl -fsSL "$REPO_BASE/adhan.ogg" -o "$CONFIG_DIR/adhan.ogg"
+    echo "✅ تم تنزيل adhan.ogg إلى $CONFIG_DIR/"
 else
-    echo "⚠️ لم أجد ملف adhan.ogg، سيُستخدم المسار الافتراضي إن كان في السكربت"
+    echo "⚠️ لم يتم العثور على adhan.ogg في المستودع"
 fi
 
 # إنشاء ملف desktop launcher
@@ -43,6 +44,5 @@ Categories=Utility;
 Terminal=true
 EOF
 
-echo "✅ تم إنشاء ملف التشغيل في القائمة: $DESKTOP_FILE"
-
-echo "🎉 تم التثبيت بنجاح!"
+echo "✅ تم إنشاء ملف التشغيل: $DESKTOP_FILE"
+echo "🎉 التثبيت اكتمل بنجاح!"
