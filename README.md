@@ -9,7 +9,7 @@
 يمكن تثبيت البرنامج بنسخة نظيفة عبر السكربت المخصص:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install-gt-salat-dikr.sh)"
 ````
 
 السكربت يقوم بالآتي:
