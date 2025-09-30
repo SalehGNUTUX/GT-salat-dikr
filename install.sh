@@ -1,5 +1,5 @@
 #!/bin/bash
-# مثبت GT-salat-dikr - نسخة مُحدثة ومحسّنة
+# مثبت GT-salat-dikr - نسخة مُصلحة للإشعارات وتهيئة الطرفية
 
 set -euo pipefail
 
@@ -15,9 +15,9 @@ mkdir -p "$LOCAL_BIN"
 
 # --- تحميل الملفات ---
 echo "📥 جلب الملفات المطلوبة..."
-curl -fsSL "$REPO_RAW_URL/$AZKAR_FILE" -o "$INSTALL_DIR/$AZKAR_FILE"
-curl -fsSL "$REPO_RAW_URL/$SCRIPT_NAME" -o "$INSTALL_DIR/$SCRIPT_NAME"
-curl -fsSL "$REPO_RAW_URL/adhan.ogg" -o "$INSTALL_DIR/adhan.ogg" || true
+curl -fsSL "$REPO_RAW_URL/$AZKAR_FILE" -o "$INSTALL_DIR/$AZKAR_FILE" && echo "✅ تم جلب azkar.txt"
+curl -fsSL "$REPO_RAW_URL/$SCRIPT_NAME" -o "$INSTALL_DIR/$SCRIPT_NAME" && echo "✅ تم جلب $SCRIPT_NAME"
+curl -fsSL "$REPO_RAW_URL/adhan.ogg" -o "$INSTALL_DIR/adhan.ogg" 2>/dev/null && echo "✅ تم جلب ملف الآذان (اختياري)"
 
 chmod +x "$INSTALL_DIR/$SCRIPT_NAME"
 
@@ -26,7 +26,15 @@ ln -sf "$INSTALL_DIR/$SCRIPT_NAME" "$LOCAL_BIN/gtsalat"
 chmod +x "$LOCAL_BIN/gtsalat"
 echo "✅ تم إنشاء اختصار gtsalat في $LOCAL_BIN/"
 
-# --- إضافة السكربت إلى ملفات الطرفية ---
+# --- إضافة ~/.local/bin إلى PATH إذا لم يكن موجود ---
+for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    [ -f "$rc" ] || continue
+    if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$rc"; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$rc"
+    fi
+done
+
+# --- إضافة سطر تشغيل GT-salat-dikr تلقائيًا عند فتح الطرفية ---
 add_to_shell_rc() {
     local rc="$1"
     local marker="# GT-salat-dikr: ذكر و صلاة"
@@ -37,10 +45,12 @@ $marker
 "$LOCAL_BIN/gtsalat"
 EOF
 }
-[ -f "$HOME/.bashrc" ] && add_to_shell_rc "$HOME/.bashrc"
-[ -f "$HOME/.zshrc" ] && add_to_shell_rc "$HOME/.zshrc"
 
-# --- إعداد التشغيل التلقائي ---
+for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    [ -f "$rc" ] && add_to_shell_rc "$rc"
+done
+
+# --- إعداد التشغيل التلقائي (autostart) ---
 mkdir -p "$HOME/.config/autostart"
 cat > "$HOME/.config/autostart/gt-salat-dikr.desktop" <<EOF
 [Desktop Entry]
@@ -54,16 +64,15 @@ Comment=Automatic prayer times and azkar notifications
 EOF
 echo "✅ تم إضافة خدمة التشغيل التلقائي"
 
-# --- الإعداد الأولي (مرة واحدة فقط) ---
-if [ ! -f "$INSTALL_DIR/.initialized" ]; then
+# --- إعدادات أولية فقط إذا لم توجد ---
+if [ ! -f "$INSTALL_DIR/settings.conf" ]; then
     echo "⚙️ بدء إعدادات التهيئة الأولى..."
-    cd "$INSTALL_DIR" && bash "$SCRIPT_NAME" --settings
-    touch "$INSTALL_DIR/.initialized"
+    bash "$INSTALL_DIR/$SCRIPT_NAME" --settings
 fi
 
 # --- بدء الإشعارات فوراً ---
 echo "🔔 بدء إشعارات التذكير التلقائية..."
-cd "$INSTALL_DIR" && nohup bash -c "./$SCRIPT_NAME --notify-start" > "$INSTALL_DIR/notify.log" 2>&1 &
+nohup bash -c "cd '$INSTALL_DIR' && sleep 10 && ./'$SCRIPT_NAME' --notify-start" > "$INSTALL_DIR/notify.log" 2>&1 &
 
 echo ""
 echo "🎉 تم التثبيت بنجاح!"
