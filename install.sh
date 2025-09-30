@@ -1,7 +1,7 @@
-[file name]: install-gt-salat-dikr.sh
+[file name]: install.sh
 [file content begin]
 #!/bin/bash
-# مثبت GT-salat-dikr - نسخة محسنة ومتوافقة مع الإصدار الجديد
+# مثبت GT-salat-dikr - نسخة مصححة تماماً
 
 set -euo pipefail
 
@@ -12,7 +12,6 @@ REPO_RAW_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main"
 
 echo "╔══════════════════════════════════════════════╗"
 echo "║           تثبيت GT-salat-dikr               ║"
-echo "║           النسخة المحسنة                   ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 
@@ -25,65 +24,33 @@ if [ -d "$INSTALL_DIR" ] && [ -f "$HOME/.local/bin/gtsalat" ]; then
         echo "❌ تم إلغاء التثبيت."
         exit 0
     fi
-    echo "🔄 المتابعة بإعادة التثبيت..."
+    # تنظيف التثبيت القديم
+    rm -rf "$INSTALL_DIR"
+    rm -f "$HOME/.local/bin/gtsalat"
+    echo "🔄 تنظيف التثبيت القديم..."
 fi
 
 echo "🔄 إنشاء مجلد التثبيت في $INSTALL_DIR ..."
 mkdir -p "$INSTALL_DIR"
+cd "$INSTALL_DIR"
 
 # --- التحقق من الأدوات المطلوبة ---
 check_requirements() {
     echo "🔍 التحقق من الأدوات المطلوبة..."
     
-    local missing_tools=()
-    
     if ! command -v curl >/dev/null 2>&1; then
-        missing_tools+=("curl")
+        echo "❌ curl غير مثبت - ضروري للتثبيت"
+        echo "📦 على Ubuntu/Debian: sudo apt install curl"
+        exit 1
     fi
     
     if ! command -v notify-send >/dev/null 2>&1; then
         echo "⚠️  تحذير: notify-send غير مثبت - الإشعارات قد لا تعمل"
     fi
     
-    if ! command -v jq >/dev/null 2>&1; then
-        echo "⚠️  تحذير: jq غير مثبت - بعض الميزات قد لا تعمل"
-    fi
-    
-    if [ ${#missing_tools[@]} -gt 0 ]; then
-        echo "❌ الأدوات التالية غير مثبتة: ${missing_tools[*]}"
-        echo "📦 يرجى تثبيتها أولاً باستخدام مدير الحزم الخاص بتوزيعتك."
-        exit 1
-    fi
-    
     echo "✅ جميع الأدوات الأساسية متوفرة"
 }
 check_requirements
-
-# --- إضافة ~/.local/bin إلى PATH ---
-add_to_path() {
-    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-        echo "📝 إضافة ~/.local/bin إلى PATH..."
-        
-        # إضافة إلى .bashrc
-        if [ -f "$HOME/.bashrc" ]; then
-            if ! grep -q "\.local/bin" "$HOME/.bashrc"; then
-                echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
-            fi
-        fi
-        
-        # إضافة إلى .zshrc
-        if [ -f "$HOME/.zshrc" ]; then
-            if ! grep -q "\.local/bin" "$HOME/.zshrc"; then
-                echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
-            fi
-        fi
-        
-        # تعيين PATH للجلسة الحالية
-        export PATH="$HOME/.local/bin:$PATH"
-        echo "✅ تم إضافة ~/.local/bin إلى PATH"
-    fi
-}
-add_to_path
 
 # --- تحميل الملفات ---
 echo ""
@@ -91,7 +58,7 @@ echo "📥 جلب الملفات المطلوبة..."
 
 # تحميل azkar.txt
 echo "⏳ جلب ملف الأذكار..."
-if curl -fsSL "$REPO_RAW_URL/$AZKAR_FILE" -o "$INSTALL_DIR/$AZKAR_FILE"; then
+if curl -fsSL "$REPO_RAW_URL/$AZKAR_FILE" -o "$AZKAR_FILE"; then
     echo "✅ تم جلب azkar.txt"
 else
     echo "❌ فشل جلب azkar.txt"
@@ -100,7 +67,7 @@ fi
 
 # تحميل السكربت الرئيسي
 echo "⏳ جلب السكربت الرئيسي..."
-if curl -fsSL "$REPO_RAW_URL/$SCRIPT_NAME" -o "$INSTALL_DIR/$SCRIPT_NAME"; then
+if curl -fsSL "$REPO_RAW_URL/$SCRIPT_NAME" -o "$SCRIPT_NAME"; then
     echo "✅ تم جلب $SCRIPT_NAME"
 else
     echo "❌ فشل جلب $SCRIPT_NAME"
@@ -109,16 +76,16 @@ fi
 
 # تحميل ملف الآذان (اختياري)
 echo "⏳ جلب ملف الآذان..."
-if curl -fsSL "$REPO_RAW_URL/adhan.ogg" -o "$INSTALL_DIR/adhan.ogg"; then
+if curl -fsSL "$REPO_RAW_URL/adhan.ogg" -o "adhan.ogg"; then
     echo "✅ تم جلب ملف الآذان"
 else
     echo "⚠️  تعذر جلب ملف الآذان (سيتم استخدام بديل)"
     # إنشاء ملف آذان بديل فارغ
-    touch "$INSTALL_DIR/adhan.ogg"
+    touch "adhan.ogg"
 fi
 
 # منح صلاحيات التنفيذ
-chmod +x "$INSTALL_DIR/$SCRIPT_NAME"
+chmod +x "$SCRIPT_NAME"
 echo "✅ تم منح صلاحيات التنفيذ للسكربت"
 
 # --- إنشاء اختصار ---
@@ -145,11 +112,10 @@ setup_autostart() {
 Type=Application
 Name=GT-salat-dikr Notifications
 Name[ar]=إشعارات الصلاة والأذكار
-Exec=bash -c "sleep 25 && '$INSTALL_DIR/$SCRIPT_NAME' --notify-start"
+Exec=bash -c "sleep 20 && '$INSTALL_DIR/$SCRIPT_NAME' --notify-start"
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
-X-KDE-autostart-after=panel
 Comment=Automatic prayer times and azkar notifications
 Comment[ar]=إشعارات تلقائية لأوقات الصلاة والأذكار
 Icon=preferences-system-time
@@ -164,16 +130,21 @@ EOF
 }
 setup_autostart
 
-# --- الإعدادات الأولية ---
+# --- الإعدادات الأولية (مرة واحدة فقط) ---
 echo ""
 echo "⚙️  بدء إعدادات التهيئة الأولى..."
-cd "$INSTALL_DIR"
 
-# تشغيل معالج الإعدادات
-if bash "$SCRIPT_NAME" --settings; then
-    echo "✅ تم إكمال الإعدادات بنجاح"
+# التحقق إذا كانت الإعدادات موجودة مسبقاً
+if [ ! -f "settings.conf" ]; then
+    echo "🔧 إعدادات جديدة - بدء المعالج..."
+    if bash "$SCRIPT_NAME" --settings; then
+        echo "✅ تم إكمال الإعدادات بنجاح"
+    else
+        echo "⚠️  حدثت مشكلة أثناء الإعدادات"
+        echo "💡 يمكنك تعديلها لاحقاً باستخدام: gtsalat --settings"
+    fi
 else
-    echo "⚠️  حدثت مشكلة أثناء الإعدادات - يمكنك تعديلها لاحقاً باستخدام: gtsalat --settings"
+    echo "ℹ️  تم العثور على إعدادات سابقة - الاحتفاظ بها"
 fi
 
 # --- بدء الإشعارات فوراً ---
@@ -183,12 +154,16 @@ read -p "هل تريد بدء الإشعارات الآن؟ [Y/n]: " start_now
 start_now=${start_now:-Y}
 
 if [[ "$start_now" =~ ^[Yy]$ ]]; then
-    if cd "$INSTALL_DIR" && nohup bash -c "sleep 5 && ./'$SCRIPT_NAME' --notify-start" > /dev/null 2>&1 & then
-        echo "✅ تم بدء الإشعارات في الخلفية"
+    echo "⏳ بدء الإشعارات في الخلفية..."
+    
+    # استخدام الطريقة المباشرة بدلاً من nohup
+    if bash "$SCRIPT_NAME" --notify-start; then
+        echo "✅ تم بدء الإشعارات بنجاح"
         sleep 2
+        
         # التحقق من أن الإشعارات تعمل
-        if [ -f "$INSTALL_DIR/.gt-salat-dikr-notify.pid" ]; then
-            local pid=$(cat "$INSTALL_DIR/.gt-salat-dikr-notify.pid" 2>/dev/null || echo "")
+        if [ -f ".gt-salat-dikr-notify.pid" ]; then
+            local pid=$(cat ".gt-salat-dikr-notify.pid" 2>/dev/null || echo "")
             if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
                 echo "✅ الإشعارات تعمل بشكل صحيح (PID: $pid)"
             else
@@ -197,6 +172,7 @@ if [[ "$start_now" =~ ^[Yy]$ ]]; then
         fi
     else
         echo "❌ فشل بدء الإشعارات - يمكنك بدؤها يدوياً لاحقاً"
+        echo "💡 استخدم: gtsalat --notify-start"
     fi
 else
     echo "ℹ️  يمكنك بدء الإشعارات لاحقاً باستخدام: gtsalat --notify-start"
@@ -214,19 +190,17 @@ echo "   📝 سجلات البرنامج: $INSTALL_DIR/notify.log"
 echo "   🔧 الاختصار: gtsalat (متاح من أي مكان)"
 echo ""
 echo "🎛️  أوامر التحكم:"
-echo "   gtsalat --notify-start    # بدء الإشعارات"
-echo "   gtsalat --notify-stop     # إيقاف الإشعارات"
-echo "   gtsalat --show-timetable  # عرض مواقيت الصلاة"
+echo "   gtsalat                    # عرض ذكر ومواقيت الصلاة"
+echo "   gtsalat --notify-start     # بدء الإشعارات"
+echo "   gtsalat --notify-stop      # إيقاف الإشعارات"  
+echo "   gtsalat --show-timetable   # عرض مواقيت الصلاة"
 echo "   gtsalat --status          # عرض حالة البرنامج"
 echo "   gtsalat --settings        # تغيير الإعدادات"
-echo "   gtsalat --test-notify     # اختبار الإشعارات"
-echo "   gtsalat --test-adhan      # اختبار الأذان"
 echo ""
 echo "💡 نصائح:"
 echo "   - استخدم 'gtsalat --status' للتحقق من حالة البرنامج"
 echo "   - استخدم 'gtsalat --help' لعرض جميع الخيارات"
-echo "   - السجلات متاحة في: $INSTALL_DIR/notify.log"
 echo ""
-echo "📖 للدعم والمزيد: https://github.com/SalehGNUTUX/GT-salat-dikr"
+echo "📖 للدعم: https://github.com/SalehGNUTUX/GT-salat-dikr"
 echo ""
 [file content end]
