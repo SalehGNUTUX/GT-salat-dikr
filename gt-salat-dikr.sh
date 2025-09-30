@@ -1,5 +1,3 @@
-[file name]: gt-salat-dikr.sh
-[file content begin]
 #!/bin/bash
 #
 # GT-salat-dikr - Enhanced version with GUI adhan player
@@ -827,4 +825,4 @@ case "${1:-}" in
 esac
 
 exit 0
-[file content end]
+
