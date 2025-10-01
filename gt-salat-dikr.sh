@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# GT-salat-dikr - نسخة محسنة للعرض الخفيف
+# GT-salat-dikr - نظام إشعارات الصلاة والأذكار المحسّن
 # Author: gnutux
 #
 set -euo pipefail
@@ -34,11 +34,38 @@ TIMETABLE_FILE="$SCRIPT_DIR/timetable.json"
 PID_FILE="$SCRIPT_DIR/.gt-salat-dikr-notify.pid"
 NOTIFY_LOG="$SCRIPT_DIR/notify.log"
 ADHAN_FILE="$SCRIPT_DIR/adhan.ogg"
+ADHAN_PLAYER_SCRIPT="$SCRIPT_DIR/adhan-player.sh"
 
 REPO_AZKAR_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/azkar.txt"
+REPO_SCRIPT_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/gt-salat-dikr.sh"
 ALADHAN_API_URL="https://api.aladhan.com/v1/timings"
 
-# ---------------- دوال العرض الخفيف ----------------
+DEFAULT_ZIKR_INTERVAL=300
+DEFAULT_PRE_NOTIFY=1
+
+# ---------------- دوال مساعدة ----------------
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $*" >> "$NOTIFY_LOG" 2>/dev/null || true
+}
+
+fetch_if_missing() {
+    local file="$1" url="$2"
+    if [ ! -f "$file" ]; then
+        curl -fsSL "$url" -o "$file" 2>/dev/null || return 1
+    fi
+    return 0
+}
+
+ensure_dbus() {
+    if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+        local bus="/run/user/$(id -u)/bus"
+        if [ -S "$bus" ]; then
+            export DBUS_SESSION_BUS_ADDRESS="unix:path=$bus"
+        fi
+    fi
+}
+
+# ---------------- دوال العرض ----------------
 show_simple_zekr() {
     if [ ! -f "$AZKAR_FILE" ]; then
         echo "📿 لا يوجد أذكار"
@@ -55,15 +82,17 @@ show_simple_zekr() {
     fi
 }
 
-show_simple_timetable() {
-    if [ ! -f "$TIMETABLE_FILE" ]; then
+show_next_prayer() {
+    if [ ! -f "$TIMETABLE_FILE" ] || [ ! -f "$CONFIG_FILE" ]; then
+        echo "🕌 جاري تحميل مواقيت الصلاة..."
         return 1
     fi
     
-    local next_prayer next_time time_left
+    source "$CONFIG_FILE"
     local names=("Fajr" "Dhuhr" "Asr" "Maghrib" "Isha")
     local arnames=("الفجر" "الظهر" "العصر" "المغرب" "العشاء")
     local now_secs=$(date +%s)
+    local next_prayer next_time time_left
     
     for i in "${!names[@]}"; do
         local time
@@ -98,6 +127,32 @@ show_simple_timetable() {
     fi
 }
 
+show_full_timetable() {
+    if [ ! -f "$TIMETABLE_FILE" ] || [ ! -f "$CONFIG_FILE" ]; then
+        echo "❌ تعذر تحميل جدول المواقيت"
+        return 1
+    fi
+    
+    source "$CONFIG_FILE"
+    echo "╔══════════════════════════════════════╗"
+    echo "║         مواقيت الصلاة اليوم         ║"
+    echo "║             ($CITY)              ║"
+    echo "╠══════════════════════════════════════╣"
+    
+    local names=("Fajr" "Sunrise" "Dhuhr" "Asr" "Maghrib" "Isha")
+    local arnames=("الفجر" "الشروق" "الظهر" "العصر" "المغرب" "العشاء")
+    
+    for i in "${!names[@]}"; do
+        local time
+        time=$(jq -r ".data.timings.${names[$i]}" "$TIMETABLE_FILE" 2>/dev/null | cut -d' ' -f1)
+        if [ "$time" != "null" ] && [ -n "$time" ]; then
+            printf "║ %-8s : %-8s ║\n" "${arnames[$i]}" "$time"
+        fi
+    done
+    
+    echo "╚══════════════════════════════════════╝"
+}
+
 fetch_timetable_silent() {
     if [ ! -f "$CONFIG_FILE" ]; then
         return 1
@@ -115,21 +170,10 @@ fetch_timetable_silent() {
     
     resp=$(curl -fsSL "$url" 2>/dev/null) || return 1
     echo "$resp" > "$TIMETABLE_FILE"
+    log "تم تحديث جدول المواقيت"
 }
 
-# ---------------- الوضع الافتراضي (عرض خفيف) ----------------
-main_light_mode() {
-    # تحديث مواقيت الصلاة في الخلفية (صامت)
-    fetch_timetable_silent &
-    
-    # عرض الذكر
-    show_simple_zekr
-    
-    # عرض الصلاة القادمة
-    show_simple_timetable
-}
-
-# ---------------- دوال الخدمة ----------------
+# ---------------- دوال الإشعارات ----------------
 start_notify_bg() {
     if [ -f "$PID_FILE" ]; then
         local pid
@@ -142,22 +186,35 @@ start_notify_bg() {
         fi
     fi
 
+    ensure_dbus
+    
     # بدء خدمة الإشعارات في الخلفية
     (
         cd "$SCRIPT_DIR"
+        local last_zekr=0
+        local zekr_interval=300
+        
+        if [ -f "$CONFIG_FILE" ]; then
+            source "$CONFIG_FILE"
+            zekr_interval="${ZIKR_NOTIFY_INTERVAL:-300}"
+        fi
+        
         while true; do
-            if [ -f "$CONFIG_FILE" ]; then
-                source "$CONFIG_FILE"
-                local zekr_interval="${ZIKR_NOTIFY_INTERVAL:-300}"
-                
-                # إرسال ذكر
-                local zekr
-                zekr=$(awk -v RS='%' '{gsub(/^[ \t\r\n]+|[ \t\r\n]+$/, "", $0); if(length($0)>0) print $0}' "$AZKAR_FILE" 2>/dev/null | shuf -n 1)
-                if [ -n "$zekr" ]; then
-                    notify-send "📿 ذكر" "$zekr" 2>/dev/null || true
+            local current_time=$(date +%s)
+            
+            # إرسال ذكر كل فترة
+            if [ $((current_time - last_zekr)) -ge "$zekr_interval" ]; then
+                if [ -f "$AZKAR_FILE" ]; then
+                    local zekr
+                    zekr=$(awk -v RS='%' '{gsub(/^[ \t\r\n]+|[ \t\r\n]+$/, "", $0); if(length($0)>0) print $0}' "$AZKAR_FILE" | shuf -n 1)
+                    if [ -n "$zekr" ]; then
+                        notify-send "📿 ذكر" "$zekr" 2>/dev/null || true
+                    fi
                 fi
+                last_zekr=$current_time
             fi
-            sleep "$zekr_interval"
+            
+            sleep 60
         done
     ) >/dev/null 2>&1 &
     
@@ -181,26 +238,100 @@ stop_notify_bg() {
     fi
 }
 
+# ---------------- دوال الاختبار ----------------
+test_notify() {
+    ensure_dbus
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "GT-salat-dikr" "اختبار إشعار ✔" -t 3000
+        echo "✅ تم إرسال إشعار تجريبي"
+    else
+        echo "❌ notify-send غير متوفرة"
+        return 1
+    fi
+}
+
+test_adhan() {
+    ensure_dbus
+    if [ ! -f "$ADHAN_FILE" ]; then
+        echo "❌ ملف الأذان غير موجود"
+        return 1
+    fi
+    
+    if command -v mpv >/dev/null 2>&1; then
+        mpv --no-video --really-quiet "$ADHAN_FILE" >/dev/null 2>&1 &
+        echo "✅ تشغيل الأذان التجريبي"
+    elif command -v paplay >/dev/null 2>&1; then
+        paplay "$ADHAN_FILE" >/dev/null 2>&1 &
+        echo "✅ تشغيل الأذان التجريبي"
+    else
+        echo "❌ لم يتم العثور على مشغل صوت"
+        return 1
+    fi
+}
+
+# ---------------- دوال التحديث ----------------
+update_azkar() {
+    echo "⏳ جلب أحدث نسخة من الأذكار..."
+    if curl -fsSL "$REPO_AZKAR_URL" -o "$AZKAR_FILE"; then
+        echo "✅ تم تحديث الأذكار"
+    else
+        echo "❌ فشل في تحديث الأذكار"
+        return 1
+    fi
+}
+
+self_update() {
+    echo "⏳ التحقق من التحديثات..."
+    local current_hash new_hash temp_file
+    current_hash=$(sha1sum "$SCRIPT_DIR/$SCRIPT_NAME" 2>/dev/null | awk '{print $1}' || echo "")
+    new_hash=$(curl -fsSL "$REPO_SCRIPT_URL" | sha1sum | awk '{print $1}') || {
+        echo "❌ فشل التحقق من التحديثات"
+        return 1
+    }
+    
+    if [ "$current_hash" != "$new_hash" ] && [ -n "$current_hash" ]; then
+        echo "📦 يوجد تحديث جديد"
+        read -p "هل تريد التحديث الآن؟ [Y/n]: " answer
+        answer=${answer:-Y}
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            temp_file=$(mktemp)
+            curl -fsSL "$REPO_SCRIPT_URL" -o "$temp_file" || {
+                echo "❌ فشل تحميل التحديث"
+                rm -f "$temp_file"
+                return 1
+            }
+            chmod +x "$temp_file"
+            mv "$temp_file" "$SCRIPT_DIR/$SCRIPT_NAME"
+            echo "✅ تم التحديث بنجاح"
+        fi
+    else
+        echo "✅ أنت باستخدام أحدث نسخة"
+    fi
+}
+
+# ---------------- إعدادات ----------------
 setup_wizard() {
     echo "⚙️  إعداد GT-salat-dikr"
     
     # اكتشاف الموقع التلقائي
-    local info
+    local info lat lon city country
     info=$(curl -fsSL "http://ip-api.com/json/" 2>/dev/null) || true
     
     if [ -n "$info" ]; then
-        LAT=$(echo "$info" | jq -r '.lat // empty' 2>/dev/null || echo "")
-        LON=$(echo "$info" | jq -r '.lon // empty' 2>/dev/null || echo "")
-        CITY=$(echo "$info" | jq -r '.city // empty' 2>/dev/null || echo "")
-        COUNTRY=$(echo "$info" | jq -r '.country // empty' 2>/dev/null || echo "")
+        lat=$(echo "$info" | jq -r '.lat // empty' 2>/dev/null || echo "")
+        lon=$(echo "$info" | jq -r '.lon // empty' 2>/dev/null || echo "")
+        city=$(echo "$info" | jq -r '.city // empty' 2>/dev/null || echo "")
+        country=$(echo "$info" | jq -r '.country // empty' 2>/dev/null || echo "")
         
-        if [ -n "$LAT" ] && [ -n "$LON" ]; then
-            echo "📍 تم اكتشاف الموقع: $CITY, $COUNTRY"
+        if [ -n "$lat" ] && [ -n "$lon" ]; then
+            echo "📍 تم اكتشاف الموقع: $city, $country"
             read -p "هل تريد استخدام هذا الموقع؟ [Y/n]: " ans
             ans=${ans:-Y}
-            if [[ ! "$ans" =~ ^[Yy]$ ]]; then
-                LAT=""
-                LON=""
+            if [[ "$ans" =~ ^[Yy]$ ]]; then
+                LAT="$lat"
+                LON="$lon"
+                CITY="$city"
+                COUNTRY="$country"
             fi
         fi
     fi
@@ -232,42 +363,129 @@ ZIKR_NOTIFY_INTERVAL=$ZIKR_NOTIFY_INTERVAL
 AUTO_SELF_UPDATE=0
 EOF
     
+    # جلب المواقيت فوراً
+    fetch_timetable_silent
     echo "✅ تم حفظ الإعدادات"
+}
+
+show_status() {
+    echo "📊 حالة GT-salat-dikr:"
+    echo "══════════════════════════════════════════════"
+    
+    # حالة الإشعارات
+    if [ -f "$PID_FILE" ]; then
+        local pid
+        pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            echo "✅ الإشعارات: نشطة (PID: $pid)"
+        else
+            echo "❌ الإشعارات: متوقفة"
+            rm -f "$PID_FILE" 2>/dev/null || true
+        fi
+    else
+        echo "❌ الإشعارات: متوقفة"
+    fi
+    
+    # الإعدادات
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE"
+        echo "📍 الموقع: $CITY, $COUNTRY"
+        echo "📅 طريقة الحساب: $METHOD_NAME"
+        echo "⏰ تنبيه قبل الصلاة: $([ "$PRE_PRAYER_NOTIFY" = "1" ] && echo "مفعل" || echo "معطل")"
+        echo "🔄 فاصل الأذكار: ${ZIKR_NOTIFY_INTERVAL:-300} ثانية"
+    else
+        echo "⚠️  الإعدادات: غير مهيئة"
+    fi
+    
+    echo "📁 مجلد التثبيت: $INSTALL_DIR"
+    echo "══════════════════════════════════════════════"
+}
+
+show_help() {
+    echo "═══════════════════════════════════════════════════════════"
+    echo "  GT-salat-dikr - نظام إشعارات الصلاة والأذكار المحسّن"
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
+    echo "📦 التثبيت والإزالة:"
+    echo "  --install           تثبيت البرنامج مع autostart التلقائي"
+    echo "  --uninstall         إزالة البرنامج بالكامل"
+    echo ""
+    echo "⚙️  الإعدادات:"
+    echo "  --settings          تعديل الموقع والإعدادات"
+    echo ""
+    echo "📊 العرض:"
+    echo "  --show-timetable    عرض جدول مواقيت الصلاة لليوم"
+    echo "  --status            عرض حالة البرنامج التفصيلية"
+    echo ""
+    echo "🔔 الإشعارات:"
+    echo "  --notify-start      بدء إشعارات الخلفية"
+    echo "  --notify-stop       إيقاف إشعارات الخلفية"
+    echo ""
+    echo "🧪 الاختبار:"
+    echo "  --test-notify       اختبار الإشعارات العادية"
+    echo "  --test-adhan        اختبار مشغل الأذان الرسومي"
+    echo ""
+    echo "🔄 التحديث:"
+    echo "  --update-azkar      تحديث ملف الأذكار"
+    echo "  --self-update       تحديث البرنامج"
+    echo ""
+    echo "ℹ️  المساعدة:"
+    echo "  --help, -h          عرض هذه المساعدة"
+    echo "═══════════════════════════════════════════════════════════"
+}
+
+# ---------------- الوضع الافتراضي (خفيف) ----------------
+main_light_mode() {
+    # تحديث مواقيت الصلاة في الخلفية
+    fetch_timetable_silent &
+    
+    # عرض الذكر
+    show_simple_zekr
+    
+    # عرض الصلاة القادمة
+    show_next_prayer
 }
 
 # ---------------- معالجة الأوامر ----------------
 case "${1:-}" in
+    --install)
+        echo "ℹ️  البرنامج مثبت بالفعل في $INSTALL_DIR"
+        ;;
+    --uninstall)
+        stop_notify_bg
+        rm -f "$HOME/.local/bin/gtsalat" 2>/dev/null || true
+        rm -rf "$INSTALL_DIR" 2>/dev/null || true
+        echo "✅ تم إزالة GT-salat-dikr"
+        ;;
+    --settings)
+        setup_wizard
+        ;;
+    --show-timetable|-t)
+        show_full_timetable
+        ;;
     --notify-start)
         start_notify_bg
         ;;
     --notify-stop)
         stop_notify_bg
         ;;
-    --settings)
-        setup_wizard
+    --test-notify)
+        test_notify
+        ;;
+    --test-adhan)
+        test_adhan
+        ;;
+    --update-azkar)
+        update_azkar
+        ;;
+    --self-update)
+        self_update
         ;;
     --status)
-        echo "📊 حالة GT-salat-dikr:"
-        if [ -f "$PID_FILE" ]; then
-            local pid
-            pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
-            if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-                echo "✅ الإشعارات: نشطة"
-            else
-                echo "❌ الإشعارات: متوقفة"
-                rm -f "$PID_FILE" 2>/dev/null || true
-            fi
-        else
-            echo "❌ الإشعارات: متوقفة"
-        fi
+        show_status
         ;;
     --help|-h)
-        echo "🕌 GT-salat-dikr - أوامر سريعة:"
-        echo "  gtsalat           عرض ذكر ومواقيت الصلاة"
-        echo "  gtsalat --notify-start  بدء الإشعارات"
-        echo "  gtsalat --notify-stop   إيقاف الإشعارات"
-        echo "  gtsalat --settings      تعديل الإعدادات"
-        echo "  gtsalat --status        عرض الحالة"
+        show_help
         ;;
     *)
         main_light_mode
