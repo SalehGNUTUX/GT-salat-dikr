@@ -543,52 +543,109 @@ start_notify_bg() {
     fi
 }
 
-# ---------------- self-update ----------------
+# ---------------- self-update - محسّن مع تصحيح ----------------
 check_script_update() {
-    if ! command -v curl >/dev/null 2>&1 || ! command -v sha1sum >/dev/null 2>&1; then
-        log "لا يمكن التحقق من التحديث - curl أو sha1sum غير متوفر."
+    echo "🔍 التحقق من التحديثات..."
+    
+    if ! command -v curl >/dev/null 2>&1; then
+        echo "❌ curl غير مثبت - لا يمكن التحقق من التحديثات"
         return 1
     fi
-    local local_hash remote_hash tmpf
-    if [ -f "$SCRIPT_SOURCE_ABS" ]; then
-        local_hash=$(sha1sum "$SCRIPT_SOURCE_ABS" | awk '{print $1}') || true
-    else
-        local_hash=""
-    fi
-    remote_hash=$(curl -fsSL "$REPO_SCRIPT_URL" | sha1sum | awk '{print $1}') || return 1
-    if [ "$local_hash" != "" ] && [ "$local_hash" != "$remote_hash" ]; then
-        echo "يوجد تحديث جديد للسكريبت."
-        read -p "هل ترغب بتحديث السكربت تلقائيًا الآن؟ [Y/n]: " ans; ans=${ans:-Y}
-        if [[ "$ans" =~ ^[Yy]$ ]]; then
-            tmpf=$(mktemp) || return 1
-            curl -fsSL "$REPO_SCRIPT_URL" -o "$tmpf" || { echo "فشل تحميل النسخة الجديدة."; rm -f "$tmpf"; return 1; }
-            chmod +x "$tmpf"
-            mv "$tmpf" "$SCRIPT_SOURCE_ABS" && echo "✅ تم تحديث السكربت. أعد التشغيل لاستخدام النسخة الجديدة."
-            return 0
-        else
-            echo "تم تأجيل التحديث."
-        fi
-    else
-        echo "لا يوجد تحديث."
-    fi
-    return 0
-}
 
-# --- إضافة إلى bashrc أو zshrc ---
-add_to_shell_rc() {
-    local RC_FILE="$1"
-    local added=false
-    
-    if [ -f "$RC_FILE" ]; then
-        if ! grep -Fq "$INSTALL_DIR/$SCRIPT_NAME" "$RC_FILE"; then
-            echo "" >> "$RC_FILE"
-            echo "# GT-salat&dikr: ذكر وصلاة عند فتح الطرفية" >> "$RC_FILE"
-            echo "\"$INSTALL_DIR/$SCRIPT_NAME\"" >> "$RC_FILE"
-            added=true
-            echo "✅ تم الإضافة إلى $RC_FILE"
-        else
-            echo "ℹ️ السكربت مضاف مسبقًا إلى $RC_FILE"
+    if ! command -v sha1sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
+        echo "❌ أدوات التحقق من التجزئة غير مثبتة"
+        return 1
+    fi
+
+    # حساب تجزئة الملف المحلي
+    local local_hash=""
+    if [ -f "$SCRIPT_SOURCE_ABS" ]; then
+        if command -v sha1sum >/dev/null 2>&1; then
+            local_hash=$(sha1sum "$SCRIPT_SOURCE_ABS" | awk '{print $1}') || local_hash=""
+        elif command -v shasum >/dev/null 2>&1; then
+            local_hash=$(shasum -a 1 "$SCRIPT_SOURCE_ABS" | awk '{print $1}') || local_hash=""
         fi
+    fi
+
+    if [ -z "$local_hash" ]; then
+        echo "❌ تعذر حساب تجزئة الملف المحلي"
+        return 1
+    fi
+
+    # جلب الملف من الإنترنت وحساب تجزئته
+    local remote_hash=""
+    local temp_file=$(mktemp)
+    
+    if curl -fsSL -H "Cache-Control: no-cache" "$REPO_SCRIPT_URL?t=$(date +%s)" -o "$temp_file" 2>/dev/null; then
+        if command -v sha1sum >/dev/null 2>&1; then
+            remote_hash=$(sha1sum "$temp_file" | awk '{print $1}')
+        elif command -v shasum >/dev/null 2>&1; then
+            remote_hash=$(shasum -a 1 "$temp_file" | awk '{print $1}')
+        fi
+        rm -f "$temp_file"
+    else
+        rm -f "$temp_file"
+        echo "❌ فشل في جلب الملف من الإنترنت"
+        return 1
+    fi
+
+    if [ -z "$remote_hash" ]; then
+        echo "❌ تعذر حساب تجزئة الملف البعيد"
+        return 1
+    fi
+
+    echo "📊 مقارنة التجزئات:"
+    echo "   المحلي:  $local_hash"
+    echo "   البعيد:  $remote_hash"
+
+    if [ "$local_hash" != "$remote_hash" ]; then
+        echo "🔄 يوجد تحديث جديد!"
+        echo "📝 التغييرات:"
+        echo "   - إصلاح مشكلة بدء الإشعارات"
+        echo "   - تحسين اكتشاف التحديثات"
+        echo "   - إصلاح مشاكل DBUS"
+        
+        read -p "هل ترغب بتحديث السكربت تلقائيًا الآن؟ [Y/n]: " ans
+        ans=${ans:-Y}
+        
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            local update_temp=$(mktemp)
+            if curl -fsSL "$REPO_SCRIPT_URL" -o "$update_temp"; then
+                chmod +x "$update_temp"
+                
+                # نسخ الإعدادات الحالية إذا كانت موجودة
+                if [ -f "$CONFIG_FILE" ]; then
+                    cp "$CONFIG_FILE" "$update_temp.config.backup"
+                fi
+                
+                # استبدال الملف
+                if mv "$update_temp" "$SCRIPT_SOURCE_ABS"; then
+                    echo "✅ تم تحديث السكربت بنجاح!"
+                    echo "💡 أعد تشغيل الأوامر لاستخدام النسخة الجديدة"
+                    
+                    # إعادة تعيين الإعدادات إذا لزم الأمر
+                    if [ -f "$update_temp.config.backup" ]; then
+                        mv "$update_temp.config.backup" "$CONFIG_FILE"
+                    fi
+                    
+                    return 0
+                else
+                    rm -f "$update_temp"
+                    echo "❌ فشل في استبدال الملف - قد تحتاج صلاحيات root"
+                    return 1
+                fi
+            else
+                rm -f "$update_temp"
+                echo "❌ فشل في تحميل التحديث"
+                return 1
+            fi
+        else
+            echo "⏸️  تم تأجيل التحديث"
+            return 0
+        fi
+    else
+        echo "✅ أنت تستخدم أحدث نسخة"
+        return 0
     fi
 }
 
