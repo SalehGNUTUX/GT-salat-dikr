@@ -475,61 +475,70 @@ notify_loop() {
     done
 }
 
-# ---------------- start/stop notify - محسّن ----------------
+# ---------------- start/stop notify - محسّن مع إصلاحات ----------------
 start_notify_bg() {
+    # إيقاف أي عملية سابقة أولاً
     if [ -f "$PID_FILE" ]; then
-        local pid; pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
-        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-            echo "✅ الإشعارات تعمل بالفعل (PID: $pid)"
-            return 0
-        else
-            rm -f "$PID_FILE" 2>/dev/null || true
+        local old_pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
+        if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+            kill "$old_pid" 2>/dev/null || true
+            sleep 1
+            kill -9 "$old_pid" 2>/dev/null || true
         fi
+        rm -f "$PID_FILE" 2>/dev/null || true
     fi
+
+    # تنظيف أي عمليات متبقية
+    pkill -f "gt-salat-dikr.sh --child-notify" 2>/dev/null || true
+    sleep 1
 
     ensure_dbus
     check_tools
     create_adhan_player
 
-    nohup bash -c '
-        if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
-            export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
-        fi
-        exec "'"$SCRIPT_SOURCE_ABS"'" --child-notify
-    ' >/dev/null 2>&1 &
+    # التأكد من أن السكربت قابل للتنفيذ
+    chmod +x "$SCRIPT_SOURCE_ABS"
+
+    # بدء العملية في الخلفية مع تحسينات
+    log "بدء عملية الإشعارات الجديدة..."
+    
+    # استخدام أسلوب أكثر موثوقية لبدء العملية
+    nohup bash -c "
+        cd '$SCRIPT_DIR'
+        export DBUS_SESSION_BUS_ADDRESS='unix:path=/run/user/$(id -u)/bus'
+        export DISPLAY='${DISPLAY:-:0}'
+        export XAUTHORITY='${XAUTHORITY:-$HOME/.Xauthority}'
+        '$SCRIPT_SOURCE_ABS' --child-notify
+    " > "$SCRIPT_DIR/notify_output.log" 2>&1 &
 
     local child_pid=$!
     echo "$child_pid" > "$PID_FILE"
-    sleep 1
+    
+    # الانتظار والتحقق من نجاح البدء
+    sleep 2
+    
     if kill -0 "$child_pid" 2>/dev/null; then
         echo "✅ تم بدء إشعارات GT-salat-dikr (PID: $child_pid)"
-        log "started notify loop (PID: $child_pid)"
+        log "started notify loop successfully (PID: $child_pid)"
+        
+        # عرض سجل البدء للتأكد
+        if [ -f "$SCRIPT_DIR/notify_output.log" ]; then
+            log "إخراج عملية البدء:"
+            tail -5 "$SCRIPT_DIR/notify_output.log" >> "$NOTIFY_LOG"
+        fi
+        
+        return 0
     else
         echo "❌ فشل في بدء الإشعارات"
-        rm -f "$PID_FILE" 2>/dev/null || true
-        log "failed to start notify loop"
-        return 1
-    fi
-}
-
-stop_notify_bg() {
-    if [ -f "$PID_FILE" ]; then
-        local pid; pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
-        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-            kill "$pid" 2>/dev/null || true
-            sleep 1
-            kill -9 "$pid" 2>/dev/null || true
-            rm -f "$PID_FILE"
-            log "stopped notify loop (PID: $pid)"
-            echo "✅ تم إيقاف إشعارات GT-salat-dikr (PID: $pid)"
-            return 0
-        else
-            rm -f "$PID_FILE" 2>/dev/null || true
-            echo "⚠️ لم تكن هناك إشعارات قيد التشغيل."
-            return 1
+        log "failed to start notify loop - process died"
+        
+        # فحص سبب الفشل
+        if [ -f "$SCRIPT_DIR/notify_output.log" ]; then
+            log "سجل الأخطاء:"
+            cat "$SCRIPT_DIR/notify_output.log" >> "$NOTIFY_LOG"
         fi
-    else
-        echo "ℹ️ لا يوجد إشعارات قيد التشغيل."
+        
+        rm -f "$PID_FILE" 2>/dev/null || true
         return 1
     fi
 }
