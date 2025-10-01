@@ -475,6 +475,29 @@ notify_loop() {
     done
 }
 
+# ---------------- إيقاف الإشعارات ----------------
+stop_notify_bg() {
+    if [ -f "$PID_FILE" ]; then
+        local pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            kill "$pid" 2>/dev/null || true
+            sleep 1
+            kill -9 "$pid" 2>/dev/null || true
+            rm -f "$PID_FILE"
+            log "stopped notify loop (PID: $pid)"
+            echo "✅ تم إيقاف إشعارات GT-salat-dikr (PID: $pid)"
+            return 0
+        else
+            rm -f "$PID_FILE" 2>/dev/null || true
+            echo "⚠️ لم تكن هناك إشعارات قيد التشغيل."
+            return 1
+        fi
+    else
+        echo "ℹ️ لا يوجد إشعارات قيد التشغيل."
+        return 1
+    fi
+}
+
 # ---------------- start/stop notify - محسّن مع إصلاحات ----------------
 start_notify_bg() {
     # إيقاف أي عملية سابقة أولاً
@@ -649,6 +672,25 @@ check_script_update() {
     fi
 }
 
+# --- إضافة إلى bashrc أو zshrc ---
+add_to_shell_rc() {
+    local RC_FILE="$1"
+    
+    if [ -f "$RC_FILE" ]; then
+        if ! grep -Fq "$INSTALL_DIR/$SCRIPT_NAME" "$RC_FILE"; then
+            echo "" >> "$RC_FILE"
+            echo "# GT-salat-dikr: ذكر وصلاة عند فتح الطرفية" >> "$RC_FILE"
+            echo "\"$INSTALL_DIR/$SCRIPT_NAME\"" >> "$RC_FILE"
+            echo "✅ تم الإضافة إلى $RC_FILE"
+            return 0
+        else
+            echo "ℹ️ السكربت مضاف مسبقًا إلى $RC_FILE"
+            return 1
+        fi
+    fi
+    return 1
+}
+
 # ---------------- install - محسّن مع autostart متوافق ----------------
 install_self() {
     mkdir -p "$INSTALL_DIR"
@@ -821,17 +863,23 @@ fi
 check_tools
 fetch_if_missing "$AZKAR_FILE" "$REPO_AZKAR_URL" >/dev/null 2>&1 || true
 
-# إصلاح: منع استدعاء الإعدادات مرتين
-if [ ! -f "$CONFIG_FILE" ]; then
-    setup_wizard
-else
-    load_config || {
+# الإصلاح الحاسم: منع استدعاء الإعدادات مرتين
+_CONFIG_LOADED=false
+if [ -f "$CONFIG_FILE" ]; then
+    if load_config; then
+        _CONFIG_LOADED=true
+    else
         echo "⚠️ ملف الإعدادات تالف. سيتم إنشاء إعدادات جديدة..."
         setup_wizard
-    }
+        _CONFIG_LOADED=true
+    fi
+else
+    echo "🔧 الإعدادات الأولية مطلوبة..."
+    setup_wizard
+    _CONFIG_LOADED=true
 fi
 
-if [ "${AUTO_SELF_UPDATE:-0}" = "1" ]; then
+if [ "${AUTO_SELF_UPDATE:-0}" = "1" ] && [ "$_CONFIG_LOADED" = true ]; then
     check_script_update || true
 fi
 
@@ -883,35 +931,52 @@ case "${1:-}" in
         check_script_update
         ;;
     --status)
-        echo "📊 حالة GT-salat-dikr:"
-        echo "════════════════════════════"
-        if [ -f "$PID_FILE" ]; then
-            local pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
-            if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-                echo "✅ الإشعارات: تعمل (PID: $pid)"
+        _display_status() {
+            echo "📊 حالة GT-salat-dikr:"
+            echo "════════════════════════════"
+            
+            # فحص حالة الإشعارات
+            local status_pid=""
+            if [ -f "$PID_FILE" ]; then
+                status_pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
+                if [ -n "$status_pid" ] && kill -0 "$status_pid" 2>/dev/null; then
+                    echo "✅ الإشعارات: تعمل (PID: $status_pid)"
+                else
+                    echo "❌ الإشعارات: متوقفة"
+                fi
             else
                 echo "❌ الإشعارات: متوقفة"
             fi
-        else
-            echo "❌ الإشعارات: متوقفة"
-        fi
-        echo ""
-        if [ -f "$CONFIG_FILE" ]; then
-            load_config
-            echo "📍 الموقع: $CITY, $COUNTRY"
-            echo "🧭 الإحداثيات: $LAT, $LON"
-            echo "📖 طريقة الحساب: $METHOD_NAME"
-        fi
-        echo ""
-        get_next_prayer 2>/dev/null || true
-        if [ -n "${PRAYER_NAME:-}" ]; then
-            leftmin=$((PRAYER_LEFT/60))
-            lefth=$((leftmin/60))
-            leftm=$((leftmin%60))
-            echo "🕌 الصلاة القادمة: $PRAYER_NAME"
-            echo "⏰ الوقت: $PRAYER_TIME"
-            printf "⏳ المتبقي: %02d:%02d\n" "$lefth" "$leftm"
-        fi
+            
+            echo ""
+            
+            # عرض الإعدادات
+            if [ -f "$CONFIG_FILE" ]; then
+                # إعادة تحميل الإعدادات للتأكد من أنها حديثة
+                load_config
+                echo "📍 الموقع: $CITY, $COUNTRY"
+                echo "🧭 الإحداثيات: $LAT, $LON"
+                echo "📖 طريقة الحساب: $METHOD_NAME"
+            else
+                echo "❌ ملف الإعدادات غير موجود"
+            fi
+            
+            echo ""
+            
+            # عرض الصلاة التالية
+            if get_next_prayer 2>/dev/null; then
+                local leftmin=$((PRAYER_LEFT/60))
+                local lefth=$((leftmin/60))
+                local leftm=$((leftmin%60))
+                echo "🕌 الصلاة القادمة: $PRAYER_NAME"
+                echo "⏰ الوقت: $PRAYER_TIME"
+                printf "⏳ المتبقي: %02d:%02d\n" "$lefth" "$leftm"
+            else
+                echo "❌ تعذر الحصول على موعد الصلاة التالية"
+            fi
+        }
+        
+        _display_status
         ;;
     --help|-h)
         cat <<EOF
