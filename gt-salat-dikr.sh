@@ -1,4 +1,37 @@
-#!/bin/bash
+cat <<EOF
+═══════════════════════════════════════════════════════════
+  GT-salat-dikr - نظام إشعارات الصلاة والأذكار المحسّن
+═══════════════════════════════════════════════════════════
+
+📦 التثبيت والإزالة:
+  --install           تثبيت البرنامج مع autostart التلقائي
+  --uninstall         إزالة البرنامج بالكامل
+
+⚙️  الإعدادات:
+  --settings          تعديل الموقع والإعدادات
+
+📊 العرض:
+  --show-timetable    عرض جدول مواقيت الصلاة لليوم
+  --status            عرض حالة البرنامج التفصيلية
+  --logs              عرض آخر 20 سطر من السجل
+  --debug             معلومات تشخيص مفصلة
+
+🔔 الإشعارات:
+  --notify-start      بدء إشعارات الخلفية
+  --notify-stop       إيقاف إشعارات الخلفية
+
+🧪 الاختبار:
+  --test-notify       اختبار الإشعارات العادية
+  --test-adhan        اختبار مشغل الأذان الرسومي
+
+🔄 التحديث:
+  --update-azkar      تحديث ملف الأذكار
+  --self-update       تحديث البرنامج
+
+ℹ️  المساعدة:
+  --help, -h          عرض هذه المساعدة
+
+═══════════════════════════════════════════════════════#!/bin/bash
 #
 # GT-salat-dikr - Enhanced version with GUI adhan player
 # Author: gnutux (Enhanced)
@@ -328,9 +361,25 @@ setup_wizard() {
         manual_location
     fi
     choose_method
-    read -p "تفعيل تنبيه قبل الصلاة بـ10 دقائق؟ [Y/n]: " p; p=${p:-Y}; PRE_PRAYER_NOTIFY=$([ "$p" =~ ^[Yy]$ ] && echo 1 || echo 0)
-    read -p "فاصل الأذكار بالثواني (افتراضي $DEFAULT_ZIKR_INTERVAL): " z; ZIKR_NOTIFY_INTERVAL=${z:-$DEFAULT_ZIKR_INTERVAL}
-    read -p "تفعيل التحديث الذاتي للسكريبت عند توفر تحديث؟ [y/N]: " up; up=${up:-N}; AUTO_SELF_UPDATE=$([ "$up" =~ ^[Yy]$ ] && echo 1 || echo 0)
+    read -p "تفعيل تنبيه قبل الصلاة بـ10 دقائق؟ [Y/n]: " p
+    p=${p:-Y}
+    if [[ "$p" =~ ^[Yy]$ ]]; then
+        PRE_PRAYER_NOTIFY=1
+    else
+        PRE_PRAYER_NOTIFY=0
+    fi
+    
+    read -p "فاصل الأذكار بالثواني (افتراضي $DEFAULT_ZIKR_INTERVAL): " z
+    ZIKR_NOTIFY_INTERVAL=${z:-$DEFAULT_ZIKR_INTERVAL}
+    
+    read -p "تفعيل التحديث الذاتي للسكريبت عند توفر تحديث؟ [y/N]: " up
+    up=${up:-N}
+    if [[ "$up" =~ ^[Yy]$ ]]; then
+        AUTO_SELF_UPDATE=1
+    else
+        AUTO_SELF_UPDATE=0
+    fi
+    
     save_config
 }
 
@@ -491,25 +540,29 @@ start_notify_bg() {
     check_tools
     create_adhan_player
 
-    nohup bash -c '
-        if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
-            export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
-        fi
-        exec "'"$SCRIPT_SOURCE_ABS"'" --child-notify
-    ' >/dev/null 2>&1 &
+    # تشغيل في الخلفية مع تمرير المتغيرات البيئية
+    (
+        export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/$(id -u)/bus}"
+        export DISPLAY="${DISPLAY:-:0}"
+        cd "$SCRIPT_DIR"
+        "$SCRIPT_SOURCE_ABS" --child-notify >> "$NOTIFY_LOG" 2>&1 &
+        echo $! > "$PID_FILE"
+    )
 
-    local child_pid=$!
-    echo "$child_pid" > "$PID_FILE"
-    sleep 1
-    if kill -0 "$child_pid" 2>/dev/null; then
-        echo "✅ تم بدء إشعارات GT-salat-dikr (PID: $child_pid)"
-        log "started notify loop (PID: $child_pid)"
-    else
-        echo "❌ فشل في بدء الإشعارات"
-        rm -f "$PID_FILE" 2>/dev/null || true
-        log "failed to start notify loop"
-        return 1
+    sleep 2
+    if [ -f "$PID_FILE" ]; then
+        local child_pid=$(cat "$PID_FILE")
+        if kill -0 "$child_pid" 2>/dev/null; then
+            echo "✅ تم بدء إشعارات GT-salat-dikr (PID: $child_pid)"
+            log "started notify loop (PID: $child_pid)"
+            return 0
+        fi
     fi
+    
+    echo "❌ فشل في بدء الإشعارات"
+    rm -f "$PID_FILE" 2>/dev/null || true
+    log "failed to start notify loop"
+    return 1
 }
 
 stop_notify_bg() {
@@ -634,6 +687,7 @@ ExecStart=$INSTALL_DIR/$SCRIPT_NAME --child-notify
 Restart=on-failure
 RestartSec=10
 Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%U/bus"
+Environment="DISPLAY=:0"
 
 [Install]
 WantedBy=default.target
@@ -646,22 +700,39 @@ EOF
         log "تم إنشاء وتفعيل systemd user service"
     fi
 
-    # 3. إضافة إلى .bashrc و .zshrc (كـ fallback)
-    for rc_file in "$HOME/.bashrc" "$HOME/.zshrc"; do
-        if [ -f "$rc_file" ]; then
-            if ! grep -q "GT-salat-dikr autostart" "$rc_file"; then
-                cat >> "$rc_file" <<'EOF'
+    # 3. إضافة إلى .bashrc و .zshrc
+    # هذا يعرض الذكر ووقت الصلاة عند فتح الطرفية + autostart للإشعارات
+    local added=false
+    
+    add_to_shell_rc() {
+        local RC_FILE="$1"
+        if [ -f "$RC_FILE" ]; then
+            if ! grep -q "GT-salat-dikr" "$RC_FILE"; then
+                cat >> "$RC_FILE" <<'SHELL_RC_EOF'
 
-# GT-salat-dikr autostart
+# GT-salat-dikr: ذكر وصلاة عند فتح الطرفية
+if [ -f "$HOME/.GT-salat-dikr/gt-salat-dikr.sh" ]; then
+    "$HOME/.GT-salat-dikr/gt-salat-dikr.sh" 2>/dev/null || true
+fi
+
+# GT-salat-dikr autostart للإشعارات (فقط في الجلسة الرسومية)
 if [ -n "$DISPLAY" ] && [ -z "$GT_SALAT_STARTED" ]; then
     export GT_SALAT_STARTED=1
-    (sleep 30 && ~/.GT-salat-dikr/gt-salat-dikr.sh --notify-start) &
+    (sleep 30 && "$HOME/.GT-salat-dikr/gt-salat-dikr.sh" --notify-start >/dev/null 2>&1) &
 fi
-EOF
-                log "تم إضافة autostart إلى $rc_file"
+SHELL_RC_EOF
+                log "تم إضافة GT-salat-dikr إلى $RC_FILE"
+                added=true
             fi
         fi
-    done
+    }
+    
+    add_to_shell_rc "$HOME/.bashrc"
+    add_to_shell_rc "$HOME/.zshrc"
+    
+    if [ "$added" = true ]; then
+        echo "✅ تم إضافة عرض الذكر ووقت الصلاة عند فتح الطرفية"
+    fi
 
     # 4. i3wm config
     local i3_config="$HOME/.config/i3/config"
