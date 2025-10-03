@@ -1,29 +1,57 @@
 #!/bin/bash
-# ملف مؤقت لإصلاح المشكلة
+#
+# GT-salat-dikr Quick Fix Script
+# لإصلاح المشاكل الحالية
+#
 
-INSTALL_DIR="$HOME/.GT-salat-dikr"
+echo "🔧 إصلاح GT-salat-dikr..."
 
-# إعادة تثبيت كامل
-echo "🔧 إعادة التثبيت..."
+# إيقاف أي عمليات قيد التشغيل
+echo "→ إيقاف العمليات النشطة..."
+pkill -f gt-salat-dikr 2>/dev/null || true
 
-# حذف النسخة المعطوبة
-rm -rf "$INSTALL_DIR"
+# حذف الملفات المعطوبة
+echo "→ تنظيف الملفات المعطوبة..."
+rm -f ~/.GT-salat-dikr/.gt-salat-dikr-notify.pid
+rm -f ~/.GT-salat-dikr/notify.log
 
-# إعادة إنشاء المجلد
-mkdir -p "$INSTALL_DIR"
-cd "$INSTALL_DIR"
+# إعادة تحميل السكربت الأساسي
+echo "→ تحميل نسخة محدثة..."
+cd ~/.GT-salat-dikr
 
-# تحميل الملفات
-echo "→ تحميل الملفات..."
-curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/gt-salat-dikr.sh -o gt-salat-dikr.sh
-curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/azkar.txt -o azkar.txt
-curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/adhan.ogg -o adhan.ogg 2>/dev/null || true
+# تحميل السكربت الأصلي (الآن مع الإصلاحات)
+curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/gt-salat-dikr.sh -o gt-salat-dikr.sh.new
 
-# صلاحيات
-chmod +x gt-salat-dikr.sh
+if [ -f gt-salat-dikr.sh.new ]; then
+    # التحقق من أن الملف صحيح
+    if bash -n gt-salat-dikr.sh.new 2>/dev/null; then
+        mv gt-salat-dikr.sh.new gt-salat-dikr.sh
+        chmod +x gt-salat-dikr.sh
+        echo "✅ تم تحديث السكربت بنجاح"
+    else
+        echo "❌ السكربت المحمل يحتوي على أخطاء"
+        rm -f gt-salat-dikr.sh.new
+        exit 1
+    fi
+else
+    echo "❌ فشل تحميل السكربت"
+    exit 1
+fi
 
-# إنشاء الاختصار
-ln -sf "$INSTALL_DIR/gt-salat-dikr.sh" "$HOME/.local/bin/gtsalat"
+# اختبار السكربت
+echo ""
+echo "→ اختبار السكربت..."
+if ./gt-salat-dikr.sh --help >/dev/null 2>&1; then
+    echo "✅ السكربت يعمل بشكل صحيح"
+else
+    echo "❌ السكربت لا يزال يحتوي على مشاكل"
+    exit 1
+fi
 
-echo "✅ تم!"
-echo "الآن شغّل: gtsalat --settings"
+echo ""
+echo "✅ تم الإصلاح بنجاح!"
+echo ""
+echo "الخطوات التالية:"
+echo "1. gtsalat --settings   # لإعداد الموقع"
+echo "2. gtsalat --notify-start  # لبدء الإشعارات"
+echo "3. gtsalat --status     # للتحقق من الحالة"
