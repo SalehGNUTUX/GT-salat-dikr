@@ -1,44 +1,190 @@
 #!/bin/bash
-# سكربت إلغاء تثبيت GT-salat-dikr
+#
+# GT-salat-dikr Enhanced Installation Script
+# يدعم جميع توزيعات Linux وبيئات سطح المكتب
+#
 
-set -euo pipefail
+set -e
 
+echo "════════════════════════════════════════════════════════"
+echo "  تثبيت GT-salat-dikr - نظام إشعارات الصلاة والأذكار"
+echo "════════════════════════════════════════════════════════"
+echo ""
+
+# التحقق من الصلاحيات
+if [ "$EUID" -eq 0 ]; then 
+    echo "⚠️  تحذير: لا تشغل هذا السكربت بصلاحيات root"
+    echo "   استخدم حساب المستخدم العادي."
+    exit 1
+fi
+
+# المتغيرات
 INSTALL_DIR="$HOME/.GT-salat-dikr"
-LOCAL_BIN="$HOME/.local/bin/gtsalat"
-AUTOSTART_FILE="$HOME/.config/autostart/gt-salat-dikr.desktop"
+REPO_BASE="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main"
 
-echo "🗑️ بدء عملية إزالة GT-salat-dikr..."
+# التحقق من الأدوات المطلوبة
+echo "🔍 فحص المتطلبات..."
+MISSING_TOOLS=()
 
-# إزالة مجلد التثبيت
-if [ -d "$INSTALL_DIR" ]; then
-    rm -rf "$INSTALL_DIR"
-    echo "✅ تم حذف مجلد التثبيت: $INSTALL_DIR"
-else
-    echo "ℹ️ لم يتم العثور على مجلد التثبيت."
+if ! command -v curl >/dev/null 2>&1; then
+    MISSING_TOOLS+=("curl")
 fi
 
-# إزالة الاختصار من ~/.local/bin
-if [ -L "$LOCAL_BIN" ] || [ -f "$LOCAL_BIN" ]; then
-    rm -f "$LOCAL_BIN"
-    echo "✅ تم حذف الاختصار: $LOCAL_BIN"
-else
-    echo "ℹ️ لم يتم العثور على الاختصار في ~/.local/bin"
+if ! command -v jq >/dev/null 2>&1; then
+    MISSING_TOOLS+=("jq")
 fi
 
-# إزالة خدمة autostart
-if [ -f "$AUTOSTART_FILE" ]; then
-    rm -f "$AUTOSTART_FILE"
-    echo "✅ تم حذف ملف autostart: $AUTOSTART_FILE"
-else
-    echo "ℹ️ لم يتم العثور على ملف autostart"
+if ! command -v notify-send >/dev/null 2>&1; then
+    MISSING_TOOLS+=("libnotify (notify-send)")
 fi
 
-# إزالة السجلات إن وُجدت
-if [ -f "$HOME/notify.log" ]; then
-    rm -f "$HOME/notify.log"
-    echo "✅ تم حذف ملف السجل: $HOME/notify.log"
+# اكتشاف الأدوات الرسومية
+GUI_FOUND=0
+if command -v zenity >/dev/null 2>&1; then
+    GUI_FOUND=1
+    echo "  ✓ zenity متوفر"
+elif command -v yad >/dev/null 2>&1; then
+    GUI_FOUND=1
+    echo "  ✓ yad متوفر"
+elif command -v kdialog >/dev/null 2>&1; then
+    GUI_FOUND=1
+    echo "  ✓ kdialog متوفر"
+fi
+
+if [ $GUI_FOUND -eq 0 ]; then
+    echo "  ⚠️ لم يتم العثور على أداة رسومية (zenity/yad/kdialog)"
+    echo "     سيتم استخدام إشعارات بسيطة فقط"
+fi
+
+# عرض الأدوات الناقصة
+if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
+    echo ""
+    echo "❌ الأدوات التالية مفقودة:"
+    for tool in "${MISSING_TOOLS[@]}"; do
+        echo "   - $tool"
+    done
+    echo ""
+    echo "📦 تعليمات التثبيت حسب التوزيعة:"
+    echo ""
+    echo "Debian/Ubuntu/Mint:"
+    echo "  sudo apt install curl jq libnotify-bin zenity"
+    echo ""
+    echo "Fedora/RHEL/CentOS:"
+    echo "  sudo dnf install curl jq libnotify zenity"
+    echo ""
+    echo "Arch/Manjaro:"
+    echo "  sudo pacman -S curl jq libnotify zenity"
+    echo ""
+    echo "openSUSE:"
+    echo "  sudo zypper install curl jq libnotify-tools zenity"
+    echo ""
+    read -p "هل تريد المتابعة على أي حال؟ (قد لا تعمل بعض الميزات) [y/N]: " continue_anyway
+    if [[ ! "$continue_anyway" =~ ^[Yy]$ ]]; then
+        echo "تم إلغاء التثبيت."
+        exit 1
+    fi
 fi
 
 echo ""
-echo "🎉 تم إلغاء تثبيت GT-salat-dikr بالكامل."
-echo "يمكنك إعادة تثبيته الآن من جديد لتجربة نظيفة."
+echo "📥 جاري التحميل والتثبيت..."
+
+# إنشاء مجلد التثبيت
+mkdir -p "$INSTALL_DIR"
+cd "$INSTALL_DIR"
+
+# تحميل الملفات الرئيسية
+echo "  → تحميل السكربت الرئيسي..."
+curl -fsSL "$REPO_BASE/gt-salat-dikr.sh" -o gt-salat-dikr.sh
+chmod +x gt-salat-dikr.sh
+
+echo "  → تحميل ملف الأذكار..."
+curl -fsSL "$REPO_BASE/azkar.txt" -o azkar.txt 2>/dev/null || {
+    echo "     تحذير: فشل تحميل azkar.txt - سيتم إنشاء ملف افتراضي"
+    cat > azkar.txt <<'EOF'
+سبحان الله وبحمده، سبحان الله العظيم
+%
+لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير
+%
+اللهم صل على محمد وعلى آل محمد
+%
+استغفر الله العظيم الذي لا إله إلا هو الحي القيوم وأتوب إليه
+%
+حسبي الله لا إله إلا هو عليه توكلت وهو رب العرش العظيم
+EOF
+}
+
+echo "  → تحميل ملف الأذان..."
+curl -fsSL "$REPO_BASE/adhan.ogg" -o adhan.ogg 2>/dev/null || {
+    echo "     تحذير: فشل تحميل adhan.ogg - ابحث عن ملف أذان وضعه في $INSTALL_DIR"
+}
+
+# إنشاء الاختصار
+echo "  → إنشاء اختصار gtsalat..."
+mkdir -p "$HOME/.local/bin"
+ln -sf "$INSTALL_DIR/gt-salat-dikr.sh" "$HOME/.local/bin/gtsalat"
+
+# التأكد من أن ~/.local/bin في PATH
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+    echo "  → إضافة ~/.local/bin إلى PATH..."
+    for rc_file in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+        if [ -f "$rc_file" ]; then
+            if ! grep -q '.local/bin' "$rc_file"; then
+                echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$rc_file"
+            fi
+        fi
+    done
+    export PATH="$HOME/.local/bin:$PATH"
+fi
+
+echo ""
+echo "✅ تم التثبيت بنجاح!"
+echo ""
+echo "════════════════════════════════════════════════════════"
+echo "  الخطوات التالية:"
+echo "════════════════════════════════════════════════════════"
+echo ""
+echo "1️⃣  إعداد الموقع والإعدادات:"
+echo "   gtsalat --settings"
+echo ""
+echo "2️⃣  بدء الإشعارات:"
+echo "   gtsalat --notify-start"
+echo ""
+echo "3️⃣  عرض مواقيت الصلاة:"
+echo "   gtsalat --show-timetable"
+echo ""
+echo "4️⃣  اختبار الإشعارات:"
+echo "   gtsalat --test-notify"
+echo "   gtsalat --test-adhan"
+echo ""
+echo "ℹ️  للحصول على المساعدة الكاملة:"
+echo "   gtsalat --help"
+echo ""
+echo "════════════════════════════════════════════════════════"
+echo ""
+
+# سؤال المستخدم عن الإعداد الفوري
+read -p "هل تريد إعداد البرنامج الآن؟ [Y/n]: " setup_now
+setup_now=${setup_now:-Y}
+
+if [[ "$setup_now" =~ ^[Yy]$ ]]; then
+    echo ""
+    "$INSTALL_DIR/gt-salat-dikr.sh" --settings
+    
+    echo ""
+    read -p "هل تريد بدء الإشعارات الآن؟ [Y/n]: " start_now
+    start_now=${start_now:-Y}
+    
+    if [[ "$start_now" =~ ^[Yy]$ ]]; then
+        "$INSTALL_DIR/gt-salat-dikr.sh" --notify-start
+        echo ""
+        echo "🎉 تم! البرنامج يعمل الآن في الخلفية"
+        echo "   وسيبدأ تلقائياً عند بدء تشغيل النظام"
+    fi
+else
+    echo ""
+    echo "💡 لإعداد البرنامج لاحقاً، شغّل: gtsalat --settings"
+fi
+
+echo ""
+echo "🌟 شكراً لاستخدام GT-salat-dikr!"
+echo "════════════════════════════════════════════════════════"
