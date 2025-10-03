@@ -297,6 +297,7 @@ EOF
 
 load_config() {
     if [ -f "$CONFIG_FILE" ]; then
+        # shellcheck disable=SC1090
         source "$CONFIG_FILE"
         return 0
     else
