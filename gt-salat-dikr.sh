@@ -36,6 +36,11 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $*" >> "$NOTIFY_LOG" 2>/dev/null || true
 }
 
+# دالة log صامتة للاستخدام الداخلي فقط
+silent_log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $*" >> "$NOTIFY_LOG" 2>/dev/null || true
+}
+
 fetch_if_missing() {
     local file="$1"; local url="$2"
     if [ ! -f "$file" ]; then
@@ -62,7 +67,7 @@ detect_gui_tools() {
         GUI_TOOL="kdialog"
     fi
     
-    log "GUI Tool detected: ${GUI_TOOL:-none}"
+    silent_log "GUI Tool detected: ${GUI_TOOL:-none}"
 }
 
 # ---------------- فحص أدوات النظام ----------------
@@ -70,10 +75,10 @@ check_tools() {
     detect_gui_tools
     
     if ! command -v jq >/dev/null 2>&1; then
-        log "تحذير: jq غير مثبت. بعض الميزات (جلب المواعيد) قد تفشل."
+        silent_log "تحذير: jq غير مثبت. بعض الميزات (جلب المواعيد) قد تفشل."
     fi
     if ! command -v notify-send >/dev/null 2>&1; then
-        log "تحذير: notify-send غير موجود. الإشعارات لن تعمل بدون libnotify."
+        silent_log "تحذير: notify-send غير موجود. الإشعارات لن تعمل بدون libnotify."
     fi
 }
 
@@ -86,7 +91,7 @@ ensure_dbus() {
     local bus="/run/user/$(id -u)/bus"
     if [ -S "$bus" ]; then
         export DBUS_SESSION_BUS_ADDRESS="unix:path=$bus"
-        log "DBUS: استخدام المسار القياسي $bus"
+        silent_log "DBUS: استخدام المسار القياسي $bus"
         return 0
     fi
     
@@ -95,7 +100,7 @@ ensure_dbus() {
         local sock=$(find "$tmp_bus" -name "session-*" -type s 2>/dev/null | head -1)
         if [ -n "$sock" ]; then
             export DBUS_SESSION_BUS_ADDRESS="unix:path=$sock"
-            log "DBUS: استخدام $sock"
+            silent_log "DBUS: استخدام $sock"
             return 0
         fi
     fi
@@ -105,12 +110,12 @@ ensure_dbus() {
         local dbus_addr=$(grep -z DBUS_SESSION_BUS_ADDRESS /proc/$dbus_pid/environ 2>/dev/null | cut -d= -f2- | tr -d '\0')
         if [ -n "$dbus_addr" ]; then
             export DBUS_SESSION_BUS_ADDRESS="$dbus_addr"
-            log "DBUS: استخراج من العملية $dbus_pid"
+            silent_log "DBUS: استخراج من العملية $dbus_pid"
             return 0
         fi
     fi
     
-    log "تحذير: لم يتم العثور على DBUS"
+    silent_log "تحذير: لم يتم العثور على DBUS"
     return 1
 }
 
@@ -192,7 +197,7 @@ exit 0
 ADHAN_PLAYER_EOF
 
     chmod +x "$ADHAN_PLAYER_SCRIPT"
-    log "تم إنشاء مشغل الأذان الرسومي"
+    silent_log "تم إنشاء مشغل الأذان الرسومي"
 }
 
 # ---------------- إعداد/تحميل الإعدادات ----------------
@@ -467,24 +472,18 @@ stop_notify_bg() {
 # ---------------- self-update ----------------
 check_script_update() {
     if ! command -v curl >/dev/null 2>&1 || ! command -v sha1sum >/dev/null 2>&1; then
-        log "لا يمكن التحقق من التحديث."
+        silent_log "لا يمكن التحقق من التحديث."
         return 1
     fi
     local local_hash remote_hash
     [ -f "$SCRIPT_SOURCE_ABS" ] && local_hash=$(sha1sum "$SCRIPT_SOURCE_ABS" | awk '{print $1}') || local_hash=""
     remote_hash=$(curl -fsSL "$REPO_SCRIPT_URL" 2>/dev/null | sha1sum | awk '{print $1}') || return 1
     if [ "$local_hash" != "" ] && [ "$local_hash" != "$remote_hash" ]; then
-        echo "يوجد تحديث جديد."
-        read -p "تحديث الآن؟ [Y/n]: " ans; ans=${ans:-Y}
-        if [[ "$ans" =~ ^[Yy]$ ]]; then
-            local tmpf=$(mktemp)
-            curl -fsSL "$REPO_SCRIPT_URL" -o "$tmpf" 2>/dev/null || { echo "فشل التحميل."; rm -f "$tmpf"; return 1; }
-            chmod +x "$tmpf"
-            mv "$tmpf" "$SCRIPT_SOURCE_ABS" && echo "✅ تم التحديث."
-            return 0
-        fi
+        # يوجد تحديث - لا نطبع شيء في الوضع الصامت
+        silent_log "يوجد تحديث جديد للسكريبت"
+        return 0
     else
-        echo "لا يوجد تحديث."
+        silent_log "لا يوجد تحديث"
     fi
     return 0
 }
@@ -755,7 +754,7 @@ fi
 
 # ---------------- تحميل الإعدادات ----------------
 check_tools
-fetch_if_missing "$AZKAR_FILE" "$REPO_AZKAR_URL" || true
+fetch_if_missing "$AZKAR_FILE" "$REPO_AZKAR_URL" >/dev/null 2>&1 || true
 
 if [ ! -f "$CONFIG_FILE" ]; then
     setup_wizard
@@ -763,7 +762,10 @@ else
     load_config || setup_wizard
 fi
 
-[ "${AUTO_SELF_UPDATE:-0}" = "1" ] && check_script_update || true
+# التحديث التلقائي (صامت)
+if [ "${AUTO_SELF_UPDATE:-0}" = "1" ]; then
+    check_script_update >/dev/null 2>&1 || true
+fi
 
 # ---------------- CLI ----------------
 case "${1:-}" in
@@ -786,7 +788,37 @@ case "${1:-}" in
         echo "جلب أحدث نسخة من الأذكار..."
         curl -fsSL "$REPO_AZKAR_URL" -o "$AZKAR_FILE" 2>/dev/null && echo "✅ تم التحديث" || echo "فشل التحديث"
         ;;
-    --self-update) check_script_update ;;
+    --self-update)
+        if ! command -v curl >/dev/null 2>&1 || ! command -v sha1sum >/dev/null 2>&1; then
+            echo "❌ curl أو sha1sum غير متوفر"
+            exit 1
+        fi
+        local_hash=""
+        [ -f "$SCRIPT_SOURCE_ABS" ] && local_hash=$(sha1sum "$SCRIPT_SOURCE_ABS" | awk '{print $1}')
+        remote_hash=$(curl -fsSL "$REPO_SCRIPT_URL" 2>/dev/null | sha1sum | awk '{print $1}') || {
+            echo "❌ فشل الاتصال بالإنترنت"
+            exit 1
+        }
+        if [ "$local_hash" != "" ] && [ "$local_hash" != "$remote_hash" ]; then
+            echo "✨ يوجد تحديث جديد!"
+            read -p "تحديث الآن؟ [Y/n]: " ans
+            ans=${ans:-Y}
+            if [[ "$ans" =~ ^[Yy]$ ]]; then
+                tmpf=$(mktemp)
+                curl -fsSL "$REPO_SCRIPT_URL" -o "$tmpf" 2>/dev/null || {
+                    echo "❌ فشل التحميل"
+                    rm -f "$tmpf"
+                    exit 1
+                }
+                chmod +x "$tmpf"
+                mv "$tmpf" "$SCRIPT_SOURCE_ABS" && echo "✅ تم التحديث بنجاح"
+            else
+                echo "تم إلغاء التحديث"
+            fi
+        else
+            echo "✅ أنت تستخدم أحدث إصدار"
+        fi
+        ;;
     --status)
         echo "📊 حالة GT-salat-dikr:"
         echo "════════════════════════════════"
@@ -895,16 +927,16 @@ EOF
         ;;
     '')
         # الوضع الافتراضي: عرض الذكر والصلاة القادمة فقط (بدون رسائل إضافية)
-        local zekr=$(show_random_zekr 2>/dev/null)
+        zekr=$(show_random_zekr 2>/dev/null)
         if [ -n "$zekr" ]; then
             echo "$zekr"
             echo ""
         fi
         
         if get_next_prayer 2>/dev/null; then
-            local leftmin=$((PRAYER_LEFT/60))
-            local lefth=$((leftmin/60))
-            local leftm=$((leftmin%60))
+            leftmin=$((PRAYER_LEFT/60))
+            lefth=$((leftmin/60))
+            leftm=$((leftmin%60))
             printf "\e[1;34m🕌 الصلاة القادمة: %s عند %s (باقي %02d:%02d)\e[0m\n" "$PRAYER_NAME" "$PRAYER_TIME" "$lefth" "$leftm"
         fi
         ;;
