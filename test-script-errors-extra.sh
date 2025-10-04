@@ -208,7 +208,7 @@ check_common_issues() {
         sed -n "${line_num},\$p" "$SCRIPT_FILE" | while IFS= read -r line; do
             [[ "$line" =~ ^[[:space:]]*esac ]] && break
             [[ "$line" =~ ^[[:space:]]*[a-zA-Z0-9_]*\) ]] && in_section=true
-            if [ "$in_section" = true ] && [[ "$line" =~ ^[[:space:]]*;;[[:space:]]*$ ]]; then
+            if [ "$in_section" = true ] && [[ "$line" =~ ^[[:space:]]*\;\;[[:space:]]*$ ]]; then
                 in_section=false
             fi
         done
