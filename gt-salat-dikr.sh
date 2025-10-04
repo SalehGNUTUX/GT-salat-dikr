@@ -823,7 +823,7 @@ case "${1:-}" in
         echo "📊 حالة GT-salat-dikr:"
         echo "════════════════════════════════"
         if [ -f "$PID_FILE" ]; then
-            local pid=$(cat "$PID_FILE" 2>/dev/null)
+            pid=$(cat "$PID_FILE" 2>/dev/null)
             if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
                 echo "✅ الإشعارات: تعمل (PID: $pid)"
             else
@@ -841,9 +841,9 @@ case "${1:-}" in
         fi
         echo ""
         if get_next_prayer 2>/dev/null; then
-            local leftmin=$((PRAYER_LEFT/60))
-            local lefth=$((leftmin/60))
-            local leftm=$((leftmin%60))
+            leftmin=$((PRAYER_LEFT/60))
+            lefth=$((leftmin/60))
+            leftm=$((leftmin%60))
             echo "🕌 الصلاة القادمة: $PRAYER_NAME"
             echo "⏰ الوقت: $PRAYER_TIME"
             printf "⏳ المتبقي: %02d:%02d\n" "$lefth" "$leftm"
