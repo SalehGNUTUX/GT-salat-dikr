@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GT-salat-dikr - تذكير الصلاة والأذكار على سطر الأوامر</title>
-    <meta name="description" content="برنامج مواقيت الصلاة والأذكار يعمل على الطرفية (لينكس) - مفتوح المصدر ومرخص تحت GPL">
+    <title>GT-salat-dikr - نظام إشعارات الصلاة والأذكار المتكامل</title>
+    <meta name="description" content="برنامج متكامل لمواقيت الصلاة والأذكار يعمل على جميع توزيعات لينكس - مفتوح المصدر ومرخص تحت GPL">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -54,20 +54,21 @@
         header {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
-            padding: 2rem 1rem;
+            padding: 3rem 1rem;
             text-align: center;
             position: relative;
         }
         
         header h1 {
-            font-size: 2.5rem;
+            font-size: 2.8rem;
             margin-bottom: 0.5rem;
         }
         
         header p {
-            font-size: 1.2rem;
-            max-width: 800px;
+            font-size: 1.3rem;
+            max-width: 900px;
             margin: 0 auto;
+            opacity: 0.9;
         }
         
         .theme-toggle {
@@ -77,51 +78,61 @@
             background: rgba(255, 255, 255, 0.2);
             border: none;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 45px;
+            height: 45px;
             color: white;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 1.2rem;
         }
         
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 2rem 1rem;
         }
         
         section {
-            margin-bottom: 3rem;
+            margin-bottom: 4rem;
         }
         
         h2 {
             color: var(--primary);
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
             padding-bottom: 0.5rem;
-            border-bottom: 2px solid var(--accent);
+            border-bottom: 3px solid var(--accent);
+            font-size: 2rem;
+        }
+        
+        h3 {
+            color: var(--primary);
+            margin: 1.5rem 0 1rem;
+            font-size: 1.4rem;
         }
         
         .features {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
             margin-top: 2rem;
         }
         
         .feature-card {
             background-color: var(--card-bg);
-            border-radius: 8px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 6px var(--shadow);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 6px 12px var(--shadow);
             transition: transform 0.3s ease;
             display: flex;
             flex-direction: column;
+            border-right: 4px solid var(--primary);
         }
         
         .feature-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-8px);
+            box-shadow: 0 12px 20px var(--shadow);
         }
         
         .feature-card h3 {
@@ -129,44 +140,49 @@
             margin-bottom: 1rem;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            font-size: 1.3rem;
         }
         
         .feature-card h3 i {
-            font-size: 1.5rem;
+            font-size: 1.6rem;
         }
         
         .code-block {
             background-color: var(--code-bg);
-            border-radius: 6px;
-            padding: 1rem;
+            border-radius: 8px;
+            padding: 1.5rem;
             overflow-x: auto;
-            margin: 1rem 0;
+            margin: 1.5rem 0;
             direction: ltr;
             text-align: left;
             font-family: 'Courier New', monospace;
             color: var(--text);
-            border-right: 4px solid var(--primary);
+            border-right: 5px solid var(--primary);
+            font-size: 1rem;
+            line-height: 1.5;
         }
         
         .btn {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             background-color: var(--primary);
             color: white;
-            padding: 0.8rem 1.5rem;
-            border-radius: 4px;
+            padding: 1rem 2rem;
+            border-radius: 6px;
             text-decoration: none;
             font-weight: bold;
-            transition: background-color 0.3s;
+            transition: all 0.3s;
             margin: 0.5rem 0.5rem 0.5rem 0;
             border: none;
             cursor: pointer;
+            font-size: 1.1rem;
         }
         
         .btn:hover {
             background-color: var(--primary-dark);
+            transform: translateY(-2px);
         }
         
         .btn-secondary {
@@ -181,49 +197,116 @@
         footer {
             background-color: var(--secondary);
             text-align: center;
-            padding: 2rem 1rem;
-            margin-top: 3rem;
+            padding: 3rem 1rem;
+            margin-top: 4rem;
             color: var(--text);
         }
         
         .screenshot {
             width: 100%;
-            max-width: 800px;
-            margin: 1rem auto;
+            max-width: 900px;
+            margin: 1.5rem auto;
             display: block;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px var(--shadow);
-            border: 1px solid var(--accent);
+            border-radius: 10px;
+            box-shadow: 0 6px 15px var(--shadow);
+            border: 2px solid var(--accent);
         }
         
         .logo {
-            font-size: 3rem;
-            color: var(--primary);
-            margin-bottom: 1rem;
+            font-size: 4rem;
+            color: white;
+            margin-bottom: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         
         .commands {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            margin-top: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
         }
         
         .command-item {
             background-color: var(--card-bg);
-            padding: 1rem;
-            border-radius: 6px;
-            border-right: 3px solid var(--primary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary);
+            transition: transform 0.2s;
+        }
+        
+        .command-item:hover {
+            transform: translateX(5px);
         }
         
         .command-item code {
             font-weight: bold;
             color: var(--primary);
+            font-size: 1.1rem;
+            background: var(--code-bg);
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
         }
         
+        .highlight {
+            background: linear-gradient(120deg, var(--accent) 0%, var(--accent) 100%);
+            background-repeat: no-repeat;
+            background-size: 100% 0.4em;
+            background-position: 0 88%;
+            font-weight: bold;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 1.5rem;
+            background: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 4px 8px var(--shadow);
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .demo-terminal {
+            background: #1e1e1e;
+            color: #00ff00;
+            border-radius: 10px;
+            padding: 2rem;
+            margin: 2rem 0;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        }
+        
+        .demo-line {
+            margin-bottom: 0.5rem;
+        }
+        
+        .demo-prompt {
+            color: #ffff00;
+        }
+        
+        .demo-output {
+            color: #00ffff;
+        }
+        
+        .demo-highlight {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
         @media (max-width: 768px) {
             header h1 {
-                font-size: 2rem;
+                font-size: 2.2rem;
             }
             
             .features {
@@ -237,8 +320,13 @@
             .theme-toggle {
                 top: 0.5rem;
                 left: 0.5rem;
-                width: 35px;
-                height: 35px;
+                width: 40px;
+                height: 40px;
+            }
+            
+            .btn {
+                padding: 0.8rem 1.5rem;
+                font-size: 1rem;
             }
         }
     </style>
@@ -249,70 +337,109 @@
             <i class="fas fa-moon"></i>
         </button>
         <div class="logo">
-            <i class="fas fa-pray"></i>
+            <i class="fas fa-mosque"></i>
         </div>
-        <h1>GT-salat-dikr</h1>
-        <p>برنامج مواقيت الصلاة والأذكار يعمل على الطرفية (لينكس) - مفتوح المصدر ومرخص تحت GPL</p>
+        <h1>GT-salat-dikr 🕌</h1>
+        <p>نظام إشعارات الصلاة والأذكار المتكامل - يعمل على جميع توزيعات لينكس</p>
+        <p>مفتوح المصدر ⚡ مرخص تحت GPL 📜</p>
     </header>
     
     <div class="container">
         <section id="intro">
-            <h2><i class="fas fa-info-circle"></i> مقدمة</h2>
-            <p>GT-salat-dikr هو سكربت Bash خفيف الوزن يجمع بين بساطة سطر الأوامر وقوة التذكير المستمر للصلاة والأذكار. مصمم خصيصًا لمستخدمي نظام لينكس الذين يبحثون عن حلول تقنية تساعدهم على الالتزام بالعبادات والذكر.</p>
+            <h2><i class="fas fa-info-circle"></i> نظام متكامل لتذكير الصلاة والأذكار</h2>
+            <p>GT-salat-dikr هو نظام متكامل يجمع بين دقة مواقيت الصلاة وقوة التذكير المستمر للأذكار. مصمم خصيصًا لمستخدمي لينكس الذين يبحثون عن حل تقني متكامل يساعدهم على الالتزام بالعبادات اليومية.</p>
             
-            <div class="code-block">
-# مثال لمخرجات البرنامج<br>يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ...<br>الصلاة القادمة: المغرب عند 19:33 (باقي 01:10)
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-number">40+</div>
+                    <div>ذكر متنوع</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">22</div>
+                    <div>طريقة حساب</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">15+</div>
+                    <div>بيئة مدعومة</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">100%</div>
+                    <div>مفتوح المصدر</div>
+                </div>
+            </div>
+            
+            <div class="demo-terminal">
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat</span></div>
+                <div class="demo-line">سبحان الله وبحمده، سبحان الله العظيم</div>
+                <div class="demo-line"></div>
+                <div class="demo-line"><span class="demo-highlight">🕌 الصلاة القادمة: العصر عند 15:30 (باقي 02:15)</span></div>
             </div>
             
             <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">
-                <i class="fab fa-github"></i> استعراض على GitHub
+                <i class="fab fa-github"></i> استعراض الكود المصدري
             </a>
             <a href="#installation" class="btn btn-secondary">
-                <i class="fas fa-download"></i> التثبيت السريع
+                <i class="fas fa-download"></i> التثبيت الفوري
             </a>
         </section>
         
         <section id="features">
-            <h2><i class="fas fa-star"></i> الميزات الرئيسية</h2>
+            <h2><i class="fas fa-star"></i> الميزات المتقدمة</h2>
             <div class="features">
                 <div class="feature-card">
-                    <h3><i class="fas fa-book"></i> تذكير الأذكار العشوائية</h3>
-                    <p>عرض ذكر مختلف في كل مرة تفتح فيها الطرفية مع قاعدة بيانات شاملة للأذكار الإسلامية وتحديث تلقائي من المصادر الموثوقة.</p>
+                    <h3><i class="fas fa-book-quran"></i> أذكار شاملة ومتنوعة</h3>
+                    <p>قاعدة بيانات شاملة تحتوي على أكثر من 40 ذكر متنوع من الأذكار الإسلامية الموثوقة، مع تحديث تلقائي من المصادر المعتمدة.</p>
                 </div>
                 
                 <div class="feature-card">
-                    <h3><i class="fas fa-mosque"></i> مواقيت الصلاة الدقيقة</h3>
-                    <p>حساب تلقائي لمواقيت الصلاة بناءً على موقعك مع دعم 22 طريقة حساب مختلفة من جميع أنحاء العالم.</p>
+                    <h3><i class="fas fa-clock"></i> مواقيت صلاة دقيقة</h3>
+                    <p>حساب تلقائي لمواقيت الصلاة بدقة عالية بناءً على موقعك الجغرافي، مع دعم 22 طريقة حساب مختلفة من جميع أنحاء العالم الإسلامي.</p>
                 </div>
                 
                 <div class="feature-card">
-                    <h3><i class="fas fa-bell"></i> إشعارات تلقائية</h3>
-                    <p>إشعارات للأذكار على فترات زمنية قابلة للتخصيص، تنبيه قبل الصلاة بـ10 دقائق، وإشعارات دخول وقت الصلاة.</p>
+                    <h3><i class="fas fa-bell"></i> إشعارات ذكية</h3>
+                    <p>إشعارات تلقائية للأذكار على فترات زمنية قابلة للتخصيص، تنبيه قبل الصلاة بـ10 دقائق، وإشعارات دخول وقت الصلاة مع تشغيل الأذان.</p>
                 </div>
                 
                 <div class="feature-card">
-                    <h3><i class="fas fa-globe"></i> دعم متعدد اللغات</h3>
-                    <p>واجهة عربية كاملة مع دعم جميع أنواع الطرفيات (Bash, Zsh, Fish) وتوافق مع مختلف توزيعات لينكس.</p>
+                    <h3><i class="fas fa-desktop"></i> دعم جميع واجهات سطح المكتب</h3>
+                    <p>توافق كامل مع GNOME, KDE, XFCE, i3, Sway, Awesome WM, Openbox, LXDE وجميع بيئات سطح المكتب الأخرى.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h3><i class="fas fa-terminal"></i> دعم جميع أنواع الطرفيات</h3>
+                    <p>عمل متكامل مع Bash, Zsh, Fish, Ksh, Tcsh وجميع أنواع الشل، مع إعداد تلقائي لكل منها.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h3><i class="fas fa-sync-alt"></i> تحديث تلقائي</h3>
+                    <p>تحديث تلقائي للبرنامج والأذكار، مع خيار التحديث اليدوي والحفاظ على الإعدادات الشخصية.</p>
                 </div>
             </div>
         </section>
         
         <section id="installation">
-            <h2><i class="fas fa-download"></i> طريقة التثبيت</h2>
+            <h2><i class="fas fa-download"></i> التثبيت السريع</h2>
             
             <h3><i class="fas fa-bolt"></i> التثبيت التلقائي (مستحسن)</h3>
+            <p>نسخة واحدة تشمل كل شيء - التثبيت، الإعدادات، البدء التلقائي:</p>
             <div class="code-block">
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install-gt-salat-dikr.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh)"
             </div>
             
-            <h3><i class="fas fa-cogs"></i> التثبيت اليدوي</h3>
+            <h3><i class="fas fa-cogs"></i> التثبيت اليدوي للمستخدمين المتقدمين</h3>
             <div class="code-block">
-git clone https://github.com/SalehGNUTUX/GT-salat-dikr.git<br>cd GT-salat-dikr<br>chmod +x install-gt-salat-dikr.sh<br>./install-gt-salat-dikr.sh
+git clone https://github.com/SalehGNUTUX/GT-salat-dikr.git<br>cd GT-salat-dikr<br>chmod +x install.sh<br>./install.sh
+            </div>
+            
+            <h3><i class="fas fa-trash"></i> إزالة التثبيت</h3>
+            <div class="code-block">
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/uninstall.sh)"
             </div>
         </section>
         
         <section id="usage">
-            <h2><i class="fas fa-terminal"></i> أوامر الاستخدام</h2>
+            <h2><i class="fas fa-terminal"></i> الأوامر المتاحة</h2>
             
             <div class="commands">
                 <div class="command-item">
@@ -322,10 +449,10 @@ git clone https://github.com/SalehGNUTUX/GT-salat-dikr.git<br>cd GT-salat-dikr<b
                     <p><code>gtsalat --show-timetable</code> - عرض مواقيت الصلاة كاملة لليوم</p>
                 </div>
                 <div class="command-item">
-                    <p><code>gtsalat t</code> - اختصار لعرض مواقيت الصلاة</p>
+                    <p><code>gtsalat -t</code> - اختصار لعرض مواقيت الصلاة</p>
                 </div>
                 <div class="command-item">
-                    <p><code>gtsalat --settings</code> - إدارة الإعدادات</p>
+                    <p><code>gtsalat --settings</code> - إعدادات الموقع وطريقة الحساب</p>
                 </div>
                 <div class="command-item">
                     <p><code>gtsalat --notify-start</code> - تشغيل الإشعارات التلقائية</p>
@@ -334,33 +461,100 @@ git clone https://github.com/SalehGNUTUX/GT-salat-dikr.git<br>cd GT-salat-dikr<b
                     <p><code>gtsalat --notify-stop</code> - إيقاف الإشعارات</p>
                 </div>
                 <div class="command-item">
+                    <p><code>gtsalat --test-notify</code> - اختبار الإشعارات</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --test-adhan</code> - اختبار تشغيل الأذان</p>
+                </div>
+                <div class="command-item">
                     <p><code>gtsalat --update-azkar</code> - تحديث الأذكار من الإنترنت</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --self-update</code> - تحديث البرنامج نفسه</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --status</code> - عرض حالة البرنامج</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --logs</code> - عرض سجل التشغيل</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --debug</code> - معلومات التشخيص</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --help</code> - عرض المساعدة الكاملة</p>
                 </div>
             </div>
         </section>
         
         <section id="screenshots">
-            <h2><i class="fas fa-desktop"></i> أمثلة على المخرجات</h2>
+            <h2><i class="fas fa-desktop"></i> أمثلة حية من البرنامج</h2>
             
+            <h3>عرض الذكر وموعد الصلاة القادمة:</h3>
             <div class="code-block">
-# مثال 1: العرض الأساسي<br>اللهم إني أعوذ بك من شر ما عملت ومن شر ما لم أعمل<br>الصلاة القادمة: المغرب عند 18:45 (باقي 02:15)<br><br># مثال 2: جدول المواقيت الكامل<br>مواقيت الصلاة اليوم (الرياض):<br>      الفجر: 04:30 (باقي 08:20)<br>     الشروق: 05:45 (باقي 09:35)<br>      الظهر: 12:15 (باقي 16:05)<br>      العصر: 15:30 (باقي 19:20)  ← القادمة<br>     المغرب: 18:45<br>     العشاء: 20:00
+# عند فتح الطرفية تلقائيًا:<br>لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير<br><br>🕌 الصلاة القادمة: العصر عند 15:30 (باقي 02:15)
+            </div>
+            
+            <h3>جدول المواقيت الكامل:</h3>
+            <div class="code-block">
+مواقيت الصلاة اليوم (الرياض):<br>      الفجر: 04:30<br>    الشروق: 05:45<br>      الظهر: 12:15<br>      العصر: 15:30  ← القادمة<br>     المغرب: 18:45<br>     العشاء: 20:00
+            </div>
+            
+            <h3>حالة البرنامج المتقدمة:</h3>
+            <div class="code-block">
+📊 حالة GT-salat-dikr:<br>════════════════════════════════<br>✅ الإشعارات: تعمل (PID: 2543)<br><br>📍 الموقع: الرياض, السعودية<br>🧭 الإحداثيات: 24.7136, 46.6753<br>📖 طريقة الحساب: Umm Al-Qura University, Makkah<br><br>🕌 الصلاة القادمة: العصر<br>⏰ الوقت: 15:30<br>⏳ المتبقي: 02:15
             </div>
         </section>
         
+        <section id="technical">
+            <h2><i class="fas fa-cogs"></i> المعلومات التقنية</h2>
+            
+            <h3>المتطلبات الأساسية:</h3>
+            <ul>
+                <li>نظام لينكس (أي توزيعة)</li>
+                <li>Bash 4.0 أو أحدث</li>
+                <li>curl لتحميل الملفات</li>
+                <li>jq لمعالجة JSON (اختياري لكن مستحسن)</li>
+                <li>libnotify للإشعارات</li>
+            </ul>
+            
+            <h3>الميزات التقنية:</h3>
+            <ul>
+                <li>دعم نظامي init: systemd و XDG autostart</li>
+                <li>إدارة عمليات خلفية ذكية</li>
+                <li>سجل أخطاء مفصل</li>
+                <li>اكتشاف تلقائي للموقع الجغرافي</li>
+                <li>واجهة رسومية للأذان (zenity/yad/kdialog)</li>
+                <li>دعم مشغلات صوت متعددة (mpv, ffplay, paplay, ogg123)</li>
+            </ul>
+        </section>
+        
         <section id="license">
-            <h2><i class="fas fa-balance-scale"></i> الترخيص</h2>
-            <p>هذا البرنامج مرخص تحت <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/LICENSE">رخصة جنو العمومية (GPL)</a>. يمكنك استخدام البرنامج مجانًا، تعديل الشفرة المصدرية، توزيع نسخ معدلة، واستخدام البرنامج لأي غرض.</p>
+            <h2><i class="fas fa-balance-scale"></i> الترخيص والمشاركة</h2>
+            <p>هذا البرنامج مرخص تحت <span class="highlight">رخصة جنو العمومية (GPL v3)</span>. يمكنك:</p>
+            <ul>
+                <li>استخدام البرنامج مجانًا لأي غرض</li>
+                <li>تعديل الشفرة المصدرية كما تشاء</li>
+                <li>توزيع نسخ معدلة مع الإشارة إلى التغييرات</li>
+                <li>المساهمة في تطوير المشروع</li>
+            </ul>
+            
+            <p>المشروع مبني على فلسفة البرمجيات الحرة، ونرحب بجميع المساهمات والتطويرات.</p>
             
             <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">
-                <i class="fas fa-code"></i> استعراض الكود المصدري
+                <i class="fas fa-code"></i> المساهمة في التطوير
+            </a>
+            <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/issues" class="btn btn-secondary">
+                <i class="fas fa-bug"></i> الإبلاغ عن مشكلة
             </a>
         </section>
     </div>
     
     <footer>
         <div class="container">
-            <p>GT-salat-dikr - تذكير الصلاة والأذكار على سطر الأوامر</p>
-            <p>تم التطوير بواسطة <a href="https://github.com/SalehGNUTUX">SalehGNUTUX</a> - مرخص تحت <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/LICENSE">GPL</a></p>
+            <p>GT-salat-dikr - نظام إشعارات الصلاة والأذكار المتكامل</p>
+            <p>تم التطوير بواسطة <a href="https://github.com/SalehGNUTUX">SalehGNUTUX</a> - مرخص تحت <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/LICENSE">GPL v3</a></p>
+            <p>🌙 نسخة حديثة ومطورة - 2025</p>
         </div>
     </footer>
 
