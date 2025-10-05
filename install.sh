@@ -1,106 +1,190 @@
 #!/bin/bash
-# مُثبّت GT-salat-dikr الذكي — 2025-10-05
-# إعداد تلقائي للطرفية، autostart، وsystemd
-set -euo pipefail
+#
+# GT-salat-dikr Enhanced Installation Script
+# يدعم جميع توزيعات Linux وبيئات سطح المكتب
+#
 
+set -e
+
+echo "════════════════════════════════════════════════════════"
+echo "  تثبيت GT-salat-dikr - نظام إشعارات الصلاة والأذكار"
+echo "════════════════════════════════════════════════════════"
+echo ""
+
+# التحقق من الصلاحيات
+if [ "$EUID" -eq 0 ]; then 
+    echo "⚠️  تحذير: لا تشغل هذا السكربت بصلاحيات root"
+    echo "   استخدم حساب المستخدم العادي."
+    exit 1
+fi
+
+# المتغيرات
 INSTALL_DIR="$HOME/.GT-salat-dikr"
-SCRIPT="$INSTALL_DIR/gt-salat-dikr.sh"
-SERVICE_FILE="$HOME/.config/systemd/user/gt-salat-dikr.service"
-AUTOSTART_FILE="$HOME/.config/autostart/gt-salat-dikr.desktop"
+REPO_BASE="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main"
 
-echo "🕌 مثبت GT-salat-dikr — إعداد الذكر والصلاة"
+# التحقق من الأدوات المطلوبة
+echo "🔍 فحص المتطلبات..."
+MISSING_TOOLS=()
+
+if ! command -v curl >/dev/null 2>&1; then
+    MISSING_TOOLS+=("curl")
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+    MISSING_TOOLS+=("jq")
+fi
+
+if ! command -v notify-send >/dev/null 2>&1; then
+    MISSING_TOOLS+=("libnotify (notify-send)")
+fi
+
+# اكتشاف الأدوات الرسومية
+GUI_FOUND=0
+if command -v zenity >/dev/null 2>&1; then
+    GUI_FOUND=1
+    echo "  ✓ zenity متوفر"
+elif command -v yad >/dev/null 2>&1; then
+    GUI_FOUND=1
+    echo "  ✓ yad متوفر"
+elif command -v kdialog >/dev/null 2>&1; then
+    GUI_FOUND=1
+    echo "  ✓ kdialog متوفر"
+fi
+
+if [ $GUI_FOUND -eq 0 ]; then
+    echo "  ⚠️ لم يتم العثور على أداة رسومية (zenity/yad/kdialog)"
+    echo "     سيتم استخدام إشعارات بسيطة فقط"
+fi
+
+# عرض الأدوات الناقصة
+if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
+    echo ""
+    echo "❌ الأدوات التالية مفقودة:"
+    for tool in "${MISSING_TOOLS[@]}"; do
+        echo "   - $tool"
+    done
+    echo ""
+    echo "📦 تعليمات التثبيت حسب التوزيعة:"
+    echo ""
+    echo "Debian/Ubuntu/Mint:"
+    echo "  sudo apt install curl jq libnotify-bin zenity"
+    echo ""
+    echo "Fedora/RHEL/CentOS:"
+    echo "  sudo dnf install curl jq libnotify zenity"
+    echo ""
+    echo "Arch/Manjaro:"
+    echo "  sudo pacman -S curl jq libnotify zenity"
+    echo ""
+    echo "openSUSE:"
+    echo "  sudo zypper install curl jq libnotify-tools zenity"
+    echo ""
+    read -p "هل تريد المتابعة على أي حال؟ (قد لا تعمل بعض الميزات) [y/N]: " continue_anyway
+    if [[ ! "$continue_anyway" =~ ^[Yy]$ ]]; then
+        echo "تم إلغاء التثبيت."
+        exit 1
+    fi
+fi
+
+echo ""
+echo "📥 جاري التحميل والتثبيت..."
 
 # إنشاء مجلد التثبيت
 mkdir -p "$INSTALL_DIR"
-cp -f ./gt-salat-dikr.sh "$SCRIPT"
-chmod +x "$SCRIPT"
+cd "$INSTALL_DIR"
 
-# ===== [ إصلاح السطر 1013 إذا وجد ] =====
-if grep -q '"\$PRAYER_NAME""\$PRAYER_TIME"' "$SCRIPT"; then
-    sed -i 's/"$PRAYER_NAME""$PRAYER_TIME"/"$PRAYER_NAME" "$PRAYER_TIME"/' "$SCRIPT"
+# تحميل الملفات الرئيسية
+echo "  → تحميل السكربت الرئيسي..."
+curl -fsSL "$REPO_BASE/gt-salat-dikr.sh" -o gt-salat-dikr.sh
+chmod +x gt-salat-dikr.sh
+
+echo "  → تحميل ملف الأذكار..."
+curl -fsSL "$REPO_BASE/azkar.txt" -o azkar.txt 2>/dev/null || {
+    echo "     تحذير: فشل تحميل azkar.txt - سيتم إنشاء ملف افتراضي"
+    cat > azkar.txt <<'EOF'
+سبحان الله وبحمده، سبحان الله العظيم
+%
+لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير
+%
+اللهم صل على محمد وعلى آل محمد
+%
+استغفر الله العظيم الذي لا إله إلا هو الحي القيوم وأتوب إليه
+%
+حسبي الله لا إله إلا هو عليه توكلت وهو رب العرش العظيم
+EOF
+}
+
+echo "  → تحميل ملف الأذان..."
+curl -fsSL "$REPO_BASE/adhan.ogg" -o adhan.ogg 2>/dev/null || {
+    echo "     تحذير: فشل تحميل adhan.ogg - ابحث عن ملف أذان وضعه في $INSTALL_DIR"
+}
+
+# إنشاء الاختصار
+echo "  → إنشاء اختصار gtsalat..."
+mkdir -p "$HOME/.local/bin"
+ln -sf "$INSTALL_DIR/gt-salat-dikr.sh" "$HOME/.local/bin/gtsalat"
+
+# التأكد من أن ~/.local/bin في PATH
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+    echo "  → إضافة ~/.local/bin إلى PATH..."
+    for rc_file in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+        if [ -f "$rc_file" ]; then
+            if ! grep -q '.local/bin' "$rc_file"; then
+                echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$rc_file"
+            fi
+        fi
+    done
+    export PATH="$HOME/.local/bin:$PATH"
 fi
 
-# ===== [ فحص الكود ] =====
-bash -n "$SCRIPT" && echo "✅ لا توجد أخطاء نحوية."
+echo ""
+echo "✅ تم التثبيت بنجاح!"
+echo ""
+echo "════════════════════════════════════════════════════════"
+echo "  الخطوات التالية:"
+echo "════════════════════════════════════════════════════════"
+echo ""
+echo "1️⃣  إعداد الموقع والإعدادات:"
+echo "   gtsalat --settings"
+echo ""
+echo "2️⃣  بدء الإشعارات:"
+echo "   gtsalat --notify-start"
+echo ""
+echo "3️⃣  عرض مواقيت الصلاة:"
+echo "   gtsalat --show-timetable"
+echo ""
+echo "4️⃣  اختبار الإشعارات:"
+echo "   gtsalat --test-notify"
+echo "   gtsalat --test-adhan"
+echo ""
+echo "ℹ️  للحصول على المساعدة الكاملة:"
+echo "   gtsalat --help"
+echo ""
+echo "════════════════════════════════════════════════════════"
+echo ""
 
-# ===== [ إعداد ملفات الطرفية ] =====
-for rc in ~/.bashrc ~/.zshrc; do
-    if [ -f "$rc" ] && ! grep -q "GT-salat-dikr" "$rc"; then
-        echo "🌀 إضافة إعداد التشغيل إلى $rc"
-        cat >> "$rc" << 'EOF'
+# سؤال المستخدم عن الإعداد الفوري
+read -p "هل تريد إعداد البرنامج الآن؟ [Y/n]: " setup_now
+setup_now=${setup_now:-Y}
 
-# GT-salat-dikr: ذكر وصلاة عند فتح الطرفية
-"$HOME/.GT-salat-dikr/gt-salat-dikr.sh"
-EOF
+if [[ "$setup_now" =~ ^[Yy]$ ]]; then
+    echo ""
+    "$INSTALL_DIR/gt-salat-dikr.sh" --settings
+    
+    echo ""
+    read -p "هل تريد بدء الإشعارات الآن؟ [Y/n]: " start_now
+    start_now=${start_now:-Y}
+    
+    if [[ "$start_now" =~ ^[Yy]$ ]]; then
+        "$INSTALL_DIR/gt-salat-dikr.sh" --notify-start
+        echo ""
+        echo "🎉 تم! البرنامج يعمل الآن في الخلفية"
+        echo "   وسيبدأ تلقائياً عند بدء تشغيل النظام"
     fi
-done
-
-# ===== [ واجهة الاختيار التفاعلي ] =====
-echo
-echo "اختر طريقة التشغيل التلقائي:"
-echo "1) systemd (موصى بها)"
-echo "2) autostart (لكافة البيئات)"
-echo "3) كليهما"
-echo "4) لا شيء"
-read -rp "➡️ أدخل رقم الخيار [1-4]: " choice
-
-enable_systemd=false
-enable_autostart=false
-
-case "$choice" in
-    1) enable_systemd=true ;;
-    2) enable_autostart=true ;;
-    3) enable_systemd=true; enable_autostart=true ;;
-    *) echo "❌ لن يتم إنشاء تشغيل تلقائي." ;;
-esac
-
-# ===== [ إعداد systemd ] =====
-if $enable_systemd; then
-    mkdir -p "$(dirname "$SERVICE_FILE")"
-    cat > "$SERVICE_FILE" <<EOF
-[Unit]
-Description=GT-salat-dikr Notifications
-After=graphical-session.target
-
-[Service]
-Type=simple
-ExecStart=$SCRIPT --child-notify
-Restart=on-failure
-RestartSec=10
-Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus"
-Environment="DISPLAY=:0"
-
-[Install]
-WantedBy=default.target
-EOF
-    systemctl --user daemon-reload
-    systemctl --user enable --now gt-salat-dikr.service
-    echo "✅ تم تفعيل خدمة systemd للمستخدم."
+else
+    echo ""
+    echo "💡 لإعداد البرنامج لاحقاً، شغّل: gtsalat --settings"
 fi
 
-# ===== [ إعداد autostart ] =====
-if $enable_autostart; then
-    mkdir -p "$(dirname "$AUTOSTART_FILE")"
-    cat > "$AUTOSTART_FILE" <<EOF
-[Desktop Entry]
-Type=Application
-Name=GT-salat-dikr Notifications
-Exec=bash -c "sleep 20 && $SCRIPT --notify-start"
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-X-KDE-autostart-after=panel
-StartupNotify=false
-Terminal=false
-EOF
-    echo "✅ تم إنشاء ملف autostart."
-fi
-
-echo
-echo "🎉 تم تثبيت GT-salat-dikr بنجاح!"
-echo "📍 مجلد التثبيت: $INSTALL_DIR"
-echo "💡 يمكنك تجربة التشغيل الآن بالأمر:"
-echo "   $SCRIPT"
-echo
-echo "لإلغاء التثبيت:"
-echo "   $SCRIPT --uninstall"
+echo ""
+echo "🌟 شكراً لاستخدام GT-salat-dikr!"
+echo "════════════════════════════════════════════════════════"
