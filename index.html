@@ -50,7 +50,6 @@
             margin: 0;
         }
         
-        /* تذييل الصفحة */
         header {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
@@ -202,16 +201,6 @@
             color: var(--text);
         }
         
-        .screenshot {
-            width: 100%;
-            max-width: 900px;
-            margin: 1.5rem auto;
-            display: block;
-            border-radius: 10px;
-            box-shadow: 0 6px 15px var(--shadow);
-            border: 2px solid var(--accent);
-        }
-        
         .logo {
             font-size: 4rem;
             color: white;
@@ -279,29 +268,97 @@
         
         .demo-terminal {
             background: #1e1e1e;
-            color: #00ff00;
+            color: #f8f8f8;
             border-radius: 10px;
             padding: 2rem;
             margin: 2rem 0;
             font-family: 'Courier New', monospace;
             box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            border: 2px solid var(--accent);
         }
         
         .demo-line {
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.8rem;
+            line-height: 1.5;
         }
         
         .demo-prompt {
             color: #ffff00;
+            font-weight: bold;
         }
         
         .demo-output {
-            color: #00ffff;
+            color: #00ff00;
         }
         
-        .demo-highlight {
+        .demo-comment {
+            color: #888;
+            font-style: italic;
+        }
+        
+        .demo-zekr {
+            color: #87ceeb;
+            font-size: 1.1rem;
+            margin: 1rem 0;
+            padding-right: 1rem;
+            border-right: 3px solid var(--accent);
+        }
+        
+        .demo-prayer {
             color: #ff6b6b;
             font-weight: bold;
+            font-size: 1.2rem;
+            margin: 1rem 0;
+            padding: 0.5rem;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 5px;
+        }
+        
+        .demo-timetable {
+            color: #98fb98;
+            margin: 1rem 0;
+        }
+        
+        .demo-timetable-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 0.3rem 0;
+            padding: 0.2rem 0;
+        }
+        
+        .demo-next {
+            color: #ffd700;
+            font-weight: bold;
+        }
+        
+        .live-demo {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--primary);
+        }
+        
+        .live-demo-title {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            font-size: 1.4rem;
+        }
+        
+        .refresh-btn {
+            background: var(--accent);
+            color: var(--text);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 1rem 0;
+            font-weight: bold;
+        }
+        
+        .refresh-btn:hover {
+            background: #7cb342;
         }
 
         @media (max-width: 768px) {
@@ -328,6 +385,11 @@
                 padding: 0.8rem 1.5rem;
                 font-size: 1rem;
             }
+            
+            .demo-terminal {
+                padding: 1rem;
+                font-size: 0.9rem;
+            }
         }
     </style>
 </head>
@@ -351,7 +413,7 @@
             
             <div class="stats">
                 <div class="stat-item">
-                    <div class="stat-number">40+</div>
+                    <div class="stat-number">80+</div>
                     <div>ذكر متنوع</div>
                 </div>
                 <div class="stat-item">
@@ -368,11 +430,17 @@
                 </div>
             </div>
             
-            <div class="demo-terminal">
-                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat</span></div>
-                <div class="demo-line">سبحان الله وبحمده، سبحان الله العظيم</div>
-                <div class="demo-line"></div>
-                <div class="demo-line"><span class="demo-highlight">🕌 الصلاة القادمة: العصر عند 15:30 (باقي 02:15)</span></div>
+            <!-- محاكاة حية للبرنامج -->
+            <div class="live-demo">
+                <div class="live-demo-title">
+                    <i class="fas fa-desktop"></i> محاكاة حية - كما يظهر في البرنامج الفعلي
+                </div>
+                <div class="demo-terminal" id="liveDemo">
+                    <!-- سيتم ملؤه بالجافاسكريبت -->
+                </div>
+                <button class="refresh-btn" onclick="refreshDemo()">
+                    <i class="fas fa-sync-alt"></i> عرض مثال جديد
+                </button>
             </div>
             
             <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">
@@ -388,7 +456,7 @@
             <div class="features">
                 <div class="feature-card">
                     <h3><i class="fas fa-book-quran"></i> أذكار شاملة ومتنوعة</h3>
-                    <p>قاعدة بيانات شاملة تحتوي على أكثر من 40 ذكر متنوع من الأذكار الإسلامية الموثوقة، مع تحديث تلقائي من المصادر المعتمدة.</p>
+                    <p>قاعدة بيانات شاملة تحتوي على أكثر من 80 ذكر متنوع من الأذكار الإسلامية الموثوقة، مع تحديث تلقائي من المصادر المعتمدة.</p>
                 </div>
                 
                 <div class="feature-card">
@@ -404,16 +472,6 @@
                 <div class="feature-card">
                     <h3><i class="fas fa-desktop"></i> دعم جميع واجهات سطح المكتب</h3>
                     <p>توافق كامل مع GNOME, KDE, XFCE, i3, Sway, Awesome WM, Openbox, LXDE وجميع بيئات سطح المكتب الأخرى.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <h3><i class="fas fa-terminal"></i> دعم جميع أنواع الطرفيات</h3>
-                    <p>عمل متكامل مع Bash, Zsh, Fish, Ksh, Tcsh وجميع أنواع الشل، مع إعداد تلقائي لكل منها.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <h3><i class="fas fa-sync-alt"></i> تحديث تلقائي</h3>
-                    <p>تحديث تلقائي للبرنامج والأذكار، مع خيار التحديث اليدوي والحفاظ على الإعدادات الشخصية.</p>
                 </div>
             </div>
         </section>
@@ -432,9 +490,19 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
 git clone https://github.com/SalehGNUTUX/GT-salat-dikr.git<br>cd GT-salat-dikr<br>chmod +x install.sh<br>./install.sh
             </div>
             
-            <h3><i class="fas fa-trash"></i> إزالة التثبيت</h3>
-            <div class="code-block">
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/uninstall.sh)"
+            <div class="demo-terminal">
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --status</span></div>
+                <div class="demo-line">📊 حالة GT-salat-dikr:</div>
+                <div class="demo-line">════════════════════════════════</div>
+                <div class="demo-line">✅ الإشعارات: تعمل (PID: 2543)</div>
+                <div class="demo-line"></div>
+                <div class="demo-line">📍 الموقع: الرياض, السعودية</div>
+                <div class="demo-line">🧭 الإحداثيات: 24.7136, 46.6753</div>
+                <div class="demo-line">📖 طريقة الحساب: Umm Al-Qura University, Makkah</div>
+                <div class="demo-line"></div>
+                <div class="demo-line">🕌 الصلاة القادمة: العصر</div>
+                <div class="demo-line">⏰ الوقت: 15:30</div>
+                <div class="demo-line">⏳ المتبقي: 02:15</div>
             </div>
         </section>
         
@@ -449,22 +517,10 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
                     <p><code>gtsalat --show-timetable</code> - عرض مواقيت الصلاة كاملة لليوم</p>
                 </div>
                 <div class="command-item">
-                    <p><code>gtsalat -t</code> - اختصار لعرض مواقيت الصلاة</p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --settings</code> - إعدادات الموقع وطريقة الحساب</p>
-                </div>
-                <div class="command-item">
                     <p><code>gtsalat --notify-start</code> - تشغيل الإشعارات التلقائية</p>
                 </div>
                 <div class="command-item">
-                    <p><code>gtsalat --notify-stop</code> - إيقاف الإشعارات</p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --test-notify</code> - اختبار الإشعارات</p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --test-adhan</code> - اختبار تشغيل الأذان</p>
+                    <p><code>gtsalat --settings</code> - إعدادات الموقع وطريقة الحساب</p>
                 </div>
                 <div class="command-item">
                     <p><code>gtsalat --update-azkar</code> - تحديث الأذكار من الإنترنت</p>
@@ -472,74 +528,41 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
                 <div class="command-item">
                     <p><code>gtsalat --self-update</code> - تحديث البرنامج نفسه</p>
                 </div>
-                <div class="command-item">
-                    <p><code>gtsalat --status</code> - عرض حالة البرنامج</p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --logs</code> - عرض سجل التشغيل</p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --debug</code> - معلومات التشخيص</p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --help</code> - عرض المساعدة الكاملة</p>
+            </div>
+            
+            <div class="demo-terminal">
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --show-timetable</span></div>
+                <div class="demo-line">مواقيت الصلاة اليوم (الرياض):</div>
+                <div class="demo-timetable">
+                    <div class="demo-timetable-line"><span>الفجر:</span> <span>04:30</span></div>
+                    <div class="demo-timetable-line"><span>الشروق:</span> <span>05:45</span></div>
+                    <div class="demo-timetable-line"><span>الظهر:</span> <span>12:15</span></div>
+                    <div class="demo-timetable-line"><span class="demo-next">العصر:</span> <span class="demo-next">15:30 ← القادمة</span></div>
+                    <div class="demo-timetable-line"><span>المغرب:</span> <span>18:45</span></div>
+                    <div class="demo-timetable-line"><span>العشاء:</span> <span>20:00</span></div>
                 </div>
             </div>
         </section>
         
-        <section id="screenshots">
+        <section id="examples">
             <h2><i class="fas fa-desktop"></i> أمثلة حية من البرنامج</h2>
             
-            <h3>عرض الذكر وموعد الصلاة القادمة:</h3>
-            <div class="code-block">
-# عند فتح الطرفية تلقائيًا:<br>لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير<br><br>🕌 الصلاة القادمة: العصر عند 15:30 (باقي 02:15)
+            <div class="demo-terminal">
+                <div class="demo-line"><span class="demo-comment"># عند فتح الطرفية تلقائيًا:</span></div>
+                <div class="demo-zekr">سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ</div>
+                <div class="demo-prayer">🕌 الصلاة القادمة: العصر عند 15:30 (باقي 02:15)</div>
             </div>
             
-            <h3>جدول المواقيت الكامل:</h3>
-            <div class="code-block">
-مواقيت الصلاة اليوم (الرياض):<br>      الفجر: 04:30<br>    الشروق: 05:45<br>      الظهر: 12:15<br>      العصر: 15:30  ← القادمة<br>     المغرب: 18:45<br>     العشاء: 20:00
+            <div class="demo-terminal">
+                <div class="demo-line"><span class="demo-comment"># مثال آخر:</span></div>
+                <div class="demo-zekr">اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ، وَالْعَجْزِ وَالْكَسَلِ، وَالْجُبْنِ وَالْبُخْلِ، وَضَلَعِ الدَّيْنِ وَغَلَبَةِ الرِّجَالِ</div>
+                <div class="demo-prayer">🕌 الصلاة القادمة: المغرب عند 18:45 (باقي 05:30)</div>
             </div>
-            
-            <h3>حالة البرنامج المتقدمة:</h3>
-            <div class="code-block">
-📊 حالة GT-salat-dikr:<br>════════════════════════════════<br>✅ الإشعارات: تعمل (PID: 2543)<br><br>📍 الموقع: الرياض, السعودية<br>🧭 الإحداثيات: 24.7136, 46.6753<br>📖 طريقة الحساب: Umm Al-Qura University, Makkah<br><br>🕌 الصلاة القادمة: العصر<br>⏰ الوقت: 15:30<br>⏳ المتبقي: 02:15
-            </div>
-        </section>
-        
-        <section id="technical">
-            <h2><i class="fas fa-cogs"></i> المعلومات التقنية</h2>
-            
-            <h3>المتطلبات الأساسية:</h3>
-            <ul>
-                <li>نظام لينكس (أي توزيعة)</li>
-                <li>Bash 4.0 أو أحدث</li>
-                <li>curl لتحميل الملفات</li>
-                <li>jq لمعالجة JSON (اختياري لكن مستحسن)</li>
-                <li>libnotify للإشعارات</li>
-            </ul>
-            
-            <h3>الميزات التقنية:</h3>
-            <ul>
-                <li>دعم نظامي init: systemd و XDG autostart</li>
-                <li>إدارة عمليات خلفية ذكية</li>
-                <li>سجل أخطاء مفصل</li>
-                <li>اكتشاف تلقائي للموقع الجغرافي</li>
-                <li>واجهة رسومية للأذان (zenity/yad/kdialog)</li>
-                <li>دعم مشغلات صوت متعددة (mpv, ffplay, paplay, ogg123)</li>
-            </ul>
         </section>
         
         <section id="license">
             <h2><i class="fas fa-balance-scale"></i> الترخيص والمشاركة</h2>
-            <p>هذا البرنامج مرخص تحت <span class="highlight">رخصة جنو العمومية (GPL v3)</span>. يمكنك:</p>
-            <ul>
-                <li>استخدام البرنامج مجانًا لأي غرض</li>
-                <li>تعديل الشفرة المصدرية كما تشاء</li>
-                <li>توزيع نسخ معدلة مع الإشارة إلى التغييرات</li>
-                <li>المساهمة في تطوير المشروع</li>
-            </ul>
-            
-            <p>المشروع مبني على فلسفة البرمجيات الحرة، ونرحب بجميع المساهمات والتطويرات.</p>
+            <p>هذا البرنامج مرخص تحت <span class="highlight">رخصة جنو العمومية (GPL v3)</span>. يمكنك استخدامه، تعديله، ومشاركته وفق شروط الرخصة.</p>
             
             <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">
                 <i class="fas fa-code"></i> المساهمة في التطوير
@@ -559,11 +582,51 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
     </footer>
 
     <script>
-        // تبديل الوضع المظلم
+        // بيانات الأذكار
+        const azkar = [
+            "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ",
+            "لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ",
+            "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ",
+            "أسْتَغْفِرُ اللَّهِ الْعَظِيمَ الَّذِي لَا إِلَهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ وَأَتُوبُ إِلَيْهِ",
+            "حَسْبِيَ اللَّهُ لَا إِلَهَ إِلَّا هُوَ عَلَيْهِ تَوَكَّلْتُ وَهُوَ رَبُّ الْعَرْشِ الْعَظِيمِ",
+            "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ، وَالْعَجْزِ وَالْكَسَلِ، وَالْجُبْنِ وَالْبُخْلِ، وَضَلَعِ الدَّيْنِ وَغَلَبَةِ الرِّجَالِ",
+            "اللَّهُمَّ إِنِّي أَسْأَلُكَ عِلْمًا نَافِعًا، وَرِزْقًا طَيِّبًا، وَعَمَلًا مُتَقَبَّلًا",
+            "لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ",
+            "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عِلْمٍ لَا يَنْفَعُ، وَمِنْ قَلْبٍ لَا يَخْشَعُ، وَمِنْ نَفْسٍ لَا تَشْبَعُ، وَمِنْ دَعْوَةٍ لَا يُسْتَجَابُ لَهَا"
+        ];
+
+        // بيانات مواقيت الصلاة
+        const prayerTimes = [
+            { name: "الفجر", time: "04:30", next: false },
+            { name: "الشروق", time: "05:45", next: false },
+            { name: "الظهر", time: "12:15", next: false },
+            { name: "العصر", time: "15:30", next: true },
+            { name: "المغرب", time: "18:45", next: false },
+            { name: "العشاء", time: "20:00", next: false }
+        ];
+
+        // توليد مثال عشوائي
+        function generateDemo() {
+            const randomZekr = azkar[Math.floor(Math.random() * azkar.length)];
+            const nextPrayer = prayerTimes.find(p => p.next);
+            const remainingTime = "02:" + (Math.floor(Math.random() * 59)).toString().padStart(2, '0');
+            
+            return `
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat</span></div>
+                <div class="demo-zekr">${randomZekr}</div>
+                <div class="demo-prayer">🕌 الصلاة القادمة: ${nextPrayer.name} عند ${nextPrayer.time} (باقي ${remainingTime})</div>
+            `;
+        }
+
+        // تحديث العرض الحي
+        function refreshDemo() {
+            document.getElementById('liveDemo').innerHTML = generateDemo();
+        }
+
+        // التبديل بين الوضع المظلم والفاتح
         const themeToggle = document.getElementById('themeToggle');
         const themeIcon = themeToggle.querySelector('i');
         
-        // التحقق من التفضيل المحفوظ
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
@@ -586,8 +649,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
                 localStorage.setItem('theme', 'dark');
             }
         });
-        
-        // تأثيرات scroll suave
+
+        // التمرير السلس
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -602,6 +665,11 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
                     });
                 }
             });
+        });
+
+        // تهيئة العرض الحي عند التحميل
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshDemo();
         });
     </script>
 </body>
