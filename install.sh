@@ -1,81 +1,106 @@
-#!/usr/bin/env bash
+#!/bin/bash
+# مُثبّت GT-salat-dikr الذكي — 2025-10-05
+# إعداد تلقائي للطرفية، autostart، وsystemd
+set -euo pipefail
+
+INSTALL_DIR="$HOME/.GT-salat-dikr"
+SCRIPT="$INSTALL_DIR/gt-salat-dikr.sh"
+SERVICE_FILE="$HOME/.config/systemd/user/gt-salat-dikr.service"
+AUTOSTART_FILE="$HOME/.config/autostart/gt-salat-dikr.desktop"
+
+echo "🕌 مثبت GT-salat-dikr — إعداد الذكر والصلاة"
+
+# إنشاء مجلد التثبيت
+mkdir -p "$INSTALL_DIR"
+cp -f ./gt-salat-dikr.sh "$SCRIPT"
+chmod +x "$SCRIPT"
+
+# ===== [ إصلاح السطر 1013 إذا وجد ] =====
+if grep -q '"\$PRAYER_NAME""\$PRAYER_TIME"' "$SCRIPT"; then
+    sed -i 's/"$PRAYER_NAME""$PRAYER_TIME"/"$PRAYER_NAME" "$PRAYER_TIME"/' "$SCRIPT"
+fi
+
+# ===== [ فحص الكود ] =====
+bash -n "$SCRIPT" && echo "✅ لا توجد أخطاء نحوية."
+
+# ===== [ إعداد ملفات الطرفية ] =====
+for rc in ~/.bashrc ~/.zshrc; do
+    if [ -f "$rc" ] && ! grep -q "GT-salat-dikr" "$rc"; then
+        echo "🌀 إضافة إعداد التشغيل إلى $rc"
+        cat >> "$rc" << 'EOF'
+
+# GT-salat-dikr: ذكر وصلاة عند فتح الطرفية
+"$HOME/.GT-salat-dikr/gt-salat-dikr.sh"
+EOF
+    fi
+done
+
+# ===== [ واجهة الاختيار التفاعلي ] =====
+echo
+echo "اختر طريقة التشغيل التلقائي:"
+echo "1) systemd (موصى بها)"
+echo "2) autostart (لكافة البيئات)"
+echo "3) كليهما"
+echo "4) لا شيء"
+read -rp "➡️ أدخل رقم الخيار [1-4]: " choice
+
+enable_systemd=false
+enable_autostart=false
+
+case "$choice" in
+    1) enable_systemd=true ;;
+    2) enable_autostart=true ;;
+    3) enable_systemd=true; enable_autostart=true ;;
+    *) echo "❌ لن يتم إنشاء تشغيل تلقائي." ;;
+esac
+
+# ===== [ إعداد systemd ] =====
+if $enable_systemd; then
+    mkdir -p "$(dirname "$SERVICE_FILE")"
+    cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=GT-salat-dikr Notifications
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=$SCRIPT --child-notify
 Restart=on-failure
 RestartSec=10
-# systemd user service will run in the user's session environment
-
+Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus"
+Environment="DISPLAY=:0"
 
 [Install]
 WantedBy=default.target
 EOF
-echo "تم إنشاء $SYSTEMD_SERVICE_FILE"
-
-
-# اعادة تحميل وتفعيل
-systemctl --user daemon-reload || true
-systemctl --user enable --now "$SYSTEMD_SERVICE_NAME" || echo "تنبيه: فشل تفعيل systemd user (ربما لا تكون الجلسة تدعم systemd)."
-}
-
-
-case "$SELECTED_MODE" in
-systemd)
-if [ "$has_systemd_user" -eq 1 ]; then
-install_systemd
-else
-echo "systemd user غير متوفر — سيتم إنشاء autostart بدلاً منه."
-install_autostart
-fi
-;;
-autostart)
-install_autostart
-;;
-both)
-if [ "$has_systemd_user" -eq 1 ]; then
-install_systemd
-else
-echo "systemd user غير متوفر — سيتم الاكتفاء بـ autostart"
-fi
-install_autostart
-;;
-none)
-echo "لم يتم إعداد تشغيل تلقائي كما طلبت." ;;
-*) echo "خيار غير معروف: $SELECTED_MODE" >&2; exit 4;;
-esac
-
-
-# إصلاح محتمل لسطر 1013 إن وُجد
-if [ -f "$SCRIPT_PATH" ]; then
-if sed -n '1013p' "$SCRIPT_PATH" >/dev/null 2>&1; then
-sed -i '1013s/"\$PRAYER_NAME""\$PRAYER_TIME"/"\$PRAYER_NAME" "\$PRAYER_TIME"/' "$SCRIPT_PATH" || true
-fi
+    systemctl --user daemon-reload
+    systemctl --user enable --now gt-salat-dikr.service
+    echo "✅ تم تفعيل خدمة systemd للمستخدم."
 fi
 
-
-# فحص صياغي
-if ! bash -n "$SCRIPT_PATH"; then
-echo "تحذير: فحص الصياغة (bash -n) فشل — راجع $SCRIPT_PATH"
-else
-echo "فحص الصياغة ناجح."
-fi
-
-
-# تعليمات إلغاء التثبيت
-cat <<EOF
-
-
-تم التثبيت بنجاح.
-لتشغيل الآن (واختبار):
-$HOME/.GT-salat-dikr/$SCRIPT_NAME --on-terminal-start
-
-
-لإلغاء التثبيت:
-rm -rf "$INSTALL_DIR"
-rm -f "$DESKTOP_FILE"
-systemctl --user disable --now "$SYSTEMD_SERVICE_NAME" || true
-rm -f "$SYSTEMD_SERVICE_FILE" || true
-systemctl --user daemon-reload || true
-
-
+# ===== [ إعداد autostart ] =====
+if $enable_autostart; then
+    mkdir -p "$(dirname "$AUTOSTART_FILE")"
+    cat > "$AUTOSTART_FILE" <<EOF
+[Desktop Entry]
+Type=Application
+Name=GT-salat-dikr Notifications
+Exec=bash -c "sleep 20 && $SCRIPT --notify-start"
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-after=panel
+StartupNotify=false
+Terminal=false
 EOF
+    echo "✅ تم إنشاء ملف autostart."
+fi
 
-
-exit 0
+echo
+echo "🎉 تم تثبيت GT-salat-dikr بنجاح!"
+echo "📍 مجلد التثبيت: $INSTALL_DIR"
+echo "💡 يمكنك تجربة التشغيل الآن بالأمر:"
+echo "   $SCRIPT"
+echo
+echo "لإلغاء التثبيت:"
+echo "   $SCRIPT --uninstall"
