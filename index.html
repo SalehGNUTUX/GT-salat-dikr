@@ -427,6 +427,13 @@
             display: none;
         }
 
+        .time-adjustment-form {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
         .form-group {
             margin-bottom: 1rem;
         }
@@ -437,7 +444,7 @@
             font-weight: bold;
         }
 
-        .form-group input {
+        .form-group input, .form-group select {
             width: 100%;
             padding: 0.8rem;
             border: 1px solid var(--accent);
@@ -450,6 +457,43 @@
             display: flex;
             gap: 1rem;
             margin-top: 1rem;
+        }
+
+        .time-adjustment-info {
+            background: var(--accent);
+            color: var(--text);
+            padding: 0.8rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        .adjustment-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin: 1rem 0;
+        }
+
+        .adjustment-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .adjustment-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            min-width: 60px;
+            text-align: center;
         }
 
         @media (max-width: 768px) {
@@ -482,6 +526,10 @@
             }
 
             .location-actions {
+                flex-direction: column;
+            }
+
+            .adjustment-controls {
                 flex-direction: column;
             }
         }
@@ -528,6 +576,33 @@
             <div class="live-prayer-widget">
                 <h3><i class="fas fa-clock"></i> مواقيت الصلاة الحية</h3>
                 <div class="location-info" id="locationInfo">جاري اكتشاف موقعك...</div>
+                
+                <!-- إعدادات التوقيت الصيفي -->
+                <div class="time-adjustment-form">
+                    <h4><i class="fas fa-clock"></i> إعدادات التوقيت</h4>
+                    <div class="form-group">
+                        <label for="summerTime">نظام التوقيت:</label>
+                        <select id="summerTime" onchange="toggleSummerTime()">
+                            <option value="auto">تلقائي (حسب الموقع)</option>
+                            <option value="on">التوقيت الصيفي مفعل</option>
+                            <option value="off">التوقيت الصيفي معطل</option>
+                        </select>
+                    </div>
+                    
+                    <div class="time-adjustment-info">
+                        <i class="fas fa-info-circle"></i> يمكنك تعديل الساعات يدويًا إذا كانت المواقيت تحتاج تصحيحًا
+                    </div>
+                    
+                    <div class="adjustment-controls">
+                        <button class="adjustment-btn" onclick="adjustTime(-1)">-1</button>
+                        <div class="adjustment-value" id="timeAdjustment">0</div>
+                        <button class="adjustment-btn" onclick="adjustTime(1)">+1</button>
+                        <span>ساعة</span>
+                        <button class="method-btn" onclick="resetTimeAdjustment()" style="margin-left: auto;">إعادة الضبط</button>
+                    </div>
+                </div>
+                
+                <!-- إعدادات طريقة الحساب -->
                 <div class="method-selector">
                     <div id="currentMethod">طريقة الحساب: جاري التحديد...</div>
                     <div class="method-info" id="methodInfo">يتم اختيار طريقة الحساب المناسبة تلقائيًا حسب موقعك</div>
@@ -535,6 +610,7 @@
                     <button class="method-btn" onclick="toggleManualLocation()">تحديد الموقع يدويًا</button>
                 </div>
                 
+                <!-- تحديد الموقع يدويًا -->
                 <div class="manual-location-form" id="manualLocationForm">
                     <h4>تحديد الموقع يدويًا</h4>
                     <div class="form-group">
@@ -559,9 +635,11 @@
                     </div>
                 </div>
                 
+                <!-- عرض مواقيت الصلاة -->
                 <div id="prayerWidget">
                     <div class="loading">جاري تحميل مواقيت الصلاة...</div>
                 </div>
+                
                 <button class="refresh-btn" onclick="loadPrayerTimes()">
                     <i class="fas fa-sync-alt"></i> تحديث المواقيت
                 </button>
@@ -582,6 +660,7 @@
             </a>
         </section>
         
+        <!-- الأقسام الأخرى تبقى كما هي -->
         <section id="features">
             <h2><i class="fas fa-star"></i> الميزات المتقدمة</h2>
             <div class="features">
@@ -851,7 +930,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
             city: '',
             country: '',
             method: 4, // Umm Al-Qura University, Makkah (افتراضي)
-            methodName: 'Umm Al-Qura University, Makkah'
+            methodName: 'Umm Al-Qura University, Makkah',
+            timeAdjustment: 0, // تعديل الوقت بالساعات
+            summerTime: 'auto' // التوقيت الصيفي: auto, on, off
         };
 
         // تحميل مواقيت الصلاة
@@ -871,6 +952,10 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
             
             // تحديث طريقة الحساب
             document.getElementById('currentMethod').textContent = `طريقة الحساب: ${userLocation.methodName}`;
+            
+            // تحديث إعدادات التوقيت
+            document.getElementById('summerTime').value = userLocation.summerTime;
+            document.getElementById('timeAdjustment').textContent = userLocation.timeAdjustment;
             
             try {
                 // محاكاة جلب مواقيت الصلاة (في التطبيق الحقيقي سيتم جلبها من API)
@@ -909,9 +994,13 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
                     // تحديد طريقة الحساب المناسبة حسب المنطقة
                     determineCalculationMethod();
                     
+                    // تحديد إعدادات التوقيت الصيفي حسب المنطقة
+                    determineSummerTimeSettings();
+                    
                 } catch (error) {
                     console.log('تعذر الحصول على معلومات الموقع التفصيلية');
                     determineCalculationMethod();
+                    determineSummerTimeSettings();
                 }
                 
             } catch (error) {
@@ -922,6 +1011,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
                 userLocation.country = 'السعودية';
                 userLocation.method = 4;
                 userLocation.methodName = METHODS[3];
+                userLocation.summerTime = 'off'; // السعودية لا تستخدم التوقيت الصيفي
                 
                 locationInfo.textContent = 'تم استخدام الموقع الافتراضي (مكة المكرمة)';
             }
@@ -967,11 +1057,39 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
             }
         }
 
+        // تحديد إعدادات التوقيت الصيفي حسب المنطقة
+        function determineSummerTimeSettings() {
+            const country = userLocation.country.toLowerCase();
+            const now = new Date();
+            const month = now.getMonth() + 1;
+            const isSummer = month >= 4 && month <= 10;
+            
+            // الدول التي تستخدم التوقيت الصيفي
+            const summerTimeCountries = [
+                'united states', 'الولايات المتحدة', 'كندا', 'canada', 'أوروبا', 'europe',
+                'بريطانيا', 'united kingdom', 'فرنسا', 'france', 'ألمانيا', 'germany',
+                'إيطاليا', 'italy', 'إسبانيا', 'spain'
+            ];
+            
+            const usesSummerTime = summerTimeCountries.some(countryName => 
+                country.includes(countryName.toLowerCase())
+            );
+            
+            if (usesSummerTime) {
+                userLocation.summerTime = isSummer ? 'on' : 'off';
+                // تعديل تلقائي للساعة حسب التوقيت الصيفي
+                userLocation.timeAdjustment = isSummer ? 1 : 0;
+            } else {
+                userLocation.summerTime = 'off';
+                userLocation.timeAdjustment = 0;
+            }
+        }
+
         // توليد مواقيت الصلاة (محاكاة)
         function generatePrayerTimes() {
             // في التطبيق الحقيقي، سيتم حساب هذه الأوقات بناءً على الموقع والتاريخ وطريقة الحساب
             const now = new Date();
-            const times = {
+            let times = {
                 fajr: '04:30',
                 sunrise: '05:45',
                 dhuhr: '12:15',
@@ -979,6 +1097,11 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
                 maghrib: '18:45',
                 isha: '20:00'
             };
+            
+            // تطبيق تعديل الوقت
+            if (userLocation.timeAdjustment !== 0) {
+                times = adjustPrayerTimes(times, userLocation.timeAdjustment);
+            }
             
             // تحديد الصلاة التالية
             const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -1004,8 +1127,31 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
                 times,
                 nextPrayer,
                 nextPrayerTime,
-                currentTime
+                currentTime,
+                adjustment: userLocation.timeAdjustment,
+                summerTime: userLocation.summerTime
             };
+        }
+
+        // تعديل أوقات الصلاة
+        function adjustPrayerTimes(times, adjustment) {
+            const adjustedTimes = {};
+            
+            for (const [prayer, time] of Object.entries(times)) {
+                const [hours, minutes] = time.split(':').map(Number);
+                let adjustedHours = hours + adjustment;
+                
+                // التعامل مع تجاوز حدود اليوم (0-23)
+                if (adjustedHours >= 24) {
+                    adjustedHours -= 24;
+                } else if (adjustedHours < 0) {
+                    adjustedHours += 24;
+                }
+                
+                adjustedTimes[prayer] = `${adjustedHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            }
+            
+            return adjustedTimes;
         }
 
         // عرض مواقيت الصلاة
@@ -1024,8 +1170,19 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
                 <div class="next-prayer">
                     الصلاة القادمة: ${prayerNames[data.nextPrayer]} عند ${data.nextPrayerTime}
                 </div>
-                <div class="prayer-times-grid">
             `;
+            
+            // عرض معلومات التعديل إذا كان هناك تعديل
+            if (data.adjustment !== 0) {
+                const adjustmentSign = data.adjustment > 0 ? '+' : '';
+                html += `
+                    <div class="prayer-info" style="color: var(--accent); font-size: 0.9rem;">
+                        <i class="fas fa-info-circle"></i> تم تعديل المواقيت بمقدار ${adjustmentSign}${data.adjustment} ساعة
+                    </div>
+                `;
+            }
+            
+            html += `<div class="prayer-times-grid">`;
             
             for (const [prayer, time] of Object.entries(data.times)) {
                 const isNext = prayer === data.nextPrayer;
@@ -1044,6 +1201,43 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
             html += `<div class="prayer-info">${randomZikr}</div>`;
             
             widget.innerHTML = html;
+        }
+
+        // تبديل التوقيت الصيفي
+        function toggleSummerTime() {
+            const summerTimeSelect = document.getElementById('summerTime');
+            userLocation.summerTime = summerTimeSelect.value;
+            
+            // تطبيق التعديل التلقائي للتوقيت الصيفي
+            if (userLocation.summerTime === 'on') {
+                userLocation.timeAdjustment = 1;
+            } else if (userLocation.summerTime === 'off') {
+                userLocation.timeAdjustment = 0;
+            } else {
+                // الوضع التلقائي - نحدد حسب المنطقة والتاريخ
+                determineSummerTimeSettings();
+            }
+            
+            // تحديث العرض
+            loadPrayerTimes();
+        }
+
+        // تعديل الوقت يدويًا
+        function adjustTime(hours) {
+            userLocation.timeAdjustment += hours;
+            
+            // الحد من نطاق التعديل (-12 إلى +12 ساعة)
+            if (userLocation.timeAdjustment > 12) userLocation.timeAdjustment = 12;
+            if (userLocation.timeAdjustment < -12) userLocation.timeAdjustment = -12;
+            
+            // تحديث العرض
+            loadPrayerTimes();
+        }
+
+        // إعادة ضبط تعديل الوقت
+        function resetTimeAdjustment() {
+            userLocation.timeAdjustment = 0;
+            loadPrayerTimes();
         }
 
         // عرض محدد طريقة الحساب
@@ -1090,6 +1284,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
             
             // تحديد طريقة الحساب المناسبة
             determineCalculationMethod();
+            
+            // تحديد إعدادات التوقيت الصيفي
+            determineSummerTimeSettings();
             
             // إخفاء النموذج
             toggleManualLocation();
