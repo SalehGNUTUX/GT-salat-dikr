@@ -705,7 +705,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
             });
         });
 
-        // بيانات الأذكار
+// بيانات الأذكار
 const azkar = [
     "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ",
     "لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ",
@@ -1010,6 +1010,26 @@ function displayPrayerTimes(timings, currentTime = null) {
     html += `</div>`;
     document.getElementById('prayerWidget').innerHTML = html;
 }
+
+// عرض ذكر عشوائي
+function displayRandomZekr() {
+    const randomZekr = azkar[Math.floor(Math.random() * azkar.length)];
+    const zekrElement = document.createElement('div');
+    zekrElement.className = 'prayer-info';
+    zekrElement.style.fontStyle = 'italic';
+    zekrElement.style.marginTop = '1rem';
+    zekrElement.style.color = 'var(--primary)';
+    zekrElement.innerHTML = `📖 ${randomZekr}`;
+    document.getElementById('prayerWidget').appendChild(zekrElement);
+}
+
+// تحميل مواقيت الصلاة عند فتح الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    loadPrayerTimes();
+    
+    // تحديث تلقائي كل 10 دقائق
+    setInterval(loadPrayerTimes, 10 * 60 * 1000);
+});
     </script>
 </body>
 </html>
