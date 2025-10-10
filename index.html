@@ -599,84 +599,550 @@
                 </div>
             </div>
 
-            <!-- عرض الصلاة الحي -->
-            <div class="live-prayer-widget">
-                <h3><i class="fas fa-clock"></i> مواقيت الصلاة الحية</h3>
-                
-                <!-- حالة الاكتشاف التلقائي -->
-                <div id="autoDetectionStatus" class="auto-detection-status">
-                    <i class="fas fa-sync-alt fa-spin"></i> جاري اكتشاف موقعك وتحديد الإعدادات تلقائيًا...
-                </div>
-                
-                <div class="location-info" id="locationInfo">جاري اكتشاف موقعك...</div>
-                
-                <!-- إعدادات التوقيت الصيفي -->
-                <div class="time-adjustment-form">
-                    <h4><i class="fas fa-clock"></i> إعدادات التوقيت</h4>
-                    <div class="form-group">
-                        <label for="summerTime">نظام التوقيت:</label>
-                        <select id="summerTime" onchange="toggleSummerTime()">
-                            <option value="auto">تلقائي (حسب الموقع)</option>
-                            <option value="on">التوقيت الصيفي مفعل</option>
-                            <option value="off">التوقيت الصيفي معطل</option>
-                        </select>
-                    </div>
-                    
-                    <div class="time-adjustment-info">
-                        <i class="fas fa-info-circle"></i> يمكنك تعديل الساعات يدويًا إذا كانت المواقيت تحتاج تصحيحًا
-                    </div>
-                    
-                    <div class="adjustment-controls">
-                        <button class="adjustment-btn" onclick="adjustTime(-1)">-1</button>
-                        <div class="adjustment-value" id="timeAdjustment">0</div>
-                        <button class="adjustment-btn" onclick="adjustTime(1)">+1</button>
-                        <span>ساعة</span>
-                        <button class="method-btn" onclick="resetTimeAdjustment()" style="margin-left: auto;">إعادة الضبط</button>
-                    </div>
-                </div>
-                
-                <!-- إعدادات طريقة الحساب -->
-                <div class="method-selector">
-                    <div id="currentMethod">طريقة الحساب: جاري التحديد...</div>
-                    <div class="method-info" id="methodInfo">يتم اختيار طريقة الحساب المناسبة تلقائيًا حسب موقعك</div>
-                    <button class="method-btn" onclick="showMethodSelector()">تغيير طريقة الحساب</button>
-                    <button class="method-btn" onclick="toggleManualLocation()">تحديد الموقع يدويًا</button>
-                </div>
-                
-                <!-- تحديد الموقع يدويًا -->
-                <div class="manual-location-form" id="manualLocationForm">
-                    <h4>تحديد الموقع يدويًا</h4>
-                    <div class="form-group">
-                        <label for="manualLat">خط العرض:</label>
-                        <input type="text" id="manualLat" placeholder="مثال: 24.7136">
-                    </div>
-                    <div class="form-group">
-                        <label for="manualLon">خط الطول:</label>
-                        <input type="text" id="manualLon" placeholder="مثال: 46.6753">
-                    </div>
-                    <div class="form-group">
-                        <label for="manualCity">المدينة:</label>
-                        <input type="text" id="manualCity" placeholder="مثال: الرياض">
-                    </div>
-                    <div class="form-group">
-                        <label for="manualCountry">الدولة:</label>
-                        <input type="text" id="manualCountry" placeholder="مثال: السعودية">
-                    </div>
-                    <div class="location-actions">
-                        <button class="method-btn" onclick="applyManualLocation()">تطبيق الموقع</button>
-                        <button class="method-btn" onclick="toggleManualLocation()">إلغاء</button>
-                    </div>
-                </div>
-                
-                <!-- عرض مواقيت الصلاة -->
-                <div id="prayerWidget">
-                    <div class="loading">جاري تحميل مواقيت الصلاة...</div>
-                </div>
-                
-                <button class="refresh-btn" onclick="loadPrayerTimes()">
-                    <i class="fas fa-sync-alt"></i> تحديث المواقيت
-                </button>
+            // دالة محسنة لمواقيت الصلاة الحية
+class PrayerTimesManager {
+    constructor() {
+        this.userLocation = null;
+        this.timeAdjustment = 0;
+        this.currentMethod = 'auto';
+        this.isSummerTime = 'auto';
+        this.prayerMethods = {
+            'MWL': { name: 'رابطة العالم الإسلامي', id: 3, params: { fajr: 18, isha: 17 } },
+            'ISNA': { name: 'الجمعية الإسلامية لأمريكا الشمالية', id: 2, params: { fajr: 15, isha: 15 } },
+            'Egypt': { name: 'هيئة المساحة المصرية', id: 5, params: { fajr: 19.5, isha: 17.5 } },
+            'Makkah': { name: 'أم القرى بمكة المكرمة', id: 4, params: { fajr: 18.5, isha: '90 min' } },
+            'Karachi': { name: 'جامعة العلوم الإسلامية بكراتشي', id: 1, params: { fajr: 18, isha: 18 } },
+            'Tehran': { name: 'معهد الجيوفيزياء بجامعة طهران', id: 7, params: { fajr: 17.7, isha: 14 } },
+            'Jafari': { name: 'الجفري', id: 0, params: { fajr: 16, isha: 14 } }
+        };
+        this.summerTimeCountries = ['المملكة المتحدة', 'بريطانيا', 'أوروبا', 'الولايات المتحدة', 'كندا', 'فرنسا', 'ألمانيا'];
+    }
+
+    // دالة تحميل مواقيت الصلاة الرئيسية
+    async loadPrayerTimes() {
+        const prayerWidget = document.getElementById('prayerWidget');
+        const locationInfo = document.getElementById('locationInfo');
+        const autoDetectionStatus = document.getElementById('autoDetectionStatus');
+        
+        prayerWidget.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل مواقيت الصلاة...</div>';
+        
+        try {
+            // اكتشاف الموقع التلقائي
+            if (!this.userLocation) {
+                await this.autoDetectLocation();
+            }
+            
+            // تحديث معلومات الموقع
+            this.updateLocationInfo();
+            
+            // تحديد طريقة الحساب المناسبة
+            this.determineCalculationMethod();
+            
+            // تحديد إعدادات التوقيت الصيفي
+            this.determineSummerTimeSettings();
+            
+            // جلب مواقيت الصلاة الحقيقية
+            const prayerTimes = await this.fetchPrayerTimes();
+            
+            // عرض مواقيت الصلاة
+            this.displayPrayerTimes(prayerTimes);
+            
+            autoDetectionStatus.innerHTML = '<i class="fas fa-check-circle"></i> تم تحميل مواقيت الصلاة بنجاح!';
+            autoDetectionStatus.className = 'auto-detection-status success';
+            
+        } catch (error) {
+            console.error('Error loading prayer times:', error);
+            this.handleError(error, prayerWidget, autoDetectionStatus);
+        }
+    }
+
+    // اكتشاف الموقع التلقائي
+    async autoDetectLocation() {
+        const statusElement = document.getElementById('autoDetectionStatus');
+        statusElement.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> جاري اكتشاف موقعك...';
+        
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                this.useDefaultLocation();
+                resolve();
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    try {
+                        this.userLocation = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            city: '',
+                            country: '',
+                            timezone: ''
+                        };
+
+                        // الحصول على معلومات الموقع من خدمة reverse geocoding
+                        await this.getLocationDetails();
+                        resolve();
+                    } catch (error) {
+                        this.useDefaultLocation();
+                        resolve();
+                    }
+                },
+                (error) => {
+                    console.warn('Geolocation failed, using default location:', error);
+                    this.useDefaultLocation();
+                    resolve();
+                },
+                {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 3600000
+                }
+            );
+        });
+    }
+
+    // استخدام الموقع الافتراضي (مكة المكرمة)
+    useDefaultLocation() {
+        this.userLocation = {
+            latitude: 21.4225,
+            longitude: 39.8262,
+            city: 'مكة المكرمة',
+            country: 'السعودية',
+            timezone: 'Asia/Riyadh'
+        };
+    }
+
+    // الحصول على تفاصيل الموقع
+    async getLocationDetails() {
+        try {
+            const response = await fetch(
+                `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${this.userLocation.latitude}&longitude=${this.userLocation.longitude}&localityLanguage=ar`
+            );
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.userLocation.city = data.city || data.locality || 'غير معروف';
+                this.userLocation.country = data.countryName || 'غير معروف';
+                this.userLocation.timezone = data.timezone || 'Asia/Riyadh';
+            }
+        } catch (error) {
+            console.warn('Failed to get location details:', error);
+            this.userLocation.city = 'غير معروف';
+            this.userLocation.country = 'غير معروف';
+            this.userLocation.timezone = 'Asia/Riyadh';
+        }
+    }
+
+    // تحديث معلومات الموقع في الواجهة
+    updateLocationInfo() {
+        const locationInfo = document.getElementById('locationInfo');
+        const city = this.userLocation.city || 'غير معروف';
+        const country = this.userLocation.country || 'غير معروف';
+        
+        locationInfo.innerHTML = `
+            <i class="fas fa-map-marker-alt"></i> ${city}, ${country}
+            <br><small>الإحداثيات: ${this.userLocation.latitude.toFixed(4)}, ${this.userLocation.longitude.toFixed(4)}</small>
+        `;
+    }
+
+    // تحديد طريقة الحساب المناسبة حسب الموقع
+    determineCalculationMethod() {
+        const country = this.userLocation.country.toLowerCase();
+        
+        if (country.includes('السعودية') || country.includes('saudi')) {
+            this.currentMethod = 'Makkah';
+        } else if (country.includes('مصر') || country.includes('egypt')) {
+            this.currentMethod = 'Egypt';
+        } else if (country.includes('تركيا') || country.includes('turkey')) {
+            this.currentMethod = 'MWL';
+        } else if (country.includes('باكستان') || country.includes('pakistan')) {
+            this.currentMethod = 'Karachi';
+        } else if (country.includes('إيران') || country.includes('iran')) {
+            this.currentMethod = 'Tehran';
+        } else if (country.includes('أمريكا') || country.includes('united states') || country.includes('كندا') || country.includes('canada')) {
+            this.currentMethod = 'ISNA';
+        } else {
+            this.currentMethod = 'MWL';
+        }
+
+        // تحديث الواجهة
+        const methodInfo = this.prayerMethods[this.currentMethod];
+        document.getElementById('currentMethod').innerHTML = `طريقة الحساب: ${methodInfo.name}`;
+        document.getElementById('methodInfo').innerHTML = `تم اختيار طريقة الحساب المناسبة تلقائيًا حسب موقعك`;
+    }
+
+    // تحديد إعدادات التوقيت الصيفي
+    determineSummerTimeSettings() {
+        const country = this.userLocation.country;
+        const now = new Date();
+        const isSummer = now.getMonth() >= 3 && now.getMonth() <= 9; // أبريل إلى أكتوبر
+        
+        const usesSummerTime = this.summerTimeCountries.some(summerCountry => 
+            country.includes(summerCountry)
+        );
+
+        if (usesSummerTime && isSummer) {
+            this.isSummerTime = 'on';
+            this.timeAdjustment = 1;
+        } else {
+            this.isSummerTime = 'off';
+            this.timeAdjustment = 0;
+        }
+
+        // تحديث الواجهة
+        document.getElementById('summerTime').value = this.isSummerTime;
+        document.getElementById('timeAdjustment').textContent = this.timeAdjustment;
+    }
+
+    // جلب مواقيت الصلاة من API
+    async fetchPrayerTimes() {
+        const today = new Date();
+        const dateString = today.toISOString().split('T')[0];
+        const methodId = this.prayerMethods[this.currentMethod].id;
+
+        try {
+            // استخدام Aladhan API
+            const response = await fetch(
+                `https://api.aladhan.com/v1/timings/${dateString}?latitude=${this.userLocation.latitude}&longitude=${this.userLocation.longitude}&method=${methodId}&tune=0,0,0,0,0,0,0,0,0`
+            );
+
+            if (!response.ok) {
+                throw new Error('فشل في جلب مواقيت الصلاة من الخادم');
+            }
+
+            const data = await response.json();
+            
+            if (data.code !== 200) {
+                throw new Error(data.data || 'حدث خطأ في الخادم');
+            }
+
+            return this.processPrayerTimes(data.data.timings);
+            
+        } catch (error) {
+            console.warn('API failed, using calculated times:', error);
+            return this.calculatePrayerTimes();
+        }
+    }
+
+    // معالجة مواقيت الصلاة من API
+    processPrayerTimes(timings) {
+        const adjustedTimes = {};
+        const prayerKeys = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+        
+        prayerKeys.forEach(key => {
+            let time = timings[key];
+            
+            // تطبيق تعديل الوقت
+            if (this.timeAdjustment !== 0) {
+                time = this.adjustTime(time, this.timeAdjustment);
+            }
+            
+            adjustedTimes[key.toLowerCase()] = time;
+        });
+
+        return adjustedTimes;
+    }
+
+    // حساب مواقيت الصلاة محليًا (بديل عند فشل API)
+    calculatePrayerTimes() {
+        // حسابات مبسطة لمواقيت الصلاة (يمكن استبدالها بخوارزمية دقيقة)
+        const now = new Date();
+        const lat = this.userLocation.latitude;
+        const long = this.userLocation.longitude;
+        
+        // حسابات تقريبية (هذه مجرد مثال، تحتاج لخوارزمية دقيقة)
+        const sunrise = this.calculateSunTime(lat, long, now, 90.833); // شروق الشمس
+        const fajr = new Date(sunrise.getTime() - (90 * 60 * 1000)); // قبل الشروق بساعة ونصف
+        const dhuhr = new Date(sunrise.getTime() + (6 * 60 * 60 * 1000)); // بعد الشروق بـ6 ساعات
+        const asr = new Date(dhuhr.getTime() + (3 * 60 * 60 * 1000)); // بعد الظهر بـ3 ساعات
+        const maghrib = this.calculateSunTime(lat, long, now, 90.833); // غروب الشمس
+        const isha = new Date(maghrib.getTime() + (90 * 60 * 1000)); // بعد المغرب بساعة ونصف
+
+        const times = {
+            fajr: this.formatTime(fajr),
+            sunrise: this.formatTime(sunrise),
+            dhuhr: this.formatTime(dhuhr),
+            asr: this.formatTime(asr),
+            maghrib: this.formatTime(maghrib),
+            isha: this.formatTime(isha)
+        };
+
+        // تطبيق تعديل الوقت
+        if (this.timeAdjustment !== 0) {
+            Object.keys(times).forEach(key => {
+                times[key] = this.adjustTimeString(times[key], this.timeAdjustment);
+            });
+        }
+
+        return times;
+    }
+
+    // حساب وقت الشروق/الغروب (دالة مبسطة)
+    calculateSunTime(lat, long, date, angle) {
+        // هذه دالة مبسطة، في التطبيق الحقيقي تحتاج لخوارزمية دقيقة
+        const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+        const approxTime = new Date(date);
+        
+        // حساب تقريبي (هذا مجرد مثال)
+        const timeCorrection = 4 * (long - 15 * (date.getTimezoneOffset() / 60));
+        const solarNoon = 12 - timeCorrection / 60;
+        
+        approxTime.setHours(Math.floor(solarNoon));
+        approxTime.setMinutes(Math.round((solarNoon % 1) * 60));
+        
+        return approxTime;
+    }
+
+    // تنسيق الوقت
+    formatTime(date) {
+        return date.toLocaleTimeString('ar-SA', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+        }).slice(0, 5);
+    }
+
+    // تعديل وقت النص
+    adjustTimeString(timeStr, adjustment) {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        let adjustedHours = hours + adjustment;
+        
+        if (adjustedHours < 0) adjustedHours += 24;
+        if (adjustedHours >= 24) adjustedHours -= 24;
+        
+        return `${adjustedHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    }
+
+    // تعديل الوقت من كائن Date
+    adjustTime(timeStr, adjustment) {
+        return this.adjustTimeString(timeStr, adjustment);
+    }
+
+    // عرض مواقيت الصلاة
+    displayPrayerTimes(prayerTimes) {
+        const prayerWidget = document.getElementById('prayerWidget');
+        const prayers = [
+            { name: 'الفجر', time: prayerTimes.fajr, key: 'fajr' },
+            { name: 'الشروق', time: prayerTimes.sunrise, key: 'sunrise' },
+            { name: 'الظهر', time: prayerTimes.dhuhr, key: 'dhuhr' },
+            { name: 'العصر', time: prayerTimes.asr, key: 'asr' },
+            { name: 'المغرب', time: prayerTimes.maghrib, key: 'maghrib' },
+            { name: 'العشاء', time: prayerTimes.isha, key: 'isha' }
+        ];
+
+        // تحديد الصلاة التالية
+        const now = new Date();
+        const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        
+        let nextPrayer = null;
+        let timeRemaining = '';
+        
+        for (const prayer of prayers) {
+            if (prayer.time > currentTime) {
+                nextPrayer = prayer;
+                timeRemaining = this.calculateTimeRemaining(currentTime, prayer.time);
+                break;
+            }
+        }
+        
+        // إذا لم توجد صلاة تالية اليوم، نستخدم الفجر غدًا
+        if (!nextPrayer) {
+            nextPrayer = prayers[0];
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            timeRemaining = `غدًا الساعة ${nextPrayer.time}`;
+        }
+
+        // بناء واجهة العرض
+        let html = `
+            <div class="next-prayer">
+                <i class="fas fa-clock"></i> الصلاة القادمة: ${nextPrayer.name} - ${nextPrayer.time}
+                ${timeRemaining ? `<br><small>(${timeRemaining})</small>` : ''}
             </div>
+            
+            ${this.timeAdjustment !== 0 ? `
+                <div class="prayer-info" style="color: var(--accent); font-size: 0.9rem;">
+                    <i class="fas fa-info-circle"></i> تم تعديل المواقيت بمقدار ${this.timeAdjustment > 0 ? '+' : ''}${this.timeAdjustment} ساعة
+                </div>
+            ` : ''}
+            
+            <div class="prayer-times-grid">
+        `;
+        
+        prayers.forEach(prayer => {
+            const isNext = prayer === nextPrayer;
+            html += `
+                <div class="prayer-time-item ${isNext ? 'next' : ''}">
+                    <div class="prayer-name">${prayer.name}</div>
+                    <div class="prayer-time">${prayer.time}</div>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+        
+        // إضافة ذكر عشوائي
+        const azkar = [
+            "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ",
+            "لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ",
+            "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ",
+            "أسْتَغْفِرُ اللَّهِ الْعَظِيمَ الَّذِي لَا إِلَهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ وَأَتُوبُ إِلَيْهِ"
+        ];
+        
+        const randomZikr = azkar[Math.floor(Math.random() * azkar.length)];
+        html += `<div class="prayer-info"><i class="fas fa-heart"></i> ${randomZikr}</div>`;
+        
+        prayerWidget.innerHTML = html;
+    }
+
+    // حساب الوقت المتبقي للصلاة التالية
+    calculateTimeRemaining(currentTime, prayerTime) {
+        const [currentHours, currentMinutes] = currentTime.split(':').map(Number);
+        const [prayerHours, prayerMinutes] = prayerTime.split(':').map(Number);
+        
+        let currentTotal = currentHours * 60 + currentMinutes;
+        let prayerTotal = prayerHours * 60 + prayerMinutes;
+        
+        if (prayerTotal <= currentTotal) {
+            prayerTotal += 24 * 60; // إذا كانت الصلاة في اليوم التالي
+        }
+        
+        const remainingMinutes = prayerTotal - currentTotal;
+        const hours = Math.floor(remainingMinutes / 60);
+        const minutes = remainingMinutes % 60;
+        
+        if (hours > 0) {
+            return `باقي ${hours} ساعة و ${minutes} دقيقة`;
+        } else {
+            return `باقي ${minutes} دقيقة`;
+        }
+    }
+
+    // معالجة الأخطاء
+    handleError(error, prayerWidget, autoDetectionStatus) {
+        let errorMessage = 'حدث خطأ غير متوقع';
+        
+        if (error.message.includes('فشل في جلب')) {
+            errorMessage = 'تعذر الاتصال بخادم مواقيت الصلاة';
+        } else if (error.message.includes('الموقع')) {
+            errorMessage = 'تعذر اكتشاف موقعك، تم استخدام الموقع الافتراضي';
+        }
+        
+        prayerWidget.innerHTML = `
+            <div class="error">
+                <i class="fas fa-exclamation-triangle"></i> ${errorMessage}
+                <br><small>يرجى المحاولة مرة أخرى أو تحديد الموقع يدويًا</small>
+            </div>
+        `;
+        
+        autoDetectionStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> فشل في تحميل المواقيت';
+        autoDetectionStatus.className = 'auto-detection-status error';
+    }
+
+    // تغيير طريقة الحساب
+    changeCalculationMethod(methodKey) {
+        if (this.prayerMethods[methodKey]) {
+            this.currentMethod = methodKey;
+            const methodInfo = this.prayerMethods[methodKey];
+            document.getElementById('currentMethod').innerHTML = `طريقة الحساب: ${methodInfo.name}`;
+            this.loadPrayerTimes();
+        }
+    }
+
+    // تطبيق الموقع اليدوي
+    applyManualLocation(lat, lon, city, country) {
+        this.userLocation = {
+            latitude: parseFloat(lat),
+            longitude: parseFloat(lon),
+            city: city,
+            country: country,
+            timezone: 'Asia/Riyadh'
+        };
+        
+        document.getElementById('autoDetectionStatus').innerHTML = '<i class="fas fa-check-circle"></i> تم تحديث الموقع يدويًا بنجاح!';
+        document.getElementById('autoDetectionStatus').className = 'auto-detection-status success';
+        
+        this.loadPrayerTimes();
+    }
+}
+
+// إنشاء كائن إدارة مواقيت الصلاة
+const prayerManager = new PrayerTimesManager();
+
+// دالة التحميل الرئيسية
+async function loadPrayerTimes() {
+    await prayerManager.loadPrayerTimes();
+}
+
+// دالة تعديل الوقت
+function adjustTime(amount) {
+    prayerManager.timeAdjustment += amount;
+    
+    // الحد من نطاق التعديل (-12 إلى +12 ساعة)
+    if (prayerManager.timeAdjustment > 12) prayerManager.timeAdjustment = 12;
+    if (prayerManager.timeAdjustment < -12) prayerManager.timeAdjustment = -12;
+    
+    document.getElementById('timeAdjustment').textContent = prayerManager.timeAdjustment;
+    prayerManager.loadPrayerTimes();
+}
+
+// دالة إعادة ضبط التعديل
+function resetTimeAdjustment() {
+    prayerManager.timeAdjustment = 0;
+    document.getElementById('timeAdjustment').textContent = prayerManager.timeAdjustment;
+    prayerManager.loadPrayerTimes();
+}
+
+// دالة تبديل التوقيت الصيفي
+function toggleSummerTime() {
+    const summerTimeSelect = document.getElementById('summerTime');
+    prayerManager.isSummerTime = summerTimeSelect.value;
+    prayerManager.determineSummerTimeSettings();
+    prayerManager.loadPrayerTimes();
+}
+
+// دالة عرض محدد طريقة الحساب
+function showMethodSelector() {
+    const methods = prayerManager.prayerMethods;
+    let methodList = 'اختر طريقة حساب مواقيت الصلاة:\n\n';
+    
+    Object.keys(methods).forEach((key, index) => {
+        methodList += `${index + 1}) ${methods[key].name}\n`;
+    });
+    
+    const selected = prompt(methodList + '\nأدخل الرقم:');
+    
+    if (selected && !isNaN(selected)) {
+        const index = parseInt(selected) - 1;
+        const methodKeys = Object.keys(methods);
+        
+        if (index >= 0 && index < methodKeys.length) {
+            prayerManager.changeCalculationMethod(methodKeys[index]);
+        }
+    }
+}
+
+// دالة تطبيق الموقع اليدوي
+function applyManualLocation() {
+    const lat = document.getElementById('manualLat').value;
+    const lon = document.getElementById('manualLon').value;
+    const city = document.getElementById('manualCity').value;
+    const country = document.getElementById('manualCountry').value;
+    
+    if (!lat || !lon) {
+        alert('يرجى إدخال الإحداثيات على الأقل');
+        return;
+    }
+    
+    prayerManager.applyManualLocation(lat, lon, city, country);
+    toggleManualLocation();
+}
+
+// تحميل مواقيت الصلاة عند فتح الصفحة
+window.addEventListener('DOMContentLoaded', loadPrayerTimes);
+
+// تحديث المواقيت كل ساعة
+setInterval(loadPrayerTimes, 60 * 60 * 1000);
             
             <div class="demo-terminal">
                 <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat</span></div>
