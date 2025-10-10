@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# GT-salat-dikr - النسخة المُصلحة النهائية
+# GT-salat-dikr - النسخة المحسّنة النهائية
 # Author: gnutux
 #
 set -euo pipefail
@@ -21,6 +21,8 @@ TIMETABLE_FILE="${SCRIPT_DIR}/timetable.json"
 PID_FILE="${SCRIPT_DIR}/.gt-salat-dikr-notify.pid"
 NOTIFY_LOG="${SCRIPT_DIR}/notify.log"
 ADHAN_FILE="${SCRIPT_DIR}/adhan.ogg"
+SHORT_ADHAN_FILE="${SCRIPT_DIR}/short_adhan.ogg"
+APPROACHING_SOUND="${SCRIPT_DIR}/prayer_approaching.ogg"
 ADHAN_PLAYER_SCRIPT="${SCRIPT_DIR}/adhan-player.sh"
 
 REPO_AZKAR_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/azkar.txt"
@@ -28,7 +30,8 @@ REPO_SCRIPT_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/mai
 ALADHAN_API_URL="https://api.aladhan.com/v1/timings"
 
 DEFAULT_ZIKR_INTERVAL=300
-DEFAULT_PRE_NOTIFY=1
+DEFAULT_PRE_NOTIFY=15
+DEFAULT_ADHAN_TYPE="full"
 
 # ---------------- أدوات مساعدة ----------------
 log() { 
@@ -36,7 +39,6 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $*" >> "$NOTIFY_LOG" 2>/dev/null || true
 }
 
-# دالة log صامتة للاستخدام الداخلي فقط
 silent_log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $*" >> "$NOTIFY_LOG" 2>/dev/null || true
 }
@@ -119,7 +121,7 @@ ensure_dbus() {
     return 1
 }
 
-# ---------------- إنشاء مشغل الأذان الرسومي ----------------
+# ---------------- إنشاء مشغل الأذان الرسومي المحسّن ----------------
 create_adhan_player() {
     cat > "$ADHAN_PLAYER_SCRIPT" << 'ADHAN_PLAYER_EOF'
 #!/bin/bash
@@ -200,6 +202,74 @@ ADHAN_PLAYER_EOF
     silent_log "تم إنشاء مشغل الأذان الرسومي"
 }
 
+# ---------------- مشغل تنبيه اقتراب الصلاة ----------------
+create_approaching_player() {
+    local APPROACHING_PLAYER="${SCRIPT_DIR}/approaching-player.sh"
+    cat > "$APPROACHING_PLAYER" << 'APPROACHING_PLAYER_EOF'
+#!/bin/bash
+SOUND_FILE="$1"
+PRAYER_NAME="$2"
+MINUTES="$3"
+PLAYER_PID_FILE="/tmp/gt-approaching-$$.pid"
+
+if command -v zenity >/dev/null 2>&1; then
+    GUI="zenity"
+elif command -v yad >/dev/null 2>&1; then
+    GUI="yad"
+elif command -v kdialog >/dev/null 2>&1; then
+    GUI="kdialog"
+else
+    notify-send "GT-salat-dikr" "تبقى ${MINUTES} دقيقة على صلاة ${PRAYER_NAME}" 2>/dev/null || true
+    exit 0
+fi
+
+PLAYER=""
+if command -v mpv >/dev/null 2>&1; then
+    PLAYER="mpv"
+elif command -v ffplay >/dev/null 2>&1; then
+    PLAYER="ffplay"
+elif command -v paplay >/dev/null 2>&1; then
+    PLAYER="paplay"
+elif command -v ogg123 >/dev/null 2>&1; then
+    PLAYER="ogg123"
+fi
+
+if [ -n "$PLAYER" ] && [ -f "$SOUND_FILE" ]; then
+    case "$PLAYER" in
+        mpv) mpv --no-video --really-quiet "$SOUND_FILE" >/dev/null 2>&1 & ;;
+        ffplay) ffplay -nodisp -autoexit -loglevel quiet "$SOUND_FILE" >/dev/null 2>&1 & ;;
+        paplay) paplay "$SOUND_FILE" >/dev/null 2>&1 & ;;
+        ogg123) ogg123 -q "$SOUND_FILE" >/dev/null 2>&1 & ;;
+    esac
+    echo $! > "$PLAYER_PID_FILE"
+fi
+
+case "$GUI" in
+    zenity)
+        zenity --info --title="GT-salat-dikr - تذكير" \
+            --text="<b>⏰ تبقى ${MINUTES} دقيقة على صلاة ${PRAYER_NAME}</b>\n\nاستعد للصلاة" \
+            --width=400 --timeout=10 2>/dev/null
+        ;;
+    yad)
+        yad --form --title="GT-salat-dikr - تذكير" \
+            --text="<b>⏰ تبقى ${MINUTES} دقيقة على صلاة ${PRAYER_NAME}</b>\n\nاستعد للصلاة" \
+            --button="حسناً:0" --width=400 --center --timeout=10 2>/dev/null
+        ;;
+    kdialog)
+        kdialog --title "GT-salat-dikr - تذكير" \
+            --passivepopup "⏰ تبقى ${MINUTES} دقيقة على صلاة ${PRAYER_NAME}\n\nاستعد للصلاة" 10 2>/dev/null
+        ;;
+esac
+
+[ -f "$PLAYER_PID_FILE" ] && kill $(cat "$PLAYER_PID_FILE") 2>/dev/null || true
+rm -f "$PLAYER_PID_FILE" 2>/dev/null
+exit 0
+APPROACHING_PLAYER_EOF
+
+    chmod +x "$APPROACHING_PLAYER"
+    silent_log "تم إنشاء مشغل تنبيه الاقتراب"
+}
+
 # ---------------- إعداد/تحميل الإعدادات ----------------
 save_config() {
     mkdir -p "$(dirname "$CONFIG_FILE")"
@@ -213,6 +283,7 @@ METHOD_NAME="${METHOD_NAME:-Muslim World League}"
 PRE_PRAYER_NOTIFY=${PRE_PRAYER_NOTIFY:-$DEFAULT_PRE_NOTIFY}
 ZIKR_NOTIFY_INTERVAL=${ZIKR_NOTIFY_INTERVAL:-$DEFAULT_ZIKR_INTERVAL}
 AUTO_SELF_UPDATE=${AUTO_SELF_UPDATE:-0}
+ADHAN_TYPE="${ADHAN_TYPE:-$DEFAULT_ADHAN_TYPE}"
 EOF
     log "تم حفظ الإعدادات في $CONFIG_FILE"
 }
@@ -279,12 +350,28 @@ setup_wizard() {
         read -p "هل تريد استخدامه؟ [Y/n]: " ans; ans=${ans:-Y}
         [[ ! "$ans" =~ ^[Yy]$ ]] && manual_location
     else
-        echo "تعذر اكتشاف الموقع تلقائيًا — أدخل البيانات يدويًا."
+        echo "تعذر اكتشاف الموقع تلقائيًا – أدخل البيانات يدويًا."
         manual_location
     fi
     choose_method
-    read -p "تفعيل تنبيه قبل الصلاة بـ10 دقائق؟ [Y/n]: " p; p=${p:-Y}
-    [[ "$p" =~ ^[Yy]$ ]] && PRE_PRAYER_NOTIFY=1 || PRE_PRAYER_NOTIFY=0
+    
+    echo ""
+    echo "⏰ إعدادات التنبيه قبل الصلاة:"
+    read -p "كم دقيقة قبل الصلاة تريد التنبيه؟ [افتراضي 15]: " pre_min
+    PRE_PRAYER_NOTIFY=${pre_min:-$DEFAULT_PRE_NOTIFY}
+    
+    echo ""
+    echo "🔊 اختر نوع الأذان:"
+    echo "  1) أذان كامل (adhan.ogg)"
+    echo "  2) أذان قصير (short_adhan.ogg)"
+    read -p "الاختيار [1]: " adhan_choice
+    adhan_choice=${adhan_choice:-1}
+    if [ "$adhan_choice" = "2" ]; then
+        ADHAN_TYPE="short"
+    else
+        ADHAN_TYPE="full"
+    fi
+    
     read -p "فاصل الأذكار بالثواني (افتراضي $DEFAULT_ZIKR_INTERVAL): " z
     ZIKR_NOTIFY_INTERVAL=${z:-$DEFAULT_ZIKR_INTERVAL}
     read -p "تفعيل التحديث الذاتي؟ [y/N]: " up; up=${up:-N}
@@ -340,8 +427,24 @@ show_zekr_notify() {
 # ---------------- adhan play ----------------
 play_adhan_gui() {
     local prayer_name="${1:-الصلاة}"
+    local adhan_file="$ADHAN_FILE"
+    
+    # اختيار ملف الأذان حسب الإعداد
+    if [ "${ADHAN_TYPE:-full}" = "short" ] && [ -f "$SHORT_ADHAN_FILE" ]; then
+        adhan_file="$SHORT_ADHAN_FILE"
+    fi
+    
     [ ! -f "$ADHAN_PLAYER_SCRIPT" ] && create_adhan_player
-    "$ADHAN_PLAYER_SCRIPT" "$ADHAN_FILE" "$prayer_name" &
+    "$ADHAN_PLAYER_SCRIPT" "$adhan_file" "$prayer_name" &
+}
+
+play_approaching_notification() {
+    local prayer_name="${1:-الصلاة}"
+    local minutes="${2:-15}"
+    local approaching_player="${SCRIPT_DIR}/approaching-player.sh"
+    
+    [ ! -f "$approaching_player" ] && create_approaching_player
+    "$approaching_player" "$APPROACHING_SOUND" "$prayer_name" "$minutes" &
 }
 
 # ---------------- next prayer ----------------
@@ -371,7 +474,8 @@ get_next_prayer() {
 # ---------------- prayer notifications ----------------
 show_pre_prayer_notify() {
     get_next_prayer || return 1
-    notify-send "GT-salat-dikr" "تبقى 10 دقائق على صلاة ${PRAYER_NAME} (${PRAYER_TIME})" 2>/dev/null || true
+    local minutes="${PRE_PRAYER_NOTIFY:-15}"
+    play_approaching_notification "$PRAYER_NAME" "$minutes"
 }
 
 show_prayer_notify() {
@@ -394,7 +498,9 @@ notify_loop() {
             continue
         fi
 
-        if [ "${PRE_PRAYER_NOTIFY:-1}" = "1" ] && [ "$PRAYER_LEFT" -le 600 ] && [ "$PRAYER_LEFT" -gt 0 ]; then
+        local pre_notify_seconds=$((${PRE_PRAYER_NOTIFY:-15} * 60))
+        
+        if [ "$PRAYER_LEFT" -le "$pre_notify_seconds" ] && [ "$PRAYER_LEFT" -gt 0 ]; then
             if [ ! -f "$pre_notify_flag_file" ] || [ "$(cat "$pre_notify_flag_file" 2>/dev/null)" != "$PRAYER_NAME" ]; then
                 show_pre_prayer_notify
                 echo "$PRAYER_NAME" > "$pre_notify_flag_file"
@@ -429,20 +535,25 @@ start_notify_bg() {
     ensure_dbus
     check_tools
     create_adhan_player
+    create_approaching_player
 
-    # بدء العملية بطريقة مبسطة
-    setsid bash -c "
+    # بدء العملية بطريقة محسّنة مع ضمان استمرارها
+    nohup setsid bash -c "
         cd '$SCRIPT_DIR'
         export DBUS_SESSION_BUS_ADDRESS='${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/$(id -u)/bus}'
         export DISPLAY='${DISPLAY:-:0}'
-        '$SCRIPT_SOURCE_ABS' --child-notify >> '$NOTIFY_LOG' 2>&1
-    " >/dev/null 2>&1 < /dev/null &
+        while true; do
+            '$SCRIPT_SOURCE_ABS' --child-notify >> '$NOTIFY_LOG' 2>&1
+            sleep 5
+        done
+    " >/dev/null 2>&1 &
     
     local child_pid=$!
     echo "$child_pid" > "$PID_FILE"
+    disown
     
     sleep 2
-    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null; then
+    if [ -f "$PID_FILE" ] && ps -p "$(cat "$PID_FILE" 2>/dev/null)" >/dev/null 2>&1; then
         echo "✅ تم بدء إشعارات GT-salat-dikr (PID: $(cat "$PID_FILE"))"
         log "started notify loop (PID: $(cat "$PID_FILE"))"
         return 0
@@ -487,7 +598,7 @@ check_script_update() {
     return 0
 }
 
-# ---------------- install ----------------
+# ---------------- install with enhanced autostart ----------------
 install_self() {
     mkdir -p "$INSTALL_DIR" "$HOME/.local/bin"
 
@@ -500,7 +611,19 @@ install_self() {
     ln -sf "$INSTALL_DIR/$SCRIPT_NAME" "$HOME/.local/bin/gtsalat"
     chmod +x "$HOME/.local/bin/gtsalat"
 
-    # --- إضافة إلى جميع shell RC files ---
+    # التأكد من أن ~/.local/bin في PATH
+    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        for rc_file in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+            if [ -f "$rc_file" ]; then
+                if ! grep -q '.local/bin' "$rc_file"; then
+                    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$rc_file"
+                fi
+            fi
+        done
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+
+    # إضافة إلى shell RC files
     local added=false
     add_to_shell_rc() {
         local RC_FILE="$1"
@@ -518,7 +641,6 @@ install_self() {
     add_to_shell_rc "$HOME/.zshrc"
     add_to_shell_rc "$HOME/.profile"
     
-    # دعم Fish shell
     if [ -d "$HOME/.config/fish" ]; then
         local fish_config="$HOME/.config/fish/config.fish"
         if [ -f "$fish_config" ]; then
@@ -533,12 +655,8 @@ install_self() {
         fi
     fi
     
-    # دعم Ksh
-    if [ -f "$HOME/.kshrc" ]; then
-        add_to_shell_rc "$HOME/.kshrc"
-    fi
+    [ -f "$HOME/.kshrc" ] && add_to_shell_rc "$HOME/.kshrc"
     
-    # دعم Tcsh/Csh
     if [ -f "$HOME/.cshrc" ]; then
         if ! grep -q "GT-salat-dikr" "$HOME/.cshrc"; then
             echo "" >> "$HOME/.cshrc"
@@ -548,48 +666,50 @@ install_self() {
         fi
     fi
     
-    if [ "$added" = true ]; then
-        echo "✅ تم إضافة عرض الذكر ووقت الصلاة عند فتح الطرفية"
-    fi
+    [ "$added" = true ] && echo "✅ تم إضافة عرض الذكر ووقت الصلاة عند فتح الطرفية"
 
-    # --- XDG autostart للإشعارات ---
+    # === XDG autostart محسّن ===
     mkdir -p "$HOME/.config/autostart"
     cat > "$HOME/.config/autostart/gt-salat-dikr.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=GT-salat-dikr Notifications
 Name[ar]=إشعارات الصلاة والأذكار
-Exec=bash -c "sleep 30 && $INSTALL_DIR/$SCRIPT_NAME --notify-start"
+Exec=bash -c 'sleep 10 && export DISPLAY=:0 && export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/\$(id -u)/bus && $INSTALL_DIR/$SCRIPT_NAME --notify-start'
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
 X-KDE-autostart-after=panel
 X-MATE-Autostart-enabled=true
 X-XFCE-autostart-enabled=true
+X-LXQt-Need-Tray=false
 StartupNotify=false
 Terminal=false
 Icon=preferences-system-time
-Comment=Start prayer times and azkar notifications
-Comment[ar]=بدء إشعارات أوقات الصلاة والأذكار
+Comment=Start prayer times and azkar notifications automatically
+Comment[ar]=بدء إشعارات أوقات الصلاة والأذكار تلقائياً
 Categories=Utility;
 EOF
-    echo "✅ تم إنشاء ملف autostart للإشعارات"
+    chmod +x "$HOME/.config/autostart/gt-salat-dikr.desktop"
+    echo "✅ تم إنشاء ملف autostart محسّن"
 
-    # --- systemd user service (للتوزيعات الحديثة) ---
+    # === systemd user service محسّن ===
     if command -v systemctl >/dev/null 2>&1; then
         mkdir -p "$HOME/.config/systemd/user"
         cat > "$HOME/.config/systemd/user/gt-salat-dikr.service" <<EOF
 [Unit]
 Description=GT-salat-dikr Prayer Times and Azkar Notifications
-After=graphical-session.target
+After=graphical-session.target default.target
+Wants=graphical-session.target
 
 [Service]
 Type=simple
 ExecStart=$INSTALL_DIR/$SCRIPT_NAME --child-notify
-Restart=on-failure
+Restart=always
 RestartSec=10
 Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%U/bus"
 Environment="DISPLAY=:0"
+Environment="XDG_RUNTIME_DIR=/run/user/%U"
 
 [Install]
 WantedBy=default.target
@@ -600,7 +720,8 @@ EOF
         echo "✅ تم إنشاء وتفعيل systemd service"
     fi
 
-    # --- دعم i3wm ---
+    # === دعم window managers ===
+    # i3wm
     if [ -f "$HOME/.config/i3/config" ]; then
         if ! grep -q "GT-salat-dikr" "$HOME/.config/i3/config"; then
             echo "" >> "$HOME/.config/i3/config"
@@ -610,7 +731,7 @@ EOF
         fi
     fi
 
-    # --- دعم Sway ---
+    # Sway
     if [ -f "$HOME/.config/sway/config" ]; then
         if ! grep -q "GT-salat-dikr" "$HOME/.config/sway/config"; then
             echo "" >> "$HOME/.config/sway/config"
@@ -620,7 +741,7 @@ EOF
         fi
     fi
 
-    # --- دعم Openbox ---
+    # Openbox
     if [ -f "$HOME/.config/openbox/autostart" ]; then
         if ! grep -q "GT-salat-dikr" "$HOME/.config/openbox/autostart"; then
             echo "" >> "$HOME/.config/openbox/autostart"
@@ -630,20 +751,18 @@ EOF
         fi
     fi
 
-    # --- دعم LXDE ---
-    if [ -d "$HOME/.config/lxsession" ]; then
-        local lxde_autostart="$HOME/.config/lxsession/LXDE/autostart"
-        [ -f "$lxde_autostart" ] || lxde_autostart="$HOME/.config/lxsession/Lubuntu/autostart"
+    # LXDE/LXQt
+    for lxde_autostart in "$HOME/.config/lxsession/LXDE/autostart" "$HOME/.config/lxsession/Lubuntu/autostart" "$HOME/.config/lxqt/session.conf"; do
         if [ -f "$lxde_autostart" ]; then
             if ! grep -q "GT-salat-dikr" "$lxde_autostart"; then
                 echo "" >> "$lxde_autostart"
                 echo "@$INSTALL_DIR/$SCRIPT_NAME --notify-start" >> "$lxde_autostart"
-                echo "✅ تم إضافة autostart إلى LXDE"
+                echo "✅ تم إضافة autostart إلى LXDE/LXQt"
             fi
         fi
-    fi
+    done
 
-    # --- دعم Awesome WM ---
+    # Awesome WM
     if [ -f "$HOME/.config/awesome/rc.lua" ]; then
         if ! grep -q "GT-salat-dikr" "$HOME/.config/awesome/rc.lua"; then
             echo "" >> "$HOME/.config/awesome/rc.lua"
@@ -653,7 +772,7 @@ EOF
         fi
     fi
 
-    # --- دعم bspwm ---
+    # bspwm
     if [ -f "$HOME/.config/bspwm/bspwmrc" ]; then
         if ! grep -q "GT-salat-dikr" "$HOME/.config/bspwm/bspwmrc"; then
             echo "" >> "$HOME/.config/bspwm/bspwmrc"
@@ -663,28 +782,20 @@ EOF
         fi
     fi
 
-    # --- دعم dwm/startx ---
-    if [ -f "$HOME/.xinitrc" ]; then
-        if ! grep -q "GT-salat-dikr" "$HOME/.xinitrc"; then
-            echo "" >> "$HOME/.xinitrc"
-            echo "# GT-salat-dikr autostart" >> "$HOME/.xinitrc"
-            echo "$INSTALL_DIR/$SCRIPT_NAME --notify-start &" >> "$HOME/.xinitrc"
-            echo "✅ تم إضافة autostart إلى .xinitrc"
+    # dwm/startx
+    for x_file in "$HOME/.xinitrc" "$HOME/.xsession"; do
+        if [ -f "$x_file" ]; then
+            if ! grep -q "GT-salat-dikr" "$x_file"; then
+                echo "" >> "$x_file"
+                echo "# GT-salat-dikr autostart" >> "$x_file"
+                echo "$INSTALL_DIR/$SCRIPT_NAME --notify-start &" >> "$x_file"
+                echo "✅ تم إضافة autostart إلى $x_file"
+            fi
         fi
-    fi
-    
-    if [ -f "$HOME/.xsession" ]; then
-        if ! grep -q "GT-salat-dikr" "$HOME/.xsession"; then
-            echo "" >> "$HOME/.xsession"
-            echo "# GT-salat-dikr autostart" >> "$HOME/.xsession"
-            echo "$INSTALL_DIR/$SCRIPT_NAME --notify-start &" >> "$HOME/.xsession"
-            echo "✅ تم إضافة autostart إلى .xsession"
-        fi
-    fi
+    done
 
     echo ""
     echo "✅ تم التثبيت في $INSTALL_DIR"
-    echo "💡 أعد فتح الطرفية لرؤية الذكر عند الفتح"
     echo "💡 سيبدأ البرنامج تلقائياً عند بدء تشغيل النظام"
     echo ""
     
@@ -695,20 +806,17 @@ EOF
 uninstall_self() {
     stop_notify_bg || true
     
-    # إيقاف systemd service
     if command -v systemctl >/dev/null 2>&1; then
         systemctl --user stop gt-salat-dikr.service 2>/dev/null || true
         systemctl --user disable gt-salat-dikr.service 2>/dev/null || true
         systemctl --user daemon-reload 2>/dev/null || true
     fi
     
-    # حذف الملفات
     rm -f "$HOME/.local/bin/gtsalat" 2>/dev/null || true
     rm -rf "$INSTALL_DIR" 2>/dev/null || true
     rm -f "$HOME/.config/autostart/gt-salat-dikr.desktop" 2>/dev/null || true
     rm -f "$HOME/.config/systemd/user/gt-salat-dikr.service" 2>/dev/null || true
     
-    # إزالة من shell RC files
     for rc_file in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile" "$HOME/.kshrc" "$HOME/.cshrc"; do
         if [ -f "$rc_file" ]; then
             sed -i '/# GT-salat-dikr/d' "$rc_file" 2>/dev/null || true
@@ -716,13 +824,11 @@ uninstall_self() {
         fi
     done
     
-    # Fish shell
     if [ -f "$HOME/.config/fish/config.fish" ]; then
         sed -i '/# GT-salat-dikr/d' "$HOME/.config/fish/config.fish" 2>/dev/null || true
         sed -i "\|$INSTALL_DIR|d" "$HOME/.config/fish/config.fish" 2>/dev/null || true
     fi
     
-    # WM configs
     for config_file in "$HOME/.config/i3/config" "$HOME/.config/sway/config" \
                        "$HOME/.config/openbox/autostart" "$HOME/.config/awesome/rc.lua" \
                        "$HOME/.config/bspwm/bspwmrc" "$HOME/.xinitrc" "$HOME/.xsession"; do
@@ -732,7 +838,6 @@ uninstall_self() {
         fi
     done
     
-    # LXDE
     for lxde_file in "$HOME/.config/lxsession/LXDE/autostart" "$HOME/.config/lxsession/Lubuntu/autostart"; do
         if [ -f "$lxde_file" ]; then
             sed -i '/GT-salat-dikr/d' "$lxde_file" 2>/dev/null || true
@@ -761,7 +866,6 @@ else
     load_config || setup_wizard
 fi
 
-# التحديث التلقائي (صامت)
 if [ "${AUTO_SELF_UPDATE:-0}" = "1" ]; then
     check_script_update >/dev/null 2>&1 || true
 fi
@@ -776,12 +880,17 @@ case "${1:-}" in
     --notify-stop) stop_notify_bg ;;
     --test-notify)
         ensure_dbus
-        notify-send "GT-salat-dikr" "اختبار إشعار ✔" 2>/dev/null && echo "تم إرسال إشعار" || echo "فشل"
+        notify-send "GT-salat-dikr" "اختبار إشعار ✓" 2>/dev/null && echo "تم إرسال إشعار" || echo "فشل"
         ;;
     --test-adhan)
         ensure_dbus
         create_adhan_player
         play_adhan_gui "اختبار"
+        ;;
+    --test-approaching)
+        ensure_dbus
+        create_approaching_player
+        play_approaching_notification "اختبار" "15"
         ;;
     --update-azkar)
         echo "جلب أحدث نسخة من الأذكار..."
@@ -820,10 +929,10 @@ case "${1:-}" in
         ;;
     --status)
         echo "📊 حالة GT-salat-dikr:"
-        echo "════════════════════════════════"
+        echo "════════════════════════════════════════"
         if [ -f "$PID_FILE" ]; then
             pid=$(cat "$PID_FILE" 2>/dev/null)
-            if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            if [ -n "$pid" ] && ps -p "$pid" >/dev/null 2>&1; then
                 echo "✅ الإشعارات: تعمل (PID: $pid)"
             else
                 echo "❌ الإشعارات: متوقفة"
@@ -837,6 +946,8 @@ case "${1:-}" in
             echo "📍 الموقع: $CITY, $COUNTRY"
             echo "🧭 الإحداثيات: $LAT, $LON"
             echo "📖 طريقة الحساب: $METHOD_NAME"
+            echo "⏰ التنبيه قبل الصلاة: ${PRE_PRAYER_NOTIFY} دقيقة"
+            echo "🔊 نوع الأذان: ${ADHAN_TYPE}"
         fi
         echo ""
         if get_next_prayer 2>/dev/null; then
@@ -851,7 +962,7 @@ case "${1:-}" in
     --logs)
         if [ -f "$NOTIFY_LOG" ]; then
             echo "📋 آخر 20 سطر من السجل:"
-            echo "════════════════════════════════"
+            echo "════════════════════════════════════════"
             tail -n 20 "$NOTIFY_LOG"
         else
             echo "لا يوجد ملف سجل."
@@ -859,7 +970,7 @@ case "${1:-}" in
         ;;
     --debug)
         echo "🔍 معلومات التشخيص:"
-        echo "════════════════════════════════"
+        echo "════════════════════════════════════════"
         echo "DBUS_SESSION_BUS_ADDRESS: ${DBUS_SESSION_BUS_ADDRESS:-غير معرف}"
         echo "DISPLAY: ${DISPLAY:-غير معرف}"
         echo "USER: $(whoami)"
@@ -877,9 +988,15 @@ case "${1:-}" in
         echo "ملفات البرنامج:"
         [ -f "$SCRIPT_SOURCE_ABS" ] && echo "  ✓ السكربت الرئيسي" || echo "  ✗ السكربت الرئيسي"
         [ -f "$AZKAR_FILE" ] && echo "  ✓ ملف الأذكار" || echo "  ✗ ملف الأذكار"
-        [ -f "$ADHAN_FILE" ] && echo "  ✓ ملف الأذان" || echo "  ✗ ملف الأذان"
+        [ -f "$ADHAN_FILE" ] && echo "  ✓ ملف الأذان الكامل" || echo "  ✗ ملف الأذان الكامل"
+        [ -f "$SHORT_ADHAN_FILE" ] && echo "  ✓ ملف الأذان القصير" || echo "  ✗ ملف الأذان القصير"
+        [ -f "$APPROACHING_SOUND" ] && echo "  ✓ ملف التنبيه" || echo "  ✗ ملف التنبيه"
         [ -f "$CONFIG_FILE" ] && echo "  ✓ ملف الإعدادات" || echo "  ✗ ملف الإعدادات"
         [ -f "$ADHAN_PLAYER_SCRIPT" ] && echo "  ✓ مشغل الأذان" || echo "  ✗ مشغل الأذان"
+        echo ""
+        echo "ملفات Autostart:"
+        [ -f "$HOME/.config/autostart/gt-salat-dikr.desktop" ] && echo "  ✓ XDG autostart" || echo "  ✗ XDG autostart"
+        [ -f "$HOME/.config/systemd/user/gt-salat-dikr.service" ] && echo "  ✓ systemd service" || echo "  ✗ systemd service"
         echo ""
         if [ -f "$NOTIFY_LOG" ]; then
             echo "آخر 5 أسطر من السجل:"
@@ -888,15 +1005,15 @@ case "${1:-}" in
         ;;
     --help|-h)
         cat <<EOF
-═══════════════════════════════════════════════════════════
+════════════════════════════════════════════════════════════
   GT-salat-dikr - نظام إشعارات الصلاة والأذكار
-═══════════════════════════════════════════════════════════
+════════════════════════════════════════════════════════════
 
 📦 التثبيت:
   --install           تثبيت البرنامج مع autostart
   --uninstall         إزالة البرنامج
 
-⚙️  الإعدادات:
+⚙️ الإعدادات:
   --settings          تعديل الموقع والإعدادات
 
 📊 العرض:
@@ -912,6 +1029,7 @@ case "${1:-}" in
 🧪 الاختبار:
   --test-notify       اختبار إشعار
   --test-adhan        اختبار الأذان
+  --test-approaching  اختبار تنبيه الاقتراب
 
 🔄 التحديث:
   --update-azkar      تحديث الأذكار
@@ -919,13 +1037,12 @@ case "${1:-}" in
 
 ℹ️  --help, -h        هذه المساعدة
 
-═══════════════════════════════════════════════════════════
+════════════════════════════════════════════════════════════
 💡 الاستخدام الافتراضي: تشغيل بدون خيارات يعرض ذكر ووقت الصلاة
-═══════════════════════════════════════════════════════════
+════════════════════════════════════════════════════════════
 EOF
         ;;
     '')
-        # الوضع الافتراضي: عرض الذكر والصلاة القادمة فقط (بدون رسائل إضافية)
         {
             zekr=$(show_random_zekr 2>/dev/null)
             if [ -n "$zekr" ]; then
@@ -939,7 +1056,7 @@ EOF
                 leftm=$((leftmin%60))
                 printf "\e[1;34m🕌 الصلاة القادمة: %s عند %s (باقي %02d:%02d)\e[0m\n" "$PRAYER_NAME" "$PRAYER_TIME" "$lefth" "$leftm"
             fi
-        } 2>/dev/null  # إخفاء جميع الأخطاء
+        } 2>/dev/null
         ;;
     *)
         echo "❌ خيار غير معروف: $1"
