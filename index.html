@@ -573,25 +573,26 @@
             </div>
 
 <!-- عرض الصلاة الحي -->
-<div class="live-prayer-widget">
-    <h3><i class="fas fa-clock"></i> مواقيت الصلاة الحية</h3>
-    <div class="location-info" id="locationInfo">جاري اكتشاف موقعك...</div>
-    
-    <!-- إعدادات طريقة الحساب -->
-    <div class="method-selector">
-        <div id="currentMethod">طريقة الحساب: جاري التحديد...</div>
-        <button class="method-btn" onclick="showMethodSelector()">تغيير طريقة الحساب</button>
-    </div>
-    
-    <!-- عرض مواقيت الصلاة -->
-    <div id="prayerWidget">
-        <div class="loading">جاري تحميل مواقيت الصلاة...</div>
-    </div>
-    
-    <button class="refresh-btn" onclick="loadPrayerTimes()">
-        <i class="fas fa-sync-alt"></i> تحديث المواقيت
-    </button>
-</div>
+            <div class="live-prayer-widget">
+                <h3><i class="fas fa-clock"></i> مواقيت الصلاة الحية</h3>
+                <div class="location-info" id="locationInfo">جاري اكتشاف موقعك...</div>
+                
+                <!-- إعدادات طريقة الحساب -->
+                <div class="method-selector">
+                    <div id="currentMethod">طريقة الحساب: جاري التحديد...</div>
+                    <div class="method-info" id="methodInfo">يتم اختيار طريقة الحساب المناسبة تلقائيًا حسب موقعك</div>
+                    <button class="method-btn" onclick="showMethodSelector()">تغيير طريقة الحساب</button>
+                </div>
+                
+                <!-- عرض مواقيت الصلاة -->
+                <div id="prayerWidget">
+                    <div class="loading">جاري تحميل مواقيت الصلاة...</div>
+                </div>
+                
+                <button class="refresh-btn" onclick="loadPrayerTimes()">
+                    <i class="fas fa-sync-alt"></i> تحديث المواقيت
+                </button>
+            </div>
 
 <script>
 // متغيرات عامة
@@ -614,22 +615,39 @@ const methodsByCountry = {
     'MA': 1,  // المغرب
     'DZ': 1,  // الجزائر
     'TN': 1,  // تونس
+    'LY': 1,  // ليبيا
+    'SD': 1,  // السودان
+    'SY': 1,  // سوريا
+    'IQ': 1,  // العراق
+    'JO': 1,  // الأردن
+    'LB': 1,  // لبنان
+    'PS': 1,  // فلسطين
+    'YE': 1,  // اليمن
+    'OM': 1,  // عمان
+    'BH': 1,  // البحرين
     'default': 1 // الافتراضي - رابطة العالم الإسلامي
 };
 
-// أسماء طرق الحساب
+// أسماء طرق الحساب (جميع الطرق)
 const methodNames = {
+    0: 'شافعي',
     1: 'رابطة العالم الإسلامي',
-    2: 'الهيئة المصرية للمساحة',
+    2: 'الهيئة العامة المصرية للمساحة',
     3: 'جامعة أم القرى',
-    4: 'جامعة كراتشي',
-    5: 'الاتحاد الإسلامي الفرنسي',
-    7: 'وزارة الأوقاف الكويتية',
-    8: 'قطر',
-    12: 'أمريكا الشمالية (ISNA)',
-    13: 'دبي',
-    15: 'الكويت',
-    16: 'تركيا'
+    4: 'الجامعة الإسلامية بكراتشي',
+    5: 'اتحاد المنظمات الإسلامية في فرنسا',
+    7: 'وزارة الأوقاف والشؤون الإسلامية الكويتية',
+    8: 'الطريقة المعتمدة في قطر',
+    9: 'المجلس الإسلامي الأعلى في سنغافورة',
+    10: 'وكالة الديانة التركية',
+    11: 'الاتحاد الروحي للمسلمين في روسيا',
+    12: 'اتحاد المنظمات الإسلامية في أمريكا الشمالية',
+    13: 'الطريقة المعتمدة في دبي',
+    14: 'المجلس الإسلامي الكويتي',
+    15: 'طريقة الكويت',
+    16: 'الطريقة المعتمدة في تركيا',
+    17: 'طهران',
+    18: 'جعفري'
 };
 
 // تحميل مواقيت الصلاة
@@ -737,27 +755,40 @@ async function fetchPrayerTimes() {
 // عرض مواقيت الصلاة
 function displayPrayerTimes() {
     const timings = prayerData.data.timings;
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
     
     // الصلوات (بدون الشروق)
     const prayers = [
-        { name: 'الفجر', time: timings.Fajr },
-        { name: 'الظهر', time: timings.Dhuhr },
-        { name: 'العصر', time: timings.Asr },
-        { name: 'المغرب', time: timings.Maghrib },
-        { name: 'العشاء', time: timings.Isha }
+        { name: 'الفجر', time: timings.Fajr, icon: 'fa-cloud-moon' },
+        { name: 'الظهر', time: timings.Dhuhr, icon: 'fa-sun' },
+        { name: 'العصر', time: timings.Asr, icon: 'fa-cloud-sun' },
+        { name: 'المغرب', time: timings.Maghrib, icon: 'fa-moon' },
+        { name: 'العشاء', time: timings.Isha, icon: 'fa-star' }
     ];
     
-    let html = '<div class="prayer-times-list">';
+    let html = '<div class="prayer-times">';
+    
     prayers.forEach(prayer => {
+        const [hours, minutes] = prayer.time.split(':').map(Number);
+        const prayerTimeInMinutes = hours * 60 + minutes;
+        
+        // تحديد الصلاة الحالية أو القادمة
+        const isCurrent = currentTime >= prayerTimeInMinutes && 
+                         currentTime < prayerTimeInMinutes + 60;
+        
         html += `
-            <div class="prayer-time-item">
-                <span class="prayer-name">${prayer.name}</span>
-                <span class="prayer-time">${prayer.time}</span>
+            <div class="prayer-item ${isCurrent ? 'current-prayer' : ''}">
+                <div class="prayer-name">
+                    <i class="fas ${prayer.icon}"></i>
+                    <span>${prayer.name}</span>
+                </div>
+                <div class="prayer-time">${prayer.time}</div>
             </div>
         `;
     });
-    html += '</div>';
     
+    html += '</div>';
     document.getElementById('prayerWidget').innerHTML = html;
 }
 
@@ -770,31 +801,36 @@ function updateMethodInfo(method) {
 
 // عرض قائمة اختيار طريقة الحساب
 function showMethodSelector() {
+    // التحقق من وجود القائمة مسبقاً
+    if (document.getElementById('methodSelect')) {
+        cancelMethodSelection();
+        return;
+    }
+    
     const methods = Object.entries(methodNames)
         .map(([id, name]) => `<option value="${id}">${name}</option>`)
         .join('');
     
-    const currentMethod = getCalculationMethod();
-    
     const html = `
-        <div style="margin: 15px 0;">
-            <label>اختر طريقة الحساب:</label>
-            <select id="methodSelect" style="width: 100%; padding: 8px; margin: 10px 0;">
-                <option value="auto" ${selectedMethod === 'auto' ? 'selected' : ''}>تلقائي (حسب الموقع)</option>
+        <div class="method-selection-panel" id="methodSelectionPanel">
+            <label for="methodSelect">اختر طريقة الحساب:</label>
+            <select id="methodSelect" class="method-select">
+                <option value="auto">تلقائي (حسب الموقع)</option>
                 ${methods}
             </select>
-            <button onclick="applyMethod()" class="method-btn">تطبيق</button>
-            <button onclick="cancelMethodSelection()" class="method-btn">إلغاء</button>
+            <div class="method-actions">
+                <button onclick="applyMethod()" class="method-btn">تطبيق</button>
+                <button onclick="cancelMethodSelection()" class="method-btn">إلغاء</button>
+            </div>
         </div>
     `;
     
     document.querySelector('.method-selector').insertAdjacentHTML('beforeend', html);
     
     // تحديد الطريقة الحالية
+    const select = document.getElementById('methodSelect');
     if (selectedMethod !== 'auto') {
-        document.getElementById('methodSelect').value = selectedMethod;
-    } else {
-        document.getElementById('methodSelect').value = 'auto';
+        select.value = selectedMethod;
     }
 }
 
@@ -810,15 +846,16 @@ function applyMethod() {
 
 // إلغاء اختيار طريقة الحساب
 function cancelMethodSelection() {
-    const selector = document.querySelector('.method-selector > div:last-child');
-    if (selector && selector.querySelector('#methodSelect')) {
-        selector.remove();
+    const panel = document.getElementById('methodSelectionPanel');
+    if (panel) {
+        panel.remove();
     }
 }
 
 // تحميل المواقيت عند تحميل الصفحة
-window.addEventListener('load', loadPrayerTimes);
-</script>
+if (typeof window !== 'undefined') {
+    window.addEventListener('load', loadPrayerTimes);
+}
             
             <div class="demo-terminal">
                 <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat</span></div>
