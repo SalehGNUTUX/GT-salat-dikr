@@ -1,6 +1,35 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <script>
+// دالة مبسطة لإضافة الشعار
+function setFavicon() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    
+    // خلفية خضراء
+    ctx.fillStyle = '#2e7d32';
+    ctx.fillRect(0, 0, 32, 32);
+    
+    // نص المسجد
+    ctx.font = '20px Arial';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🕌', 16, 16);
+    
+    // إنشاء الرمز
+    const favicon = document.createElement('link');
+    favicon.rel = 'icon';
+    favicon.href = canvas.toDataURL();
+    document.head.appendChild(favicon);
+}
+
+// تطبيق الشعار
+setFavicon();
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GT-salat-dikr - نظام إشعارات الصلاة والأذكار المتكامل</title>
