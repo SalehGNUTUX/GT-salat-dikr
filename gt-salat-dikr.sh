@@ -625,8 +625,20 @@ if [ "${AUTO_SELF_UPDATE:-0}" = "1" ]; then
 fi
 
 case "${1:-}" in
-    --install) install_self ;;
-    --uninstall) uninstall_self ;;
+    --install)
+        if [ -f "$INSTALL_DIR/install.sh" ]; then
+            bash "$INSTALL_DIR/install.sh"
+        else
+            echo "ملف install.sh غير موجود في $INSTALL_DIR"
+        fi
+        ;;
+    --uninstall)
+        if [ -f "$INSTALL_DIR/uninstall.sh" ]; then
+            bash "$INSTALL_DIR/uninstall.sh"
+        else
+            echo "ملف uninstall.sh غير موجود في $INSTALL_DIR"
+        fi
+        ;;
     --settings) setup_wizard ;;
     --show-timetable|-t) show_timetable ;;
     --notify-start) start_notify_service ;;
