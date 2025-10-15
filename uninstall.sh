@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# GT-salat-dikr Uninstall Script (2024 متوافق مع فصل الإشعارات واختيار النظام)
+# GT-salat-dikr Uninstall Script (2024)
 #
 
 set -e
@@ -32,8 +32,7 @@ fi
 echo ""
 echo "🗑️  إزالة التثبيت..."
 
-# إيقاف الخدمات
-if [ "$NOTIFY_SYSTEM" = "systemd" ]; then
+if [ "${NOTIFY_SYSTEM:-systemd}" = "systemd" ]; then
     if systemctl --user is-active gt-salat-dikr.service >/dev/null 2>&1; then
         systemctl --user stop gt-salat-dikr.service
         systemctl --user disable gt-salat-dikr.service
@@ -42,7 +41,6 @@ if [ "$NOTIFY_SYSTEM" = "systemd" ]; then
     systemctl --user daemon-reload
     echo "✅ تمت إزالة خدمة systemd."
 else
-    # إذا كان هناك PID من sysvinit
     PID_FILE="$INSTALL_DIR/.gt-salat-dikr-notify.pid"
     if [ -f "$PID_FILE" ]; then
         kill $(cat "$PID_FILE") 2>/dev/null || true
