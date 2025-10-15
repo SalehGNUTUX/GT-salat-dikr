@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# GT-salat-dikr Enhanced Installation Script (2025 تحديثات فصل الإشعارات واختيار النظام)
+# GT-salat-dikr Enhanced Installation Script (2024)
 #
 
 set -e
@@ -33,14 +33,12 @@ if [ "${#MISSING_TOOLS[@]}" -gt 0 ]; then
     exit 1
 fi
 
-# اكتشاف بيئة النظام
 if command -v systemctl >/dev/null 2>&1; then
     SYSTEMD_AVAILABLE=1
 else
     SYSTEMD_AVAILABLE=0
 fi
 
-# خيارات المستخدم الجديدة
 echo ""
 echo "🟢 تفعيل إشعارات الصلاة؟"
 read -p "  [Y/n]: " ENABLE_SALAT
@@ -129,7 +127,6 @@ EOF
     systemctl --user enable gt-salat-dikr.service
     echo "✅ تم تفعيل خدمة systemd"
 else
-    # sysvinit: لا شيء سوى autostart أو التشغيل اليدوي
     mkdir -p "$HOME/.config/autostart"
     cat > "$HOME/.config/autostart/gt-salat-dikr.desktop" <<EOF
 [Desktop Entry]
