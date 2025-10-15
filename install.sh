@@ -82,11 +82,11 @@ mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
 echo "⬇️  تحميل الملفات الأساسية..."
-for file in "$MAIN_SCRIPT" "azkar.txt" "adhan.ogg" "short_adhan.ogg" "prayer_approaching.ogg"; do
+for file in "$MAIN_SCRIPT" "install.sh" "uninstall.sh" "azkar.txt" "adhan.ogg" "short_adhan.ogg" "prayer_approaching.ogg"; do
     echo "  تحميل: $file"
     curl -fsSL "$REPO_BASE/$file" -o "$file" || echo "  ⚠️ لم يتم تحميل $file"
 done
-chmod +x "$MAIN_SCRIPT"
+chmod +x "$MAIN_SCRIPT" install.sh uninstall.sh
 
 echo "🔗 إعداد المسار..."
 mkdir -p "$HOME/.local/bin"
