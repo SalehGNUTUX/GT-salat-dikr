@@ -40,7 +40,7 @@ else
 fi
 
 echo ""
-echo "🟢 تفعيل إشعارات الصلاة؟"
+#echo "🟢 تفعيل إشعارات الصلاة؟"
 read -p "  [Y/n]: " ENABLE_SALAT
 ENABLE_SALAT=${ENABLE_SALAT:-Y}
 if [[ "$ENABLE_SALAT" =~ ^[Nn]$ ]]; then
@@ -50,7 +50,7 @@ else
 fi
 
 echo ""
-echo "🟢 تفعيل إشعارات الذكر؟"
+#echo "🟢 تفعيل إشعارات الذكر؟"
 read -p "  [Y/n]: " ENABLE_ZIKR
 ENABLE_ZIKR=${ENABLE_ZIKR:-Y}
 if [[ "$ENABLE_ZIKR" =~ ^[Nn]$ ]]; then
@@ -60,7 +60,7 @@ else
 fi
 
 echo ""
-echo "⚙️ اختر نظام الخدمة للإشعارات:"
+#echo "⚙️ اختر نظام الخدمة للإشعارات:"
 if [ $SYSTEMD_AVAILABLE -eq 1 ]; then
     echo "  1) systemd (موصى به)"
     echo "  2) sysvinit (تشغيل بالخلفية)"
