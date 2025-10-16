@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# GT-salat-dikr Simplified Installation Script (2024)
+# GT-salat-dikr Simplified Installation Script (2025)
 #
 
 set -e
