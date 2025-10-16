@@ -34,6 +34,10 @@ DEFAULT_ADHAN_TYPE="full"
 DEFAULT_SALAT_NOTIFY=1
 DEFAULT_ZIKR_NOTIFY=1
 DEFAULT_NOTIFY_SYSTEM="systemd"
+DEFAULT_TERMINAL_SALAT_NOTIFY=1
+DEFAULT_TERMINAL_ZIKR_NOTIFY=1
+DEFAULT_SYSTEM_SALAT_NOTIFY=1
+DEFAULT_SYSTEM_ZIKR_NOTIFY=1
 
 # ------------- دوال مساعدة وعرض -------------
 log() { 
@@ -268,7 +272,16 @@ show_random_zekr() {
 show_zekr_notify() {
     local zekr=$(show_random_zekr)
     [ -z "$zekr" ] && zekr="لم يتم العثور على ذكر!"
-    notify-send "GT-salat-dikr" "$zekr" 2>/dev/null || true
+    
+    # إشعارات الطرفية للذكر
+    if [ "${TERMINAL_ZIKR_NOTIFY:-1}" = "1" ]; then
+        echo "🕊️ $zekr"
+    fi
+    
+    # إشعارات النظام للذكر
+    if [ "${SYSTEM_ZIKR_NOTIFY:-1}" = "1" ]; then
+        notify-send "GT-salat-dikr" "$zekr" 2>/dev/null || true
+    fi
 }
 
 play_adhan_gui() {
@@ -348,10 +361,40 @@ choose_notify_system() {
 }
 
 choose_notify_settings() {
-    read -p "تفعيل إشعارات الصلاة؟ [Y/n]: " en_salat
-    [[ "${en_salat:-Y}" =~ ^[Nn]$ ]] && ENABLE_SALAT_NOTIFY=0 || ENABLE_SALAT_NOTIFY=1
-    read -p "تفعيل إشعارات الذكر؟ [Y/n]: " en_zikr
-    [[ "${en_zikr:-Y}" =~ ^[Nn]$ ]] && ENABLE_ZIKR_NOTIFY=0 || ENABLE_ZIKR_NOTIFY=1
+    echo ""
+    echo "⚙️ إعدادات الإشعارات المتقدمة:"
+    echo ""
+    
+    # إشعارات الصلاة
+    echo "🕌 إشعارات الصلاة:"
+    read -p "  تفعيل إشعارات الصلاة في الطرفية؟ [Y/n]: " term_salat
+    [[ "${term_salat:-Y}" =~ ^[Nn]$ ]] && TERMINAL_SALAT_NOTIFY=0 || TERMINAL_SALAT_NOTIFY=1
+    
+    read -p "  تفعيل إشعارات الصلاة في النظام (GUI)؟ [Y/n]: " sys_salat
+    [[ "${sys_salat:-Y}" =~ ^[Nn]$ ]] && SYSTEM_SALAT_NOTIFY=0 || SYSTEM_SALAT_NOTIFY=1
+    
+    # تحديد ENABLE_SALAT_NOTIFY بناءً على الإعدادات
+    if [ "$TERMINAL_SALAT_NOTIFY" = "1" ] || [ "$SYSTEM_SALAT_NOTIFY" = "1" ]; then
+        ENABLE_SALAT_NOTIFY=1
+    else
+        ENABLE_SALAT_NOTIFY=0
+    fi
+    
+    echo ""
+    # إشعارات الذكر
+    echo "🕊️ إشعارات الأذكار:"
+    read -p "  تفعيل إشعارات الأذكار في الطرفية؟ [Y/n]: " term_zikr
+    [[ "${term_zikr:-Y}" =~ ^[Nn]$ ]] && TERMINAL_ZIKR_NOTIFY=0 || TERMINAL_ZIKR_NOTIFY=1
+    
+    read -p "  تفعيل إشعارات الأذكار في النظام (GUI)؟ [Y/n]: " sys_zikr
+    [[ "${sys_zikr:-Y}" =~ ^[Nn]$ ]] && SYSTEM_ZIKR_NOTIFY=0 || SYSTEM_ZIKR_NOTIFY=1
+    
+    # تحديد ENABLE_ZIKR_NOTIFY بناءً على الإعدادات
+    if [ "$TERMINAL_ZIKR_NOTIFY" = "1" ] || [ "$SYSTEM_ZIKR_NOTIFY" = "1" ]; then
+        ENABLE_ZIKR_NOTIFY=1
+    else
+        ENABLE_ZIKR_NOTIFY=0
+    fi
 }
 
 save_config() {
@@ -370,6 +413,10 @@ ADHAN_TYPE="${ADHAN_TYPE:-$DEFAULT_ADHAN_TYPE}"
 ENABLE_SALAT_NOTIFY=${ENABLE_SALAT_NOTIFY:-$DEFAULT_SALAT_NOTIFY}
 ENABLE_ZIKR_NOTIFY=${ENABLE_ZIKR_NOTIFY:-$DEFAULT_ZIKR_NOTIFY}
 NOTIFY_SYSTEM="${NOTIFY_SYSTEM:-$DEFAULT_NOTIFY_SYSTEM}"
+TERMINAL_SALAT_NOTIFY=${TERMINAL_SALAT_NOTIFY:-$DEFAULT_TERMINAL_SALAT_NOTIFY}
+TERMINAL_ZIKR_NOTIFY=${TERMINAL_ZIKR_NOTIFY:-$DEFAULT_TERMINAL_ZIKR_NOTIFY}
+SYSTEM_SALAT_NOTIFY=${SYSTEM_SALAT_NOTIFY:-$DEFAULT_SYSTEM_SALAT_NOTIFY}
+SYSTEM_ZIKR_NOTIFY=${SYSTEM_ZIKR_NOTIFY:-$DEFAULT_SYSTEM_ZIKR_NOTIFY}
 EOF
     log "تم حفظ الإعدادات في $CONFIG_FILE"
 }
@@ -391,7 +438,7 @@ setup_wizard() {
         read -p "هل تريد استخدامه؟ [Y/n]: " ans; ans=${ans:-Y}
         [[ ! "$ans" =~ ^[Yy]$ ]] && manual_location
     else
-        echo "تعذر اكتشاف الموقع تلقائيًا – أدخل البيانات يدويًا."
+        echo "تعذر اكتشاف الموقع تلقائيًا — أدخل البيانات يدويًا."
         manual_location
     fi
     choose_method
@@ -400,7 +447,7 @@ setup_wizard() {
     read -p "كم دقيقة قبل الصلاة تريد التنبيه؟ [افتراضي 15]: " pre_min
     PRE_PRAYER_NOTIFY=${pre_min:-$DEFAULT_PRE_NOTIFY}
     echo ""
-    echo "🔊 اختر نوع الأذان:"
+    echo "📊 اختر نوع الأذان:"
     echo "  1) أذان كامل (adhan.ogg)"
     echo "  2) أذان قصير (short_adhan.ogg)"
     read -p "الاختيار [1]: " adhan_choice
@@ -477,18 +524,37 @@ get_next_prayer() {
 show_pre_prayer_notify() {
     get_next_prayer || return 1
     local minutes="${PRE_PRAYER_NOTIFY:-15}"
-    play_approaching_notification "$PRAYER_NAME" "$minutes"
+    
+    # إشعارات الطرفية للصلاة
+    if [ "${TERMINAL_SALAT_NOTIFY:-1}" = "1" ]; then
+        echo "⏰ تبقى ${minutes} دقيقة على صلاة ${PRAYER_NAME}"
+    fi
+    
+    # إشعارات النظام للصلاة
+    if [ "${SYSTEM_SALAT_NOTIFY:-1}" = "1" ]; then
+        play_approaching_notification "$PRAYER_NAME" "$minutes"
+    fi
 }
 
 show_prayer_notify() {
     get_next_prayer || return 1
-    play_adhan_gui "$PRAYER_NAME"
+    
+    # إشعارات الطرفية للصلاة
+    if [ "${TERMINAL_SALAT_NOTIFY:-1}" = "1" ]; then
+        echo "🕌 حان الآن وقت صلاة ${PRAYER_NAME}"
+    fi
+    
+    # إشعارات النظام للصلاة
+    if [ "${SYSTEM_SALAT_NOTIFY:-1}" = "1" ]; then
+        play_adhan_gui "$PRAYER_NAME"
+    fi
 }
 
 notify_loop() {
     trap 'rm -f "$PID_FILE" 2>/dev/null; exit 0' EXIT INT TERM
     local notify_flag_file="${SCRIPT_DIR}/.last-prayer-notified"
-    local pre_notify_flag_file="${SCRIPT_DIR}/.last-preprayer-notified"
+    local pre_notify_flag_file="${SCRIPT_DIR}
+    /.last-preprayer-notified"
     while true; do
         if [ "${ENABLE_ZIKR_NOTIFY:-1}" = "1" ]; then
             show_zekr_notify || true
@@ -519,12 +585,139 @@ notify_loop() {
     done
 }
 
-enable_salat_notify() { ENABLE_SALAT_NOTIFY=1; save_config; echo "✅ تم تفعيل إشعارات الصلاة."; }
-disable_salat_notify() { ENABLE_SALAT_NOTIFY=0; save_config; echo "✅ تم تعطيل إشعارات الصلاة."; }
-enable_zikr_notify() { ENABLE_ZIKR_NOTIFY=1; save_config; echo "✅ تم تفعيل إشعارات الذكر."; }
-disable_zikr_notify() { ENABLE_ZIKR_NOTIFY=0; save_config; echo "✅ تم تعطيل إشعارات الذكر."; }
-enable_all_notify() { ENABLE_SALAT_NOTIFY=1; ENABLE_ZIKR_NOTIFY=1; save_config; echo "✅ تم تفعيل جميع الإشعارات."; }
-disable_all_notify() { ENABLE_SALAT_NOTIFY=0; ENABLE_ZIKR_NOTIFY=0; save_config; echo "✅ تم تعطيل جميع الإشعارات."; }
+enable_salat_notify() { 
+    ENABLE_SALAT_NOTIFY=1
+    TERMINAL_SALAT_NOTIFY=1
+    SYSTEM_SALAT_NOTIFY=1
+    save_config
+    echo "✅ تم تفعيل إشعارات الصلاة (طرفية + نظام)."
+}
+
+disable_salat_notify() { 
+    ENABLE_SALAT_NOTIFY=0
+    TERMINAL_SALAT_NOTIFY=0
+    SYSTEM_SALAT_NOTIFY=0
+    save_config
+    echo "✅ تم تعطيل إشعارات الصلاة (طرفية + نظام)."
+}
+
+enable_zikr_notify() { 
+    ENABLE_ZIKR_NOTIFY=1
+    TERMINAL_ZIKR_NOTIFY=1
+    SYSTEM_ZIKR_NOTIFY=1
+    save_config
+    echo "✅ تم تفعيل إشعارات الذكر (طرفية + نظام)."
+}
+
+disable_zikr_notify() { 
+    ENABLE_ZIKR_NOTIFY=0
+    TERMINAL_ZIKR_NOTIFY=0
+    SYSTEM_ZIKR_NOTIFY=0
+    save_config
+    echo "✅ تم تعطيل إشعارات الذكر (طرفية + نظام)."
+}
+
+enable_all_notify() { 
+    ENABLE_SALAT_NOTIFY=1
+    ENABLE_ZIKR_NOTIFY=1
+    TERMINAL_SALAT_NOTIFY=1
+    TERMINAL_ZIKR_NOTIFY=1
+    SYSTEM_SALAT_NOTIFY=1
+    SYSTEM_ZIKR_NOTIFY=1
+    save_config
+    echo "✅ تم تفعيل جميع الإشعارات (طرفية + نظام)."
+}
+
+disable_all_notify() { 
+    ENABLE_SALAT_NOTIFY=0
+    ENABLE_ZIKR_NOTIFY=0
+    TERMINAL_SALAT_NOTIFY=0
+    TERMINAL_ZIKR_NOTIFY=0
+    SYSTEM_SALAT_NOTIFY=0
+    SYSTEM_ZIKR_NOTIFY=0
+    save_config
+    echo "✅ تم تعطيل جميع الإشعارات (طرفية + نظام)."
+}
+
+enable_salat_terminal() {
+    TERMINAL_SALAT_NOTIFY=1
+    # تحديث ENABLE_SALAT_NOTIFY إذا كان أي منهما مفعل
+    if [ "$TERMINAL_SALAT_NOTIFY" = "1" ] || [ "${SYSTEM_SALAT_NOTIFY:-1}" = "1" ]; then
+        ENABLE_SALAT_NOTIFY=1
+    fi
+    save_config
+    echo "💻 تم تفعيل إشعارات الصلاة في الطرفية"
+}
+
+disable_salat_terminal() {
+    TERMINAL_SALAT_NOTIFY=0
+    # تحديث ENABLE_SALAT_NOTIFY إذا كان كلاهما معطل
+    if [ "$TERMINAL_SALAT_NOTIFY" = "0" ] && [ "${SYSTEM_SALAT_NOTIFY:-0}" = "0" ]; then
+        ENABLE_SALAT_NOTIFY=0
+    fi
+    save_config
+    echo "💻 تم تعطيل إشعارات الصلاة في الطرفية"
+}
+
+enable_zikr_terminal() {
+    TERMINAL_ZIKR_NOTIFY=1
+    # تحديث ENABLE_ZIKR_NOTIFY إذا كان أي منهما مفعل
+    if [ "$TERMINAL_ZIKR_NOTIFY" = "1" ] || [ "${SYSTEM_ZIKR_NOTIFY:-1}" = "1" ]; then
+        ENABLE_ZIKR_NOTIFY=1
+    fi
+    save_config
+    echo "💻 تم تفعيل إشعارات الأذكار في الطرفية"
+}
+
+disable_zikr_terminal() {
+    TERMINAL_ZIKR_NOTIFY=0
+    # تحديث ENABLE_ZIKR_NOTIFY إذا كان كلاهما معطل
+    if [ "$TERMINAL_ZIKR_NOTIFY" = "0" ] && [ "${SYSTEM_ZIKR_NOTIFY:-0}" = "0" ]; then
+        ENABLE_ZIKR_NOTIFY=0
+    fi
+    save_config
+    echo "💻 تم تعطيل إشعارات الأذكار في الطرفية"
+}
+
+enable_salat_gui() {
+    SYSTEM_SALAT_NOTIFY=1
+    # تحديث ENABLE_SALAT_NOTIFY إذا كان أي منهما مفعل
+    if [ "${TERMINAL_SALAT_NOTIFY:-1}" = "1" ] || [ "$SYSTEM_SALAT_NOTIFY" = "1" ]; then
+        ENABLE_SALAT_NOTIFY=1
+    fi
+    save_config
+    echo "🪟 تم تفعيل إشعارات الصلاة في النظام"
+}
+
+disable_salat_gui() {
+    SYSTEM_SALAT_NOTIFY=0
+    # تحديث ENABLE_SALAT_NOTIFY إذا كان كلاهما معطل
+    if [ "${TERMINAL_SALAT_NOTIFY:-0}" = "0" ] && [ "$SYSTEM_SALAT_NOTIFY" = "0" ]; then
+        ENABLE_SALAT_NOTIFY=0
+    fi
+    save_config
+    echo "🪟 تم تعطيل إشعارات الصلاة في النظام"
+}
+
+enable_zikr_gui() {
+    SYSTEM_ZIKR_NOTIFY=1
+    # تحديث ENABLE_ZIKR_NOTIFY إذا كان أي منهما مفعل
+    if [ "${TERMINAL_ZIKR_NOTIFY:-1}" = "1" ] || [ "$SYSTEM_ZIKR_NOTIFY" = "1" ]; then
+        ENABLE_ZIKR_NOTIFY=1
+    fi
+    save_config
+    echo "🪟 تم تفعيل إشعارات الأذكار في النظام"
+}
+
+disable_zikr_gui() {
+    SYSTEM_ZIKR_NOTIFY=0
+    # تحديث ENABLE_ZIKR_NOTIFY إذا كان كلاهما معطل
+    if [ "${TERMINAL_ZIKR_NOTIFY:-0}" = "0" ] && [ "$SYSTEM_ZIKR_NOTIFY" = "0" ]; then
+        ENABLE_ZIKR_NOTIFY=0
+    fi
+    save_config
+    echo "🪟 تم تعطيل إشعارات الأذكار في النظام"
+}
 
 change_notify_system() {
     choose_notify_system
@@ -649,6 +842,14 @@ case "${1:-}" in
     --disable-salat-notify) disable_salat_notify ;;
     --enable-zikr-notify) enable_zikr_notify ;;
     --disable-zikr-notify) disable_zikr_notify ;;
+    --enable-salat-terminal) enable_salat_terminal ;;
+    --disable-salat-terminal) disable_salat_terminal ;;
+    --enable-zikr-terminal) enable_zikr_terminal ;;
+    --disable-zikr-terminal) disable_zikr_terminal ;;
+    --enable-salat-gui) enable_salat_gui ;;
+    --disable-salat-gui) disable_salat_gui ;;
+    --enable-zikr-gui) enable_zikr_gui ;;
+    --disable-zikr-gui) disable_zikr_gui ;;
     --change-notify-system) change_notify_system ;;
     --test-notify)
         ensure_dbus
@@ -673,7 +874,7 @@ case "${1:-}" in
         ;;
     --status)
         echo "📊 حالة GT-salat-dikr:"
-        echo "════════════════════════════════════════"
+        echo "═══════════════════════════════════════════"
         if [ -f "$PID_FILE" ]; then
             pid=$(cat "$PID_FILE" 2>/dev/null)
             if [ -n "$pid" ] && ps -p "$pid" >/dev/null 2>&1; then
@@ -691,9 +892,16 @@ case "${1:-}" in
             echo "🧭 الإحداثيات: $LAT, $LON"
             echo "📖 طريقة الحساب: $METHOD_NAME"
             echo "⏰ التنبيه قبل الصلاة: ${PRE_PRAYER_NOTIFY} دقيقة"
-            echo "🔊 نوع الأذان: ${ADHAN_TYPE}"
-            echo "🔔 إشعارات الصلاة: $([ "${ENABLE_SALAT_NOTIFY:-1}" = "1" ] && echo 'مفعلة' || echo 'معطلة')"
-            echo "🟢 إشعارات الذكر: $([ "${ENABLE_ZIKR_NOTIFY:-1}" = "1" ] && echo 'مفعلة' || echo 'معطلة')"
+            echo "📊 نوع الأذان: ${ADHAN_TYPE}"
+            echo ""
+            echo "🔔 إشعارات الصلاة:"
+            echo "  💻 الطرفية: $([ "${TERMINAL_SALAT_NOTIFY:-1}" = "1" ] && echo 'مفعلة ✓' || echo 'معطلة ✗')"
+            echo "  🪟 النظام: $([ "${SYSTEM_SALAT_NOTIFY:-1}" = "1" ] && echo 'مفعلة ✓' || echo 'معطلة ✗')"
+            echo ""
+            echo "🟢 إشعارات الذكر:"
+            echo "  💻 الطرفية: $([ "${TERMINAL_ZIKR_NOTIFY:-1}" = "1" ] && echo 'مفعلة ✓' || echo 'معطلة ✗')"
+            echo "  🪟 النظام: $([ "${SYSTEM_ZIKR_NOTIFY:-1}" = "1" ] && echo 'مفعلة ✓' || echo 'معطلة ✗')"
+            echo ""
             echo "🛠 نظام الخدمة: ${NOTIFY_SYSTEM:-systemd}"
         fi
         echo ""
@@ -708,9 +916,9 @@ case "${1:-}" in
         ;;
     --help|-h)
         cat <<EOF
-════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════
   GT-salat-dikr - نظام إشعارات الصلاة والأذكار
-════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════
 
 📦 التثبيت:
   --install           تثبيت البرنامج مع autostart
@@ -730,12 +938,26 @@ case "${1:-}" in
   --notify-stop       إيقاف الإشعارات حسب النظام المختار
 
 🟢 التحكم في الإشعارات:
-  --enable-all-notify     تفعيل جميع الإشعارات
-  --disable-all-notify    تعطيل جميع الإشعارات
-  --enable-salat-notify   تفعيل إشعارات الصلاة فقط
-  --disable-salat-notify  تعطيل إشعارات الصلاة فقط
-  --enable-zikr-notify    تفعيل إشعارات الذكر فقط
-  --disable-zikr-notify   تعطيل إشعارات الذكر فقط
+  
+  🧩 أوامر عامة:
+    --enable-all-notify       تفعيل جميع الإشعارات (طرفية + نظام)
+    --disable-all-notify      تعطيل جميع الإشعارات
+    --enable-salat-notify     تفعيل إشعارات الصلاة فقط (طرفية + نظام)
+    --disable-salat-notify    تعطيل إشعارات الصلاة فقط
+    --enable-zikr-notify      تفعيل إشعارات الأذكار فقط (طرفية + نظام)
+    --disable-zikr-notify     تعطيل إشعارات الأذكار فقط
+
+  💻 إشعارات الطرفية:
+    --enable-salat-terminal   تفعيل إشعارات الصلاة في الطرفية
+    --disable-salat-terminal  تعطيل إشعارات الصلاة في الطرفية
+    --enable-zikr-terminal    تفعيل إشعارات الأذكار في الطرفية
+    --disable-zikr-terminal   تعطيل إشعارات الأذكار في الطرفية
+
+  🪟 إشعارات النظام:
+    --enable-salat-gui        تفعيل إشعارات الصلاة في النظام
+    --disable-salat-gui       تعطيل إشعارات الصلاة في النظام
+    --enable-zikr-gui         تفعيل إشعارات الأذكار في النظام
+    --disable-zikr-gui        تعطيل إشعارات الأذكار في النظام
 
 🧪 الاختبار:
   --test-notify       اختبار إشعار
@@ -748,9 +970,9 @@ case "${1:-}" in
 
 ℹ️  --help, -h        هذه المساعدة
 
-════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════
 💡 الاستخدام الافتراضي: تشغيل بدون خيارات يعرض ذكر ووقت الصلاة
-════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════
 EOF
         ;;
     '')
