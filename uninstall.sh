@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # GT-salat-dikr Uninstall Script (2025)
-#BY GNUTUX
+#
 
 set -e
 
@@ -33,21 +33,30 @@ fi
 echo ""
 echo "🛑 إيقاف جميع الخدمات والإشعارات..."
 
-# إيقاف جميع عمليات البرنامج
-echo "⏹️  إيقاف عمليات البرنامج..."
+# أولاً: استخدام السكربت نفسه لإيقاف الإشعارات إذا كان موجوداً
+if [ -f "$INSTALL_DIR/gt-salat-dikr.sh" ]; then
+    echo "⏹️  استخدام السكربت الرسمي للإيقاف..."
+    "$INSTALL_DIR/gt-salat-dikr.sh" --notify-stop 2>/dev/null || true
+    sleep 2
+fi
+
+# ثانياً: إيقاف جميع عمليات البرنامج بشكل قوي
+echo "⏹️  إيقاف جميع عمليات البرنامج..."
 pkill -f "gt-salat-dikr" 2>/dev/null || true
 pkill -f "adhan-player" 2>/dev/null || true
 pkill -f "approaching-player" 2>/dev/null || true
 pkill -f "gtsalat" 2>/dev/null || true
 
-# إعطاء وقت للإيقاف
-sleep 2
+sleep 3
 
-# إجبار إيقاف أي عمليات متبقية
+# ثالثاً: إجبار إيقاف أي عمليات متبقية
+echo "⏹️  إجبار إيقاف العمليات المتبقية..."
 pkill -9 -f "gt-salat-dikr" 2>/dev/null || true
 pkill -9 -f "adhan-player" 2>/dev/null || true
+pkill -9 -f "approaching-player" 2>/dev/null || true
+pkill -9 -f "gtsalat" 2>/dev/null || true
 
-# إزالة خدمات systemd
+# رابعاً: إزالة خدمات systemd
 echo "⏹️  إزالة خدمات systemd..."
 if systemctl --user is-active gt-salat-dikr.service >/dev/null 2>&1; then
     systemctl --user stop gt-salat-dikr.service
@@ -58,19 +67,20 @@ fi
 if [ -f "$HOME/.config/systemd/user/gt-salat-dikr.service" ]; then
     rm -f "$HOME/.config/systemd/user/gt-salat-dikr.service"
     systemctl --user daemon-reload 2>/dev/null || true
+    systemctl --user reset-failed 2>/dev/null || true
     echo "✅ تم إزالة خدمة systemd."
 fi
 
-# إزالة autostart
+# خامساً: إزالة autostart
 echo "⏹️  إزالة autostart..."
 if [ -f "$HOME/.config/autostart/gt-salat-dikr.desktop" ]; then
     rm -f "$HOME/.config/autostart/gt-salat-dikr.desktop"
     echo "✅ تم إزالة autostart."
 fi
 
-# إزالة الرابط الرمزي
+# سادساً: إزالة الرابط الرمزي
 echo "⏹️  إزالة الرابط الرمزي..."
-if [ -L "$HOME/.local/bin/gtsalat" ]; then
+if [ -L "$HOME/.local/bin/gtsalat" ] || [ -f "$HOME/.local/bin/gtsalat" ]; then
     rm -f "$HOME/.local/bin/gtsalat"
     echo "✅ تم إزالة الرابط الرمزي gtsalat."
 fi
@@ -142,15 +152,22 @@ rm -f "/tmp/gt-adhan-player-"* 2>/dev/null || true
 rm -f "/tmp/gt-approaching-"* 2>/dev/null || true
 rm -f "/tmp/gt-salat-dikr-"* 2>/dev/null || true
 
+# تنظيف ملفات PID المؤقتة
+rm -f "/tmp/gt-*-player-*.pid" 2>/dev/null || true
+
 echo "✅ تم تنظيف الملفات المؤقتة."
 
 echo ""
 echo "🔍 التحقق من الإزالة النهائية..."
 
 # التحقق النهائي من العمليات
-if pgrep -f "gt-salat-dikr" >/dev/null 2>&1; then
+remaining_processes=$(pgrep -f "gt-salat-dikr\|gtsalat" 2>/dev/null || true)
+if [ -n "$remaining_processes" ]; then
     echo "❌ لا يزال هناك عمليات نشطة:"
-    pgrep -f "gt-salat-dikr" | xargs ps -p 2>/dev/null || true
+    echo "$remaining_processes" | xargs ps -p 2>/dev/null || echo "$remaining_processes"
+    echo "🔄 محاولة الإيقاف النهائي..."
+    echo "$remaining_processes" | xargs kill -9 2>/dev/null || true
+    sleep 2
 else
     echo "✅ لا توجد عمليات نشطة."
 fi
@@ -164,7 +181,12 @@ if [ "$keep_choice" = "1" ]; then
     fi
 else
     if [ -d "$INSTALL_DIR" ]; then
-        echo "✅ تم الاحتفاظ بمجلد التثبيت مع حذف ملفات التشغيل."
+        remaining_files=$(find "$INSTALL_DIR" -type f ! -name "install.sh" ! -name "uninstall.sh" ! -name "*.ogg" | wc -l)
+        if [ "$remaining_files" -eq 0 ]; then
+            echo "✅ تم الاحتفاظ بمجلد التثبيت مع حذف جميع ملفات التشغيل."
+        else
+            echo "⚠️  مجلد التثبيت محفوظ ولكن هناك $remaining_files ملفات إضافية."
+        fi
     fi
 fi
 
