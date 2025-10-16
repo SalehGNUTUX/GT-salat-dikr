@@ -39,7 +39,7 @@ else
     SYSTEMD_AVAILABLE=0
 fi
 
-echo ""
+#echo ""
 #echo "🟢 تفعيل إشعارات الصلاة؟"
 #read -p "  [Y/n]: " ENABLE_SALAT
 ENABLE_SALAT=${ENABLE_SALAT:-Y}
@@ -49,7 +49,7 @@ else
     ENABLE_SALAT_NOTIFY=1
 fi
 
-echo ""
+#echo ""
 #echo "🟢 تفعيل إشعارات الذكر؟"
 #read -p "  [Y/n]: " ENABLE_ZIKR
 ENABLE_ZIKR=${ENABLE_ZIKR:-Y}
@@ -59,7 +59,7 @@ else
     ENABLE_ZIKR_NOTIFY=1
 fi
 
-echo ""
+#echo ""
 #echo "⚙️ اختر نظام الخدمة للإشعارات:"
 #if [ $SYSTEMD_AVAILABLE -eq 1 ]; then
     echo "  1) systemd (موصى به)"
