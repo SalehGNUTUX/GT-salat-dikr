@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# GT-salat-dikr Uninstall Script (2024)
+# GT-salat-dikr Uninstall Script (2025)
 #
 
 set -e
@@ -32,6 +32,7 @@ echo "🛑 إيقاف جميع الخدمات والإشعارات..."
 pkill -f "gt-salat-dikr" 2>/dev/null || true
 pkill -f "adhan-player" 2>/dev/null || true
 pkill -f "approaching-player" 2>/dev/null || true
+pkill -f "gtsalat" 2>/dev/null || true
 
 # إزالة خدمات systemd
 if systemctl --user is-active gt-salat-dikr.service >/dev/null 2>&1; then
@@ -45,19 +46,15 @@ systemctl --user daemon-reload 2>/dev/null || true
 # إزالة autostart
 rm -f "$HOME/.config/autostart/gt-salat-dikr.desktop"
 
-# إزالة الملفات المؤقتة وبيانات التشغيل
-rm -f "$INSTALL_DIR/.gt-salat-dikr-notify.pid" 2>/dev/null
-rm -f "$INSTALL_DIR/.last-prayer-notified" 2>/dev/null
-rm -f "$INSTALL_DIR/.last-preprayer-notified" 2>/dev/null
-rm -f "$INSTALL_DIR/notify.log" 2>/dev/null
-rm -f "$INSTALL_DIR/timetable.json" 2>/dev/null
+# إزالة الرابط الرمزي من PATH
+if [ -f "$HOME/.local/bin/gtsalat" ]; then
+    rm -f "$HOME/.local/bin/gtsalat"
+    echo "✅ تم إزالة الرابط الرمزي gtsalat"
+fi
 
-# إزالة الملفات التنفيذية
-rm -f "$INSTALL_DIR/adhan-player.sh" 2>/dev/null
-rm -f "$INSTALL_DIR/approaching-player.sh" 2>/dev/null
-
-# إزالة الرابط الرمزي
-rm -f "$HOME/.local/bin/gtsalat" 2>/dev/null
+# إزالة أي روابط رمزية أخرى محتملة
+rm -f "/usr/local/bin/gtsalat" 2>/dev/null || true
+rm -f "/usr/bin/gtsalat" 2>/dev/null || true
 
 echo "✅ تم إيقاف جميع الخدمات والإشعارات."
 
@@ -76,13 +73,27 @@ else
     echo "💾 الإبقاء على ملفات التثبيت الأساسية..."
     
     # حذف جميع الملفات ما عدا الأساسية
-    cd "$INSTALL_DIR"
-    find . -maxdepth 1 -type f ! -name "install.sh" ! -name "uninstall.sh" ! -name "*.ogg" -exec rm -f {} \; 2>/dev/null || true
-    rm -f "$INSTALL_DIR/gt-salat-dikr.sh" 2>/dev/null
-    rm -f "$INSTALL_DIR/azkar.txt" 2>/dev/null
-    rm -f "$INSTALL_DIR/settings.conf" 2>/dev/null
-    
-    echo "✅ تم حذف ملفات التشغيل مع الإبقاء على ملفات التثبيت."
+    if [ -d "$INSTALL_DIR" ]; then
+        cd "$INSTALL_DIR"
+        # حذف جميع الملفات باستثناء install.sh و uninstall.sh والملفات الصوتية
+        find . -maxdepth 1 -type f \( -name "*.sh" -o -name "*.txt" -o -name "*.json" -o -name "*.conf" -o -name "*.log" -o -name "*.pid" \) ! -name "install.sh" ! -name "uninstall.sh" -exec rm -f {} \; 2>/dev/null || true
+        
+        # حذف الملفات التنفيذية والمؤقتة المحددة
+        rm -f "$INSTALL_DIR/gt-salat-dikr.sh" 2>/dev/null
+        rm -f "$INSTALL_DIR/azkar.txt" 2>/dev/null
+        rm -f "$INSTALL_DIR/settings.conf" 2>/dev/null
+        rm -f "$INSTALL_DIR/timetable.json" 2>/dev/null
+        rm -f "$INSTALL_DIR/notify.log" 2>/dev/null
+        rm -f "$INSTALL_DIR/.gt-salat-dikr-notify.pid" 2>/dev/null
+        rm -f "$INSTALL_DIR/.last-prayer-notified" 2>/dev/null
+        rm -f "$INSTALL_DIR/.last-preprayer-notified" 2>/dev/null
+        rm -f "$INSTALL_DIR/adhan-player.sh" 2>/dev/null
+        rm -f "$INSTALL_DIR/approaching-player.sh" 2>/dev/null
+        
+        echo "✅ تم حذف ملفات التشغيل مع الإبقاء على ملفات التثبيت."
+    else
+        echo "ℹ️  مجلد التثبيت غير موجود."
+    fi
 fi
 
 # تنظيف ملفات النظام المؤقتة
@@ -111,6 +122,22 @@ if [ -f "$HOME/.local/bin/gtsalat" ]; then
 else
     echo "✅ تم إزالة الرابط الرمزي."
 fi
+
+# تنظيف متغيرات البيئة المحتملة (اختياري)
+echo ""
+echo "🧹 تنظيف إعدادات الطرفية..."
+# إزالة أي أثار للبرنامج من ملفات البيئة (اختياري)
+if [ -f "$HOME/.bashrc" ]; then
+    sed -i '/gtsalat/d' "$HOME/.bashrc" 2>/dev/null || true
+    sed -i '/GT-salat-dikr/d' "$HOME/.bashrc" 2>/dev/null || true
+fi
+
+if [ -f "$HOME/.zshrc" ]; then
+    sed -i '/gtsalat/d' "$HOME/.zshrc" 2>/dev/null || true
+    sed -i '/GT-salat-dikr/d' "$HOME/.zshrc" 2>/dev/null || true
+fi
+
+echo "✅ تم تنظيف إعدادات الطرفية."
 
 echo ""
 echo "💡 ملاحظات:"
