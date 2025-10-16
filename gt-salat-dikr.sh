@@ -553,34 +553,60 @@ show_prayer_notify() {
 notify_loop() {
     trap 'rm -f "$PID_FILE" 2>/dev/null; exit 0' EXIT INT TERM
     local notify_flag_file="${SCRIPT_DIR}/.last-prayer-notified"
-    local pre_notify_flag_file="${SCRIPT_DIR}
-    /.last-preprayer-notified"
+    local pre_notify_flag_file="${SCRIPT_DIR}/.last-preprayer-notified"
+    local last_zikr_time=0
+    
     while true; do
+        # التحقق من إعدادات الذكر أولاً
         if [ "${ENABLE_ZIKR_NOTIFY:-1}" = "1" ]; then
-            show_zekr_notify || true
+            local current_time=$(date +%s)
+            local zikr_interval="${ZIKR_NOTIFY_INTERVAL:-$DEFAULT_ZIKR_INTERVAL}"
+            
+            # التحقق من مرور الوقت الكافي منذ آخر ذكر
+            if [ $((current_time - last_zikr_time)) -ge $zikr_interval ]; then
+                show_zekr_notify || true
+                last_zikr_time=$current_time
+            fi
         fi
-        if ! get_next_prayer; then
-            sleep 30
-            continue
-        fi
-        local pre_notify_seconds=$((${PRE_PRAYER_NOTIFY:-15} * 60))
-        if [ "${ENABLE_SALAT_NOTIFY:-1}" = "1" ]; then
+        
+        # التحقق من إعدادات الصلاة
+        if [ "${ENABLE_SALAT_NOTIFY:-1}" = "1" ] && get_next_prayer; then
+            local pre_notify_seconds=$((${PRE_PRAYER_NOTIFY:-15} * 60))
+            
+            # تنبيه ما قبل الصلاة (مرة واحدة فقط)
             if [ "$PRAYER_LEFT" -le "$pre_notify_seconds" ] && [ "$PRAYER_LEFT" -gt 0 ]; then
                 if [ ! -f "$pre_notify_flag_file" ] || [ "$(cat "$pre_notify_flag_file" 2>/dev/null)" != "$PRAYER_NAME" ]; then
                     show_pre_prayer_notify
                     echo "$PRAYER_NAME" > "$pre_notify_flag_file"
+                    # حذف ملف تنبيه الصلاة السابق
+                    rm -f "$notify_flag_file" 2>/dev/null
                 fi
             fi
+            
+            # تنبيه وقت الصلاة (مرة واحدة فقط)
             if [ "$PRAYER_LEFT" -le 0 ]; then
                 if [ ! -f "$notify_flag_file" ] || [ "$(cat "$notify_flag_file" 2>/dev/null)" != "$PRAYER_NAME" ]; then
                     show_prayer_notify
                     echo "$PRAYER_NAME" > "$notify_flag_file"
+                    # حذف ملف تنبيه ما قبل الصلاة
                     rm -f "$pre_notify_flag_file" 2>/dev/null
+                    # إعادة تعيين وقت الذكر لتجنب التداخل
+                    last_zikr_time=$(date +%s)
                 fi
             fi
         fi
+        
+        # حساب وقت النوم الأمثل
         local sleep_for="${ZIKR_NOTIFY_INTERVAL:-$DEFAULT_ZIKR_INTERVAL}"
-        [ "$PRAYER_LEFT" -gt 0 ] && [ "$PRAYER_LEFT" -lt "$sleep_for" ] && sleep_for=$((PRAYER_LEFT < 2 ? 2 : PRAYER_LEFT))
+        if [ "${ENABLE_SALAT_NOTIFY:-1}" = "1" ] && get_next_prayer; then
+            if [ "$PRAYER_LEFT" -gt 0 ] && [ "$PRAYER_LEFT" -lt "$sleep_for" ]; then
+                sleep_for=$((PRAYER_LEFT < 2 ? 2 : PRAYER_LEFT))
+            fi
+        fi
+        
+        # تجنب النوم لفترات طويلة جداً
+        [ "$sleep_for" -gt 3600 ] && sleep_for=3600
+        
         sleep "$sleep_for"
     done
 }
@@ -807,6 +833,7 @@ fi
 check_tools
 fetch_if_missing "$AZKAR_FILE" "$REPO_AZKAR_URL" >/dev/null 2>&1 || true
 
+# منع تشغيل الإشعارات أثناء الإعداد
 if [ ! -f "$CONFIG_FILE" ]; then
     setup_wizard
 else
