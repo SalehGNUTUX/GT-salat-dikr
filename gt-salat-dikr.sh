@@ -286,10 +286,25 @@ show_zekr_notify() {
 
 play_adhan_gui() {
     local prayer_name="${1:-الصلاة}"
-    local adhan_file="$ADHAN_FILE"
-    if [ "${ADHAN_TYPE:-full}" = "short" ] && [ -f "$SHORT_ADHAN_FILE" ]; then
-        adhan_file="$SHORT_ADHAN_FILE"
+    
+    # إعادة تحميل الإعدادات دائماً
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE"
     fi
+    
+    local adhan_file="$ADHAN_FILE"
+    local adhan_type="${ADHAN_TYPE:-full}"
+    
+    if [ "$adhan_type" = "short" ] && [ -f "$SHORT_ADHAN_FILE" ]; then
+        adhan_file="$SHORT_ADHAN_FILE"
+        silent_log "استخدام الأذان القصير لصلاة: $prayer_name"
+    elif [ "$adhan_type" = "short" ] && [ ! -f "$SHORT_ADHAN_FILE" ]; then
+        silent_log "تحذير: ملف الأذان القصير غير موجود، استخدام الكامل"
+        adhan_file="$ADHAN_FILE"
+    else
+        silent_log "استخدام الأذان الكامل لصلاة: $prayer_name"
+    fi
+    
     [ ! -f "$ADHAN_PLAYER_SCRIPT" ] && create_adhan_player
     "$ADHAN_PLAYER_SCRIPT" "$adhan_file" "$prayer_name" &
 }
@@ -539,6 +554,11 @@ show_pre_prayer_notify() {
 show_prayer_notify() {
     get_next_prayer || return 1
     
+    # تحميل الإعدادات قبل التشغيل
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE"
+    fi
+    
     # إشعارات الطرفية للصلاة
     if [ "${TERMINAL_SALAT_NOTIFY:-1}" = "1" ]; then
         echo "🕌 حان الآن وقت صلاة ${PRAYER_NAME}"
@@ -557,6 +577,11 @@ notify_loop() {
     local last_zikr_time=0
     
     while true; do
+        # إعادة تحميل الإعدادات في كل دورة
+        if [ -f "$CONFIG_FILE" ]; then
+            source "$CONFIG_FILE"
+        fi
+        
         # التحقق من إعدادات الذكر أولاً
         if [ "${ENABLE_ZIKR_NOTIFY:-1}" = "1" ]; then
             local current_time=$(date +%s)
@@ -885,7 +910,42 @@ case "${1:-}" in
     --test-adhan)
         ensure_dbus
         create_adhan_player
-        play_adhan_gui "اختبار"
+        
+        # تحميل الإعدادات
+        if [ -f "$CONFIG_FILE" ]; then
+            source "$CONFIG_FILE"
+        fi
+        
+        local adhan_file="$ADHAN_FILE"
+        if [ ! -f "$adhan_file" ]; then
+            echo "❌ ملف الأذان الكامل غير موجود: $adhan_file"
+            echo "💡 تأكد من وجود ملف adhan.ogg في مجلد البرنامج"
+            exit 1
+        fi
+        
+        echo "🔊 اختبار الأذان الكامل..."
+        "$ADHAN_PLAYER_SCRIPT" "$adhan_file" "اختبار الأذان الكامل" &
+        echo "✅ تم تشغيل اختبار الأذان الكامل"
+        ;;
+    --test-adhan-short)
+        ensure_dbus
+        create_adhan_player
+        
+        # تحميل الإعدادات للتأكد من استخدام الأذان القصير
+        if [ -f "$CONFIG_FILE" ]; then
+            source "$CONFIG_FILE"
+        fi
+        
+        local adhan_file="$SHORT_ADHAN_FILE"
+        if [ ! -f "$adhan_file" ]; then
+            echo "❌ ملف الأذان القصير غير موجود: $adhan_file"
+            echo "💡 تأكد من وجود ملف short_adhan.ogg في مجلد البرنامج"
+            exit 1
+        fi
+        
+        echo "🔊 اختبار الأذان القصير..."
+        "$ADHAN_PLAYER_SCRIPT" "$adhan_file" "اختبار الأذان القصير" &
+        echo "✅ تم تشغيل اختبار الأذان القصير"
         ;;
     --test-approaching)
         ensure_dbus
@@ -902,24 +962,59 @@ case "${1:-}" in
     --status)
         echo "📊 حالة GT-salat-dikr:"
         echo "═══════════════════════════════════════════"
-        if [ -f "$PID_FILE" ]; then
+        
+        # تحميل الإعدادات أولاً
+        if [ -f "$CONFIG_FILE" ]; then
+            source "$CONFIG_FILE"
+        fi
+        
+        local notify_running=false
+        
+        # التحقق بناءً على نظام الخدمة المختار
+        case "${NOTIFY_SYSTEM:-systemd}" in
+            systemd)
+                if command -v systemctl >/dev/null 2>&1 && \
+                   systemctl --user is-active gt-salat-dikr >/dev/null 2>&1; then
+                    echo "✅ الإشعارات: تعمل (نظام systemd)"
+                    notify_running=true
+                else
+                    echo "❌ الإشعارات: متوقفة (نظام systemd)"
+                fi
+                ;;
+            sysvinit|*)
+                if [ -f "$PID_FILE" ]; then
+                    pid=$(cat "$PID_FILE" 2>/dev/null)
+                    if [ -n "$pid" ] && ps -p "$pid" >/dev/null 2>&1; then
+                        echo "✅ الإشعارات: تعمل (PID: $pid - sysvinit)"
+                        notify_running=true
+                    else
+                        echo "❌ الإشعارات: متوقفة (sysvinit - ملف PID موجود لكن العملية متوقفة)"
+                        rm -f "$PID_FILE" 2>/dev/null || true
+                    fi
+                else
+                    echo "❌ الإشعارات: متوقفة (sysvinit)"
+                fi
+                ;;
+        esac
+        
+        # إذا لم تكن تعمل بأي نظام، تحقق كحالة طارئة إذا كانت هناك عملية نشطة
+        if [ "$notify_running" = false ] && [ -f "$PID_FILE" ]; then
             pid=$(cat "$PID_FILE" 2>/dev/null)
             if [ -n "$pid" ] && ps -p "$pid" >/dev/null 2>&1; then
-                echo "✅ الإشعارات: تعمل (PID: $pid)"
+                echo "⚠️  الإشعارات: تعمل (اكتشاف طارئ - PID: $pid)"
+                notify_running=true
             else
-                echo "❌ الإشعارات: متوقفة"
+                rm -f "$PID_FILE" 2>/dev/null || true
             fi
-        else
-            echo "❌ الإشعارات: متوقفة"
         fi
+        
         echo ""
         if [ -f "$CONFIG_FILE" ]; then
-            load_config
-            echo "📍 الموقع: $CITY, $COUNTRY"
-            echo "🧭 الإحداثيات: $LAT, $LON"
-            echo "📖 طريقة الحساب: $METHOD_NAME"
+            echo "📍 الموقع: ${CITY:-غير محدد}, ${COUNTRY:-غير محدد}"
+            echo "🧭 الإحداثيات: ${LAT:-غير محدد}, ${LON:-غير محدد}"
+            echo "📖 طريقة الحساب: ${METHOD_NAME:-غير محدد}"
             echo "⏰ التنبيه قبل الصلاة: ${PRE_PRAYER_NOTIFY} دقيقة"
-            echo "📊 نوع الأذان: ${ADHAN_TYPE}"
+            echo "📊 نوع الأذان: ${ADHAN_TYPE:-full}"
             echo ""
             echo "🔔 إشعارات الصلاة:"
             echo "  💻 الطرفية: $([ "${TERMINAL_SALAT_NOTIFY:-1}" = "1" ] && echo 'مفعلة ✓' || echo 'معطلة ✗')"
@@ -988,7 +1083,8 @@ case "${1:-}" in
 
 🧪 الاختبار:
   --test-notify       اختبار إشعار
-  --test-adhan        اختبار الأذان
+  --test-adhan        اختبار الأذان الكامل
+  --test-adhan-short  اختبار الأذان القصير
   --test-approaching  اختبار تنبيه الاقتراب
 
 🔄 التحديث:
