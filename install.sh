@@ -122,11 +122,19 @@ read -p "  [Y/n]: " START_NOTIFY
 START_NOTIFY=${START_NOTIFY:-Y}
 if [[ "$START_NOTIFY" =~ ^[Yy]$ ]]; then
     echo "🚀 بدء تشغيل الإشعارات..."
-    if "$INSTALL_DIR/$MAIN_SCRIPT" --notify-start; then
-        echo "✅ تم بدء تشغيل الإشعارات بنجاح!"
+    
+    # التحقق من وجود الإعدادات أولاً
+    if [ -f "$CONFIG_FILE" ] && grep -q "LAT" "$CONFIG_FILE" 2>/dev/null; then
+        if "$INSTALL_DIR/$MAIN_SCRIPT" --notify-start; then
+            echo "✅ تم بدء تشغيل الإشعارات بنجاح!"
+        else
+            echo "⚠️  تعذر بدء الإشعارات تلقائياً"
+            echo "   يمكنك تشغيلها يدوياً لاحقاً: gtsalat --notify-start"
+        fi
     else
-        echo "⚠️  تعذر بدء الإشعارات تلقائياً"
-        echo "   يمكنك تشغيلها يدوياً لاحقاً: gtsalat --notify-start"
+        echo "❌ لم تكتمل إعدادات الموقع بعد"
+        echo "   الرجاء تشغيل الإعدادات أولاً: gtsalat --settings"
+        echo "   ثم بدء الإشعارات: gtsalat --notify-start"
     fi
 else
     echo "ℹ️  يمكنك بدء الإشعارات لاحقاً: gtsalat --notify-start"
