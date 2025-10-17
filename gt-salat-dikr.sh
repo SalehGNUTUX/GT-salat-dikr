@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# GT-salat-dikr - النسخة المحسّنة النهائية
+# GT-salat-dikr - برنامج الذكر و الصلاة على الطرفية و إشعارات النظام
 # Author: gnutux
 #
 set -euo pipefail
@@ -848,6 +848,52 @@ stop_notify_service() {
     fi
 }
 
+check_script_update() {
+    if ! command -v curl >/dev/null 2>&1; then
+        log "curl غير متوفر - لا يمكن التحقق من التحديثات"
+        return 1
+    fi
+    
+    local remote_content
+    remote_content=$(curl -fsSL "$REPO_SCRIPT_URL" 2>/dev/null) || {
+        log "فشل جلب النسخة الحديثة من المستودع"
+        return 1
+    }
+    
+    local current_hash
+    local remote_hash
+    current_hash=$(sha256sum "$SCRIPT_SOURCE_ABS" 2>/dev/null | cut -d' ' -f1)
+    remote_hash=$(echo "$remote_content" | sha256sum | cut -d' ' -f1)
+    
+    if [ "$current_hash" != "$remote_hash" ]; then
+        log "⚠️ يوجد تحديث جديد متاح!"
+        echo "🔄 يوجد تحديث جديد لـ GT-salat-dikr!"
+        read -p "هل تريد التحديث الآن؟ [Y/n]: " answer
+        answer=${answer:-Y}
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            echo "📥 جاري التحديث..."
+            # إنشاء نسخة احتياطية
+            cp "$SCRIPT_SOURCE_ABS" "$SCRIPT_SOURCE_ABS.backup"
+            if echo "$remote_content" > "$SCRIPT_SOURCE_ABS"; then
+                chmod +x "$SCRIPT_SOURCE_ABS"
+                log "تم التحديث إلى النسخة الجديدة"
+                echo "✅ تم التحديث بنجاح!"
+                echo "💡 أعد تشغيل البرنامج للتأكد من العمل بشكل صحيح."
+                exit 0
+            else
+                # استعادة النسخة الاحتياطية إذا فشل التحديث
+                mv "$SCRIPT_SOURCE_ABS.backup" "$SCRIPT_SOURCE_ABS"
+                log "فشل في حفظ التحديث"
+                echo "❌ فشل في التحديث"
+                return 1
+            fi
+        fi
+    else
+        log "البرنامج محدث بالفعل"
+        echo "✅ البرنامج محدث إلى آخر نسخة"
+    fi
+}
+
 if [[ "${1:-}" == "--child-notify" ]]; then
     ensure_dbus
     check_tools
@@ -957,7 +1003,8 @@ case "${1:-}" in
         curl -fsSL "$REPO_AZKAR_URL" -o "$AZKAR_FILE" 2>/dev/null && echo "✅ تم التحديث" || echo "فشل التحديث"
         ;;
     --self-update)
-        # التحديث الذاتي (نفس الكود القديم)
+        echo "🔍 التحقق من التحديثات..."
+        check_script_update
         ;;
     --status)
         echo "📊 حالة GT-salat-dikr:"
