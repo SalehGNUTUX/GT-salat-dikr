@@ -45,6 +45,10 @@ fi
 # إعدادات افتراضية (بدون أسئلة)
 ENABLE_SALAT_NOTIFY=1
 ENABLE_ZIKR_NOTIFY=1
+TERMINAL_SALAT_NOTIFY=1
+TERMINAL_ZIKR_NOTIFY=1
+SYSTEM_SALAT_NOTIFY=1
+SYSTEM_ZIKR_NOTIFY=1
 
 echo ""
 echo "📁 إنشاء مجلد التثبيت..."
@@ -68,6 +72,10 @@ cat > "$CONFIG_FILE" <<EOF
 ENABLE_SALAT_NOTIFY=$ENABLE_SALAT_NOTIFY
 ENABLE_ZIKR_NOTIFY=$ENABLE_ZIKR_NOTIFY
 NOTIFY_SYSTEM="$NOTIFY_SYSTEM"
+TERMINAL_SALAT_NOTIFY=$TERMINAL_SALAT_NOTIFY
+TERMINAL_ZIKR_NOTIFY=$TERMINAL_ZIKR_NOTIFY
+SYSTEM_SALAT_NOTIFY=$SYSTEM_SALAT_NOTIFY
+SYSTEM_ZIKR_NOTIFY=$SYSTEM_ZIKR_NOTIFY
 EOF
 
 echo ""
@@ -142,16 +150,24 @@ fi
 
 echo ""
 echo "🎉 تم التثبيت بنجاح!"
-echo "الإعدادات الحالية:"
-echo "  إشعارات الصلاة: $([ "$ENABLE_SALAT_NOTIFY" = "1" ] && echo 'مفعلة' || echo 'معطلة')"
-echo "  إشعارات الذكر: $([ "$ENABLE_ZIKR_NOTIFY" = "1" ] && echo 'مفعلة' || echo 'معطلة')"
-echo "  نظام الخدمة: $NOTIFY_SYSTEM"
+
+# عرض الذكر وموعد الصلاة التالية (مثل السكربت الرئيسي)
+echo ""
+echo "📊 عرض المعلومات الحالية:"
+echo "------------------------------------------------------------------"
+
+# تشغيل السكربت الرئيسي بدون خيارات لعرض الذكر وموعد الصلاة
+"$INSTALL_DIR/$MAIN_SCRIPT"
+
+echo ""
+echo "------------------------------------------------------------------"
 echo ""
 echo "💡 يمكنك التحكم بالبرنامج عبر:"
-echo "  gtsalat --notify-start        بدء الإشعارات"
-echo "  gtsalat --notify-stop         إيقاف الإشعارات"
-echo "  gtsalat --status              عرض الحالة"
-echo "  gtsalat --settings            تعديل الإعدادات"
-echo "  gtsalat --show-timetable      عرض مواقيت الصلاة"
+echo "  gtsalat                      عرض ذكر وموعد الصلاة التالية"
+echo "  gtsalat --notify-start       بدء الإشعارات"
+echo "  gtsalat --notify-stop        إيقاف الإشعارات"
+echo "  gtsalat --status             عرض الحالة"
+echo "  gtsalat --settings           تعديل الإعدادات"
+echo "  gtsalat --show-timetable     عرض مواقيت الصلاة"
 echo ""
 echo "للمساعدة: gtsalat --help"
