@@ -472,8 +472,12 @@ setup_wizard() {
     else
         ADHAN_TYPE="full"
     fi
-    read -p "فاصل الأذكار بالثواني (افتراضي $DEFAULT_ZIKR_INTERVAL): " z
-    ZIKR_NOTIFY_INTERVAL=${z:-$DEFAULT_ZIKR_INTERVAL}
+    
+    # ⬅️ التعديل هنا - تحويل الدقائق إلى ثواني
+    default_minutes=$((DEFAULT_ZIKR_INTERVAL/60))
+    read -p "فاصل الأذكار بالدقائق (افتراضي $default_minutes): " z_minutes
+    ZIKR_NOTIFY_INTERVAL=$((${z_minutes:-$default_minutes} * 60))
+    
     read -p "تفعيل التحديث الذاتي؟ [y/N]: " up; up=${up:-N}
     [[ "$up" =~ ^[Yy]$ ]] && AUTO_SELF_UPDATE=1 || AUTO_SELF_UPDATE=0
     choose_notify_system
@@ -1061,6 +1065,7 @@ case "${1:-}" in
             echo "🧭 الإحداثيات: ${LAT:-غير محدد}, ${LON:-غير محدد}"
             echo "📖 طريقة الحساب: ${METHOD_NAME:-غير محدد}"
             echo "⏰ التنبيه قبل الصلاة: ${PRE_PRAYER_NOTIFY} دقيقة"
+            echo "🕊️ فاصل الأذكار: $((ZIKR_NOTIFY_INTERVAL/60)) دقيقة"
             echo "📊 نوع الأذان: ${ADHAN_TYPE:-full}"
             echo ""
             echo "🔔 إشعارات الصلاة:"
