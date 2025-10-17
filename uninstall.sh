@@ -34,23 +34,22 @@ fi
 echo ""
 echo "🛑 إيقاف جميع الخدمات والإشعارات..."
 
-# 1. محاولة استخدام السكربت نفسه للإيقاف إذا كان موجوداً
-if [ -f "$MAIN_SCRIPT" ]; then
-    echo "⏹️  استخدام السكربت الرسمي للإيقاف..."
-    "$MAIN_SCRIPT" --notify-stop 2>/dev/null || true
-    sleep 2
-else
-    echo "ℹ️  الملف الرئيسي غير موجود، تخطي الإيقاف الرسمي..."
-fi
-
-# 2. إيقاف جميع العمليات المرتبطة (يعمل حتى بدون الملف الرئيسي)
+# 1. إيقاف العمليات أولاً باستخدام pkill (لا يؤثر على العملية الحالية)
 echo "⏹️  إيقاف عمليات البرنامج..."
 pkill -f "gt-salat-dikr" 2>/dev/null || true
 pkill -f "adhan-player" 2>/dev/null || true
 pkill -f "approaching-player" 2>/dev/null || true
-pkill -f "gtsalat" 2>/dev/null || true
 
 sleep 2
+
+# 2. محاولة استخدام السكربت نفسه للإيقاف إذا كان موجوداً (في الخلفية)
+if [ -f "$MAIN_SCRIPT" ]; then
+    echo "⏹️  استخدام السكربت الرسمي للإيقاف..."
+    nohup bash -c "sleep 1; '$MAIN_SCRIPT' --notify-stop" >/dev/null 2>&1 &
+    sleep 2
+else
+    echo "ℹ️  الملف الرئيسي غير موجود، تخطي الإيقاف الرسمي..."
+fi
 
 # 3. إجبار إيقاف العمليات المتبقية
 echo "⏹️  إجبار إيقاف العمليات المتبقية..."
@@ -125,22 +124,20 @@ else
         # حذف جميع الملفات ما عدا المحددة
         cd "$INSTALL_DIR"
         for file in * .*; do
-            if [ "$file" != "." ] && [ "$file" != ".." ]; then
-                if [ -f "$file" ]; then
-                    should_keep=false
-                    for keep_file in "${keep_files[@]}"; do
-                        if [ "$file" == "$keep_file" ]; then
-                            should_keep=true
-                            break
-                        fi
-                    done
-                    
-                    if [ "$should_keep" = "false" ]; then
-                        rm -f "$file"
-                        echo "  🗑️  حذف: $file"
-                    else
-                        echo "  💾 احتفظ: $file"
+            if [ "$file" != "." ] && [ "$file" != ".." ] && [ -f "$file" ]; then
+                should_keep=false
+                for keep_file in "${keep_files[@]}"; do
+                    if [ "$file" == "$keep_file" ]; then
+                        should_keep=true
+                        break
                     fi
+                done
+                
+                if [ "$should_keep" = "false" ]; then
+                    rm -f "$file"
+                    echo "  🗑️  حذف: $file"
+                else
+                    echo "  💾 احتفظ: $file"
                 fi
             fi
         done
