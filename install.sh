@@ -110,18 +110,27 @@ EOF
     echo "✅ تم تفعيل autostart بطريقة sysvinit"
 fi
 
+# هنا تفعيل إعدادات الموقع وطريقة الحساب مباشرة
+echo ""
+echo "⚙️ إعداد الموقع وطريقة حساب المواقيت..."
+"$INSTALL_DIR/$MAIN_SCRIPT" --settings
+
+# الآن بعد اكتمال الإعدادات، نسأل عن بدء الإشعارات
 echo ""
 echo "🔔 بدء الإشعارات الآن؟"
 read -p "  [Y/n]: " START_NOTIFY
 START_NOTIFY=${START_NOTIFY:-Y}
 if [[ "$START_NOTIFY" =~ ^[Yy]$ ]]; then
-    "$INSTALL_DIR/$MAIN_SCRIPT" --notify-start
+    echo "🚀 بدء تشغيل الإشعارات..."
+    if "$INSTALL_DIR/$MAIN_SCRIPT" --notify-start; then
+        echo "✅ تم بدء تشغيل الإشعارات بنجاح!"
+    else
+        echo "⚠️  تعذر بدء الإشعارات تلقائياً"
+        echo "   يمكنك تشغيلها يدوياً لاحقاً: gtsalat --notify-start"
+    fi
+else
+    echo "ℹ️  يمكنك بدء الإشعارات لاحقاً: gtsalat --notify-start"
 fi
-
-# هنا تفعيل إعدادات الموقع وطريقة الحساب مباشرة
-echo ""
-echo "⚙️ إعداد الموقع وطريقة حساب المواقيت..."
-"$INSTALL_DIR/$MAIN_SCRIPT" --settings
 
 echo ""
 echo "🎉 تم التثبيت بنجاح!"
@@ -130,13 +139,11 @@ echo "  إشعارات الصلاة: $([ "$ENABLE_SALAT_NOTIFY" = "1" ] && echo 
 echo "  إشعارات الذكر: $([ "$ENABLE_ZIKR_NOTIFY" = "1" ] && echo 'مفعلة' || echo 'معطلة')"
 echo "  نظام الخدمة: $NOTIFY_SYSTEM"
 echo ""
-echo "يمكنك لاحقًا التحكم:"
-echo "  gtsalat --enable-salat-notify      تفعيل إشعارات الصلاة"
-echo "  gtsalat --disable-salat-notify     تعطيل إشعارات الصلاة"
-echo "  gtsalat --enable-zikr-notify       تفعيل إشعارات الذكر"
-echo "  gtsalat --disable-zikr-notify      تعطيل إشعارات الذكر"
-echo "  gtsalat --change-notify-system     تغيير نظام الخدمة"
-echo "  gtsalat --enable-all-notify        تفعيل كل الإشعارات"
-echo "  gtsalat --disable-all-notify       تعطيل كل الإشعارات"
+echo "💡 يمكنك التحكم بالبرنامج عبر:"
+echo "  gtsalat --notify-start        بدء الإشعارات"
+echo "  gtsalat --notify-stop         إيقاف الإشعارات"
+echo "  gtsalat --status              عرض الحالة"
+echo "  gtsalat --settings            تعديل الإعدادات"
+echo "  gtsalat --show-timetable      عرض مواقيت الصلاة"
 echo ""
 echo "للمساعدة: gtsalat --help"
