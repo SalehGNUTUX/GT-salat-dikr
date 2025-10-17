@@ -968,7 +968,7 @@ case "${1:-}" in
             source "$CONFIG_FILE"
         fi
         
-        local notify_running=false
+        notify_running=false
         
         # التحقق بناءً على نظام الخدمة المختار
         case "${NOTIFY_SYSTEM:-systemd}" in
