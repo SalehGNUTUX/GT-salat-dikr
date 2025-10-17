@@ -81,7 +81,7 @@ EOF
 echo ""
 echo "🚀 إعداد التشغيل التلقائي..."
 
-if [ "$NOTIFY_SYSTEM" = "systemd" ]; then
+if [ "$NOTIFY_SALAT_DIKR" = "systemd" ]; then
     mkdir -p "$HOME/.config/systemd/user"
     cat > "$HOME/.config/systemd/user/gt-salat-dikr.service" <<EOF
 [Unit]
@@ -117,6 +117,36 @@ X-GNOME-Autostart-enabled=true
 EOF
     echo "✅ تم تفعيل autostart بطريقة sysvinit"
 fi
+
+echo ""
+echo "🔧 إعدادات الطرفية التلقائية..."
+setup_terminal_config() {
+    local shell_file="$1"
+    local shell_name="$2"
+    
+    if [ -f "$shell_file" ]; then
+        # التحقق إذا كانت الإعدادات موجودة مسبقاً
+        if ! grep -q "gtsalat" "$shell_file" 2>/dev/null; then
+            echo "" >> "$shell_file"
+            echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$shell_file"
+            echo "alias gtsalat='~/.local/bin/gtsalat'" >> "$shell_file"
+            echo "echo ''" >> "$shell_file"
+            echo "~/.local/bin/gtsalat" >> "$shell_file"
+            echo "✅ تم إضافة إعدادات GT-salat-dikr إلى $shell_name"
+        else
+            echo "ℹ️  إعدادات GT-salat-dikr موجودة مسبقاً في $shell_name"
+        fi
+    else
+        echo "⚠️  ملف $shell_name غير موجود، تخطي الإعدادات"
+    fi
+}
+
+# إعدادات لأنواع الطرفيات المختلفة
+setup_terminal_config "$HOME/.bashrc" "Bash"
+setup_terminal_config "$HOME/.zshrc" "Zsh"
+setup_terminal_config "$HOME/.bash_profile" "Bash Profile"
+
+echo "✅ تم إعداد الطرفية لعرض الذكر وموعد الصلاة عند الافتتاح"
 
 # هنا تفعيل إعدادات الموقع وطريقة الحساب مباشرة
 echo ""
@@ -162,7 +192,12 @@ echo "------------------------------------------------------------------"
 echo ""
 echo "------------------------------------------------------------------"
 echo ""
-echo "💡 يمكنك التحكم بالبرنامج عبر:"
+echo "💻 إعدادات الطرفية المضافة:"
+echo "  - عند فتح أي طرفية، سيظهر تلقائياً:"
+echo "    * ذكر عشوائي من الأذكار"
+echo "    * موعد الصلاة القادمة والوقت المتبقي"
+echo ""
+echo "🔧 يمكنك التحكم بالبرنامج عبر:"
 echo "  gtsalat                      عرض ذكر وموعد الصلاة التالية"
 echo "  gtsalat --notify-start       بدء الإشعارات"
 echo "  gtsalat --notify-stop        إيقاف الإشعارات"
