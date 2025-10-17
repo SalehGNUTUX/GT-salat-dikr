@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# GT-salat-dikr Simplified Installation Script (2025)
-#By GNUTUX
+# GT-salat-dikr Enhanced Installation Script (2025)
+#
 
 set -e
 
@@ -18,6 +18,7 @@ fi
 INSTALL_DIR="$HOME/.GT-salat-dikr"
 REPO_BASE="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main"
 MAIN_SCRIPT="gt-salat-dikr.sh"
+CONFIG_FILE="$INSTALL_DIR/settings.conf"
 
 echo "🔍 فحص المتطلبات..."
 MISSING_TOOLS=()
@@ -31,6 +32,19 @@ if [ "${#MISSING_TOOLS[@]}" -gt 0 ]; then
     echo "يرجى تثبيت الأدوات الناقصة قبل متابعة التثبيت."
     exit 1
 fi
+
+# الكشف التلقائي عن نظام الخدمة
+if command -v systemctl >/dev/null 2>&1; then
+    SYSTEMD_AVAILABLE=1
+    NOTIFY_SYSTEM="systemd"
+else
+    SYSTEMD_AVAILABLE=0
+    NOTIFY_SYSTEM="sysvinit"
+fi
+
+# إعدادات افتراضية (بدون أسئلة)
+ENABLE_SALAT_NOTIFY=1
+ENABLE_ZIKR_NOTIFY=1
 
 echo ""
 echo "📁 إنشاء مجلد التثبيت..."
@@ -49,11 +63,17 @@ mkdir -p "$HOME/.local/bin"
 ln -sf "$INSTALL_DIR/$MAIN_SCRIPT" "$HOME/.local/bin/gtsalat"
 
 echo ""
+echo "📝 حفظ الإعدادات الأولية..."
+cat > "$CONFIG_FILE" <<EOF
+ENABLE_SALAT_NOTIFY=$ENABLE_SALAT_NOTIFY
+ENABLE_ZIKR_NOTIFY=$ENABLE_ZIKR_NOTIFY
+NOTIFY_SYSTEM="$NOTIFY_SYSTEM"
+EOF
+
+echo ""
 echo "🚀 إعداد التشغيل التلقائي..."
 
-# الكشف التلقائي عن نظام الخدمة المتاح
-if command -v systemctl >/dev/null 2>&1 && systemctl --user --quiet is-active dbus 2>/dev/null; then
-    echo "  ↳ استخدام systemd للتشغيل التلقائي"
+if [ "$NOTIFY_SYSTEM" = "systemd" ]; then
     mkdir -p "$HOME/.config/systemd/user"
     cat > "$HOME/.config/systemd/user/gt-salat-dikr.service" <<EOF
 [Unit]
@@ -77,47 +97,46 @@ EOF
     systemctl --user enable gt-salat-dikr.service
     echo "✅ تم تفعيل خدمة systemd"
 else
-    echo "  ↳ استخدام autostart للتشغيل التلقائي"
     mkdir -p "$HOME/.config/autostart"
     cat > "$HOME/.config/autostart/gt-salat-dikr.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=GT-salat-dikr Notifications
-Exec=$INSTALL_DIR/$MAIN_SCRIPT --child-notify
+Exec=$INSTALL_DIR/$MAIN_SCRIPT --notify-start
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
 EOF
-    echo "✅ تم تفعيل autostart"
+    echo "✅ تم تفعيل autostart بطريقة sysvinit"
 fi
+
+echo ""
+echo "🔔 بدء الإشعارات الآن؟"
+read -p "  [Y/n]: " START_NOTIFY
+START_NOTIFY=${START_NOTIFY:-Y}
+if [[ "$START_NOTIFY" =~ ^[Yy]$ ]]; then
+    "$INSTALL_DIR/$MAIN_SCRIPT" --notify-start
+fi
+
+# هنا تفعيل إعدادات الموقع وطريقة الحساب مباشرة
+echo ""
+echo "⚙️ إعداد الموقع وطريقة حساب المواقيت..."
+"$INSTALL_DIR/$MAIN_SCRIPT" --settings
 
 echo ""
 echo "🎉 تم التثبيت بنجاح!"
+echo "الإعدادات الحالية:"
+echo "  إشعارات الصلاة: $([ "$ENABLE_SALAT_NOTIFY" = "1" ] && echo 'مفعلة' || echo 'معطلة')"
+echo "  إشعارات الذكر: $([ "$ENABLE_ZIKR_NOTIFY" = "1" ] && echo 'مفعلة' || echo 'معطلة')"
+echo "  نظام الخدمة: $NOTIFY_SYSTEM"
 echo ""
-echo "سيتم الآن فتح إعدادات البرنامج لإكمال الإعداد..."
-echo "------------------------------------------------------------------"
-
-# استدعاء إعدادات البرنامج مباشرة
-"$HOME/.local/bin/gtsalat" --settings
-
-# هذه الأسطر ستنفذ بعد انتهاء الإعدادات
+echo "يمكنك لاحقًا التحكم:"
+echo "  gtsalat --enable-salat-notify      تفعيل إشعارات الصلاة"
+echo "  gtsalat --disable-salat-notify     تعطيل إشعارات الصلاة"
+echo "  gtsalat --enable-zikr-notify       تفعيل إشعارات الذكر"
+echo "  gtsalat --disable-zikr-notify      تعطيل إشعارات الذكر"
+echo "  gtsalat --change-notify-system     تغيير نظام الخدمة"
+echo "  gtsalat --enable-all-notify        تفعيل كل الإشعارات"
+echo "  gtsalat --disable-all-notify       تعطيل كل الإشعارات"
 echo ""
-echo "🚀 بدء تشغيل الإشعارات تلقائياً..."
-if "$HOME/.local/bin/gtsalat" --notify-start; then
-    echo "✅ تم بدء تشغيل الإشعارات بنجاح!"
-else
-    echo "⚠️  تعذر بدء الإشعارات تلقائياً، يمكنك تشغيلها يدوياً لاحقاً:"
-    echo "   gtsalat --notify-start"
-fi
-
-echo ""
-echo "✨ تم إكمال التثبيت والإعداد!"
-echo ""
-echo "💡 يمكنك الآن:"
-echo "   - عرض مواقيت الصلاة: gtsalat --show-timetable"
-echo "   - عرض حالة البرنامج: gtsalat --status"
-echo "   - إيقاف الإشعارات: gtsalat --notify-stop"
-echo "   - تعديل الإعدادات: gtsalat --settings"
-echo "   - عرض المساعدة: gtsalat --help"
-echo ""
-echo "📁 موقع التثبيت: $INSTALL_DIR"
+echo "للمساعدة: gtsalat --help"
