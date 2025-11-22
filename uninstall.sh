@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# GT-salat-dikr Uninstall Script (2025)
+# GT-salat-dikr Uninstall Script (2025) - v3.1
 #
 
 set -e
@@ -96,6 +96,12 @@ rm -f "/usr/bin/gtsalat" 2>/dev/null || true
 if [ -d "$INSTALL_DIR/monthly_timetables" ]; then
     rm -rf "$INSTALL_DIR/monthly_timetables"
     echo "✅ تم حذف مجلد الجداول الشهرية."
+fi
+
+# 8. حذف ملف التحديث التلقائي إذا وجد
+if [ -f "$INSTALL_DIR/.last_auto_update" ]; then
+    rm -f "$INSTALL_DIR/.last_auto_update"
+    echo "✅ تم حذف سجل التحديث التلقائي."
 fi
 
 echo "✅ تم إيقاف جميع الخدمات والإشعارات."
