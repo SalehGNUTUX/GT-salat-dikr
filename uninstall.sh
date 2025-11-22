@@ -92,6 +92,12 @@ fi
 rm -f "/usr/local/bin/gtsalat" 2>/dev/null || true
 rm -f "/usr/bin/gtsalat" 2>/dev/null || true
 
+# 7. حذف مجلد الجداول الشهرية إذا وجد
+if [ -d "$INSTALL_DIR/monthly_timetables" ]; then
+    rm -rf "$INSTALL_DIR/monthly_timetables"
+    echo "✅ تم حذف مجلد الجداول الشهرية."
+fi
+
 echo "✅ تم إيقاف جميع الخدمات والإشعارات."
 
 echo ""
