@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# GT-salat-dikr Enhanced Installation Script (2025)
+# GT-salat-dikr Enhanced Installation Script (2025) - v3.1
 #
 
 set -e
@@ -84,7 +84,7 @@ EOF
 echo ""
 echo "🚀 إعداد التشغيل التلقائي..."
 
-if [ "$NOTIFY_SALAT_DIKR" = "systemd" ]; then
+if [ "$SYSTEMD_AVAILABLE" = "1" ]; then
     mkdir -p "$HOME/.config/systemd/user"
     cat > "$HOME/.config/systemd/user/gt-salat-dikr.service" <<EOF
 [Unit]
