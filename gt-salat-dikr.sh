@@ -79,31 +79,45 @@ get_monthly_filename() {
     printf "%s/timetable_%04d_%02d.json" "$MONTHLY_TIMETABLE_DIR" "$year" "$month"
 }
 
-# دالة مساعدة للتحقق من اتصال الإنترنت
-# دالة محسنة للتحقق من اتصال الإنترنت
-# دالة فعالة للتحقق من اتصال الإنترنت
+# دالة موثوقة للتحقق من اتصال الإنترنت
 check_internet_connection() {
-    # استخدام مضيفات موثوقة متعددة
-    local hosts=("google.com" "cloudflare.com" "8.8.8.8")
+    local timeout=10
+    local success=false
     
-    for host in "${hosts[@]}"; do
+    # قائمة بالمواقع الموثوقة للاختبار
+    local test_urls=(
+        "https://www.google.com"
+        "https://www.cloudflare.com"
+        "https://1.1.1.1"  # Cloudflare DNS مباشرة
+    )
+    
+    for url in "${test_urls[@]}"; do
         if command -v curl >/dev/null 2>&1; then
-            if curl -fs --connect-timeout 5 "https://$host" >/dev/null 2>&1; then
-                return 0
+            if curl -fs --connect-timeout $timeout "$url" >/dev/null 2>&1; then
+                success=true
+                break
             fi
         elif command -v wget >/dev/null 2>&1; then
-            if wget -q --spider --timeout=5 "https://$host" 2>/dev/null; then
-                return 0
-            fi
-        elif command -v ping >/dev/null 2>&1; then
-            if ping -c 1 -W 5 "$host" >/dev/null 2>&1; then
-                return 0
+            if wget -q --spider --timeout=$timeout "$url" 2>/dev/null; then
+                success=true
+                break
             fi
         fi
     done
     
-    return 1
+    if [ "$success" = true ]; then
+        return 0
+    else
+        # محاولة أخيرة مع ping
+        if command -v ping >/dev/null 2>&1; then
+            if ping -c 1 -W $timeout 8.8.8.8 >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
+        return 1
+    fi
 }
+
 fetch_monthly_timetable() {
     local year="$1"
     local month="$2"
@@ -1226,7 +1240,7 @@ case "${1:-}" in
         echo "جلب أحدث نسخة من الأذكار..."
         curl -fsSL "$REPO_AZKAR_URL" -o "$AZKAR_FILE" 2>/dev/null && echo "✅ تم التحديث" || echo "فشل التحديث"
         ;;
-        --update-timetables)
+    --update-timetables)
         echo "📥 جلب مواقيت الصلاة للأشهر القادمة..."
         if ! check_internet_connection; then
             echo "❌ لا يوجد اتصال بالإنترنت - لا يمكن تحديث الجداول"
@@ -1250,45 +1264,17 @@ case "${1:-}" in
         echo ""
         echo "📊 تقرير التحديث:"
         if [ -d "$MONTHLY_TIMETABLE_DIR" ]; then
-            local file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
+            file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
             if [ "$file_count" -gt 0 ]; then
                 echo "✅ تم تخزين بيانات $file_count شهر"
                 
                 # عرض الملفات المحفوظة
                 echo "📁 الملفات المحفوظة:"
-                find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f | sort | while read -r file; do
-                    local filename=$(basename "$file")
-                    local year_month=$(echo "$filename" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
-                    local size=$(du -h "$file" 2>/dev/null | cut -f1 || echo "?KB")
-                    echo "   📄 $year_month ($size)"
-                done
-                
-                echo ""
-                echo "💾 يمكنك الآن استخدام البرنامج بدون اتصال بالإنترنت"
-            else
-                echo "❌ لم يتم تخزين أي بيانات"
-            fi
-        else
-            echo "❌ فشل في إنشاء مجلد التخزين"
-        fi
-        ;;
-        
-        fetch_future_timetables
-        
-        # عرض تقرير عن الملفات المحفوظة
-        echo ""
-        echo "📊 تقرير التحديث:"
-        if [ -d "$MONTHLY_TIMETABLE_DIR" ]; then
-            local file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
-            if [ "$file_count" -gt 0 ]; then
-                echo "✅ تم تخزين بيانات $file_count شهر"
-                
-                # عرض الملفات المحفوظة
-                echo "📁 الملفات المحفوظة:"
-                find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f | sort | while read -r file; do
-                    local filename=$(basename "$file")
-                    local year_month=$(echo "$filename" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
-                    local size=$(du -h "$file" | cut -f1)
+                for file in "$MONTHLY_TIMETABLE_DIR"/timetable_*.json; do
+                    [ -e "$file" ] || continue
+                    filename=$(basename "$file")
+                    year_month=$(echo "$filename" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
+                    size=$(du -h "$file" 2>/dev/null | cut -f1 || echo "?KB")
                     echo "   📄 $year_month ($size)"
                 done
                 
@@ -1378,24 +1364,24 @@ case "${1:-}" in
         echo ""
         echo "💾 حالة التخزين المحلي:"
         if [ -d "$MONTHLY_TIMETABLE_DIR" ]; then
-            local file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
+            file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
             if [ "$file_count" -gt 0 ]; then
                 echo "  ✅ مخزن محلياً: $file_count شهر"
                 
                 # عرض تواريخ الملفات
-                local files=($(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f | sort))
+                files=($(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f | sort))
                 if [ ${#files[@]} -gt 0 ]; then
-                    local first_file="${files[0]}"
-                    local last_file="${files[${#files[@]}-1]}"
+                    first_file="${files[0]}"
+                    last_file="${files[${#files[@]}-1]}"
                     
-                    local first_date=$(basename "$first_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
-                    local last_date=$(basename "$last_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
+                    first_date=$(basename "$first_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
+                    last_date=$(basename "$last_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
                     echo "  📅 الفترة: $first_date إلى $last_date"
                     
                     # التحقق من وجود بيانات للشهر الحالي
-                    local current_year=$(date +%Y)
-                    local current_month=$(date +%m)
-                    local current_file="$MONTHLY_TIMETABLE_DIR/timetable_${current_year}_${current_month}.json"
+                    current_year=$(date +%Y)
+                    current_month=$(date +%m)
+                    current_file="$MONTHLY_TIMETABLE_DIR/timetable_${current_year}_${current_month}.json"
                     if [ -f "$current_file" ]; then
                         echo "  🟢 البيانات الحالية: متوفرة"
                     else
