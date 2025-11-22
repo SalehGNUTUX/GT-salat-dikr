@@ -24,6 +24,10 @@ SHORT_ADHAN_FILE="${SCRIPT_DIR}/short_adhan.ogg"
 APPROACHING_SOUND="${SCRIPT_DIR}/prayer_approaching.ogg"
 ADHAN_PLAYER_SCRIPT="${SCRIPT_DIR}/adhan-player.sh"
 
+# إضافة المتغيرات الجديدة للتخزين المحلي
+MONTHLY_TIMETABLE_DIR="${SCRIPT_DIR}/monthly_timetables"
+CACHE_DAYS=30  # عدد الأيام التي نخزنها في الذاكرة المؤقتة
+
 REPO_AZKAR_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/azkar.txt"
 REPO_SCRIPT_URL="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/gt-salat-dikr.sh"
 ALADHAN_API_URL="https://api.aladhan.com/v1/timings"
@@ -60,6 +64,129 @@ fetch_if_missing() {
             return 1
         fi
     fi
+    return 0
+}
+
+# دوال جديدة للتخزين المحلي
+create_monthly_timetable_dir() {
+    mkdir -p "$MONTHLY_TIMETABLE_DIR"
+    silent_log "تم إنشاء/التأكد من مجلد الجداول الشهرية: $MONTHLY_TIMETABLE_DIR"
+}
+
+get_monthly_filename() {
+    local year="$1"
+    local month="$2"
+    printf "%s/timetable_%04d_%02d.json" "$MONTHLY_TIMETABLE_DIR" "$year" "$month"
+}
+
+fetch_monthly_timetable() {
+    local year="$1"
+    local month="$2"
+    local filename
+    filename=$(get_monthly_filename "$year" "$month")
+    
+    # إذا كان الملف موجوداً ومحدثاً، لا نحتاج لتحميله
+    if [ -f "$filename" ]; then
+        local file_age=$(($(date +%s) - $(stat -c %Y "$filename" 2>/dev/null || echo 0)))
+        # إذا عمر الملف أقل من 7 أيام، استخدمه
+        if [ "$file_age" -lt 604800 ]; then
+            silent_log "استخدام الجدول الشهري الموجود: $filename"
+            return 0
+        fi
+    fi
+    
+    if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+        log "لا يمكن جلب الجدول الشهري - curl أو jq غير متوفر."
+        return 1
+    fi
+    
+    local url="${ALADHAN_API_URL}/${year}/${month}?latitude=${LAT}&longitude=${LON}&method=${METHOD_ID}"
+    local resp
+    
+    log "جلب جدول الصلاة لشهر $month-$year"
+    resp=$(curl -fsSL "$url" 2>/dev/null) || { 
+        log "تعذر جلب جدول الصلاة لشهر $month-$year"
+        return 1
+    }
+    
+    echo "$resp" > "$filename"
+    log "تم حفظ جدول الصلاة لشهر $month-$year في $filename"
+    return 0
+}
+
+fetch_future_timetables() {
+    local months_ahead=3  # عدد الأشهر التي نجلبها مسبقاً
+    
+    create_monthly_timetable_dir
+    
+    local current_year=$(date +%Y)
+    local current_month=$(date +%m)
+    
+    for ((i=0; i<months_ahead; i++)); do
+        local year=$((current_year + (current_month + i - 1) / 12))
+        local month=$(((current_month + i - 1) % 12 + 1))
+        
+        fetch_monthly_timetable "$year" "$month" || break
+    done
+}
+
+find_prayer_time_in_cache() {
+    local target_date="$1"  # بصيغة YYYY-MM-DD
+    local target_year=$(echo "$target_date" | cut -d'-' -f1)
+    local target_month=$(echo "$target_date" | cut -d'-' -f2)
+    
+    local filename
+    filename=$(get_monthly_filename "$target_year" "$target_month")
+    
+    if [ ! -f "$filename" ]; then
+        return 1
+    fi
+    
+    # استخراج مواقيت اليوم المطلوب
+    local timings
+    timings=$(jq -r ".data[] | select(.date.gregorian.date == \"$(date -d "$target_date" +%d-%m-%Y)\") | .timings" "$filename" 2>/dev/null)
+    
+    if [ -n "$timings" ] && [ "$timings" != "null" ]; then
+        echo "$timings"
+        return 0
+    fi
+    
+    return 1
+}
+
+fetch_timetable_enhanced() {
+    local today=$(date +%Y-%m-%d)
+    
+    # أولاً حاول استخدام الذاكرة المؤقتة
+    local cached_timings
+    cached_timings=$(find_prayer_time_in_cache "$today")
+    
+    if [ -n "$cached_timings" ]; then
+        # إنشاء ملف مؤقت ببيانات اليوم من الذاكرة المؤقتة
+        cat > "$TIMETABLE_FILE" <<EOF
+{
+    "data": {
+        "date": {
+            "gregorian": {
+                "date": "$(date +%d-%m-%Y)"
+            }
+        },
+        "timings": $cached_timings
+    }
+}
+EOF
+        silent_log "تم استخدام البيانات من الذاكرة المؤقتة لليوم: $today"
+        return 0
+    fi
+    
+    # إذا لم توجد في الذاكرة المؤقتة، جلب من الإنترنت
+    fetch_timetable
+}
+
+read_timetable_enhanced() {
+    [ ! -f "$TIMETABLE_FILE" ] && { fetch_timetable_enhanced || return 1; }
+    local tdate=$(jq -r '.data.date.gregorian.date' "$TIMETABLE_FILE" 2>/dev/null || echo "")
+    [ "$tdate" != "$(date +%d-%m-%Y)" ] && { fetch_timetable_enhanced || return 1; }
     return 0
 }
 
@@ -480,6 +607,17 @@ setup_wizard() {
     
     read -p "تفعيل التحديث الذاتي؟ [y/N]: " up; up=${up:-N}
     [[ "$up" =~ ^[Yy]$ ]] && AUTO_SELF_UPDATE=1 || AUTO_SELF_UPDATE=0
+    
+    # إضافة السؤال عن التخزين المحلي
+    echo ""
+    echo "💾 التخزين المحلي لمواقيت الصلاة:"
+    read -p "هل تريد تخزين مواقيت الصلاة لعدة أشهر للعمل بدون إنترنت؟ [Y/n]: " storage_ans
+    storage_ans=${storage_ans:-Y}
+    if [[ "$storage_ans" =~ ^[Yy]$ ]]; then
+        echo "📥 جاري تحميل مواقيت الصلاة للأشهر القادمة..."
+        fetch_future_timetables
+    fi
+    
     choose_notify_system
     choose_notify_settings
     save_config
@@ -499,15 +637,8 @@ fetch_timetable() {
     return 0
 }
 
-read_timetable() {
-    [ ! -f "$TIMETABLE_FILE" ] && { fetch_timetable || return 1; }
-    local tdate=$(jq -r '.data.date.gregorian.date' "$TIMETABLE_FILE" 2>/dev/null || echo "")
-    [ "$tdate" != "$(date +%d-%m-%Y)" ] && { fetch_timetable || return 1; }
-    return 0
-}
-
 show_timetable() {
-    read_timetable || { echo "تعذر قراءة جدول المواقيت."; return 1; }
+    read_timetable_enhanced || { echo "تعذر قراءة جدول المواقيت."; return 1; }
     echo "مواقيت الصلاة اليوم ($CITY):"
     local names=("Fajr" "Sunrise" "Dhuhr" "Asr" "Maghrib" "Isha")
     local arnames=("الفجر" "الشروق" "الظهر" "العصر" "المغرب" "العشاء")
@@ -518,7 +649,7 @@ show_timetable() {
 }
 
 get_next_prayer() {
-    read_timetable || return 1
+    read_timetable_enhanced || return 1
     local names=("Fajr" "Dhuhr" "Asr" "Maghrib" "Isha")
     local arnames=("الفجر" "الظهر" "العصر" "المغرب" "العشاء")
     local now_secs=$(date +%s)
@@ -1006,6 +1137,10 @@ case "${1:-}" in
         echo "جلب أحدث نسخة من الأذكار..."
         curl -fsSL "$REPO_AZKAR_URL" -o "$AZKAR_FILE" 2>/dev/null && echo "✅ تم التحديث" || echo "فشل التحديث"
         ;;
+    --update-timetables)
+        echo "📥 جلب مواقيت الصلاة للأشهر القادمة..."
+        fetch_future_timetables
+        ;;
     --self-update)
         echo "🔍 التحقق من التحديثات..."
         check_script_update
@@ -1078,6 +1213,29 @@ case "${1:-}" in
             echo ""
             echo "🛠 نظام الخدمة: ${NOTIFY_SYSTEM:-systemd}"
         fi
+        
+        # عرض حالة التخزين المحلي
+        echo ""
+        echo "💾 حالة التخزين المحلي:"
+        if [ -d "$MONTHLY_TIMETABLE_DIR" ]; then
+            local file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
+            if [ "$file_count" -gt 0 ]; then
+                echo "  ✅ مخزن محلياً: $file_count شهر"
+                local oldest_file=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | head -1 | cut -d' ' -f2-)
+                local newest_file=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)
+                
+                if [ -n "$oldest_file" ] && [ -n "$newest_file" ]; then
+                    local oldest_date=$(basename "$oldest_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
+                    local newest_date=$(basename "$newest_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
+                    echo "  📅 الفترة: $oldest_date إلى $newest_date"
+                fi
+            else
+                echo "  ❌ لا توجد بيانات محلية"
+            fi
+        else
+            echo "  ❌ مجلد التخزين غير موجود"
+        fi
+        
         echo ""
         if get_next_prayer 2>/dev/null; then
             leftmin=$((PRAYER_LEFT/60))
@@ -1142,9 +1300,15 @@ case "${1:-}" in
 🔄 التحديث:
   --update-azkar      تحديث الأذكار
   --self-update       تحديث البرنامج
+  --update-timetables تحديث مواقيت الصلاة للأشهر القادمة
 
 ℹ️  --help, -h        هذه المساعدة
 
+═══════════════════════════════════════════════════════════
+💾 الميزة الجديدة: التخزين المحلي لمواقيت الصلاة
+   - يمكن للبرنامج العمل بدون اتصال بالإنترنت
+   - يتم تخزين بيانات 3 أشهر مسبقاً
+   - استخدم --update-timetables لتحديث البيانات
 ═══════════════════════════════════════════════════════════
 💡 الاستخدام الافتراضي: تشغيل بدون خيارات يعرض ذكر ووقت الصلاة
 ═══════════════════════════════════════════════════════════
