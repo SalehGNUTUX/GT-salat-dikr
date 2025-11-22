@@ -1226,7 +1226,7 @@ case "${1:-}" in
         echo "جلب أحدث نسخة من الأذكار..."
         curl -fsSL "$REPO_AZKAR_URL" -o "$AZKAR_FILE" 2>/dev/null && echo "✅ تم التحديث" || echo "فشل التحديث"
         ;;
-    --update-timetables)
+        --update-timetables)
         echo "📥 جلب مواقيت الصلاة للأشهر القادمة..."
         if ! check_internet_connection; then
             echo "❌ لا يوجد اتصال بالإنترنت - لا يمكن تحديث الجداول"
@@ -1243,6 +1243,35 @@ case "${1:-}" in
         echo "📍 الموقع: ${CITY:-غير محدد} (${LAT}, ${LON})"
         echo "📖 طريقة الحساب: ${METHOD_NAME:-غير محدد}"
         echo ""
+        
+        fetch_future_timetables
+        
+        # عرض تقرير عن الملفات المحفوظة
+        echo ""
+        echo "📊 تقرير التحديث:"
+        if [ -d "$MONTHLY_TIMETABLE_DIR" ]; then
+            local file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
+            if [ "$file_count" -gt 0 ]; then
+                echo "✅ تم تخزين بيانات $file_count شهر"
+                
+                # عرض الملفات المحفوظة
+                echo "📁 الملفات المحفوظة:"
+                find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f | sort | while read -r file; do
+                    local filename=$(basename "$file")
+                    local year_month=$(echo "$filename" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
+                    local size=$(du -h "$file" 2>/dev/null | cut -f1 || echo "?KB")
+                    echo "   📄 $year_month ($size)"
+                done
+                
+                echo ""
+                echo "💾 يمكنك الآن استخدام البرنامج بدون اتصال بالإنترنت"
+            else
+                echo "❌ لم يتم تخزين أي بيانات"
+            fi
+        else
+            echo "❌ فشل في إنشاء مجلد التخزين"
+        fi
+        ;;
         
         fetch_future_timetables
         
