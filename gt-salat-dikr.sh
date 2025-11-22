@@ -81,40 +81,29 @@ get_monthly_filename() {
 
 # دالة مساعدة للتحقق من اتصال الإنترنت
 # دالة محسنة للتحقق من اتصال الإنترنت
+# دالة فعالة للتحقق من اتصال الإنترنت
 check_internet_connection() {
-    local test_urls=(
-        "https://www.google.com"
-        "https://www.cloudflare.com"
-        "https://api.aladhan.com"
-        "http://connectivitycheck.gstatic.com"
-    )
+    # استخدام مضيفات موثوقة متعددة
+    local hosts=("google.com" "cloudflare.com" "8.8.8.8")
     
-    for url in "${test_urls[@]}"; do
+    for host in "${hosts[@]}"; do
         if command -v curl >/dev/null 2>&1; then
-            if curl -fs --connect-timeout 5 --max-time 10 "$url" >/dev/null 2>&1; then
-                silent_log "تم التحقق من الاتصال عبر: $url"
+            if curl -fs --connect-timeout 5 "https://$host" >/dev/null 2>&1; then
                 return 0
             fi
         elif command -v wget >/dev/null 2>&1; then
-            if wget -q --spider --timeout=10 "$url" 2>/dev/null; then
-                silent_log "تم التحقق من الاتصال عبر: $url"
+            if wget -q --spider --timeout=5 "https://$host" 2>/dev/null; then
+                return 0
+            fi
+        elif command -v ping >/dev/null 2>&1; then
+            if ping -c 1 -W 5 "$host" >/dev/null 2>&1; then
                 return 0
             fi
         fi
     done
     
-    # محاولة استخدام ping كحل بديل
-    if command -v ping >/dev/null 2>&1; then
-        if ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1; then
-            silent_log "تم التحقق من الاتصال عبر ping"
-            return 0
-        fi
-    fi
-    
-    silent_log "❌ فشل جميع محاولات التحقق من الاتصال"
     return 1
 }
-
 fetch_monthly_timetable() {
     local year="$1"
     local month="$2"
