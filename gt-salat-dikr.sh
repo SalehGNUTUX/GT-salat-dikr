@@ -79,6 +79,16 @@ get_monthly_filename() {
     printf "%s/timetable_%04d_%02d.json" "$MONTHLY_TIMETABLE_DIR" "$year" "$month"
 }
 
+# دالة مساعدة للتحقق من اتصال الإنترنت
+check_internet_connection() {
+    if command -v curl >/dev/null 2>&1; then
+        if curl -fs --connect-timeout 5 https://api.aladhan.com/v1/currentTimestamp >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
 fetch_monthly_timetable() {
     local year="$1"
     local month="$2"
@@ -100,14 +110,22 @@ fetch_monthly_timetable() {
         return 1
     fi
     
-    local url="${ALADHAN_API_URL}/${year}/${month}?latitude=${LAT}&longitude=${LON}&method=${METHOD_ID}"
+    # استخدام API مختلفة لجلب الشهر كاملاً
+    local url="https://api.aladhan.com/v1/calendar/${year}/${month}?latitude=${LAT}&longitude=${LON}&method=${METHOD_ID}"
     local resp
     
     log "جلب جدول الصلاة لشهر $month-$year"
-    resp=$(curl -fsSL "$url" 2>/dev/null) || { 
+    resp=$(curl -fsSL --connect-timeout 10 "$url" 2>/dev/null) || { 
         log "تعذر جلب جدول الصلاة لشهر $month-$year"
         return 1
     }
+    
+    # التحقق من أن الاستجابة تحتوي على بيانات
+    local valid_response=$(echo "$resp" | jq -r '.data | length' 2>/dev/null || echo "0")
+    if [ "$valid_response" -eq 0 ]; then
+        log "استجابة فارغة أو غير صالحة لشهر $month-$year"
+        return 1
+    fi
     
     echo "$resp" > "$filename"
     log "تم حفظ جدول الصلاة لشهر $month-$year في $filename"
@@ -122,11 +140,22 @@ fetch_future_timetables() {
     local current_year=$(date +%Y)
     local current_month=$(date +%m)
     
-    for ((i=0; i<months_ahead; i++)); do
+    # البدء من الشهر الحالي وإضافة الأشهر القادمة
+    for ((i=0; i<=months_ahead; i++)); do
         local year=$((current_year + (current_month + i - 1) / 12))
         local month=$(((current_month + i - 1) % 12 + 1))
         
-        fetch_monthly_timetable "$year" "$month" || break
+        # تنسيق الشهر ليكون برقمين (01, 02, إلخ)
+        local month_formatted=$(printf "%02d" "$month")
+        
+        log "محاولة جلب جدول الصلاة لشهر $month_formatted-$year"
+        fetch_monthly_timetable "$year" "$month_formatted" || {
+            log "فشل في جلب جدول شهر $month_formatted-$year، تخطي"
+            continue
+        }
+        
+        # إضافة تأخير صغير بين الطلبات لتجنب حظر API
+        sleep 1
     done
 }
 
@@ -134,24 +163,31 @@ find_prayer_time_in_cache() {
     local target_date="$1"  # بصيغة YYYY-MM-DD
     local target_year=$(echo "$target_date" | cut -d'-' -f1)
     local target_month=$(echo "$target_date" | cut -d'-' -f2)
+    local target_day=$(echo "$target_date" | cut -d'-' -f3)
     
     local filename
     filename=$(get_monthly_filename "$target_year" "$target_month")
     
     if [ ! -f "$filename" ]; then
+        silent_log "الملف غير موجود للبحث: $filename"
         return 1
     fi
     
+    # تحويل التاريخ إلى الصيغة التي يستخدمها API (DD-MM-YYYY)
+    local target_date_formatted=$(printf "%02d-%02d-%04d" "$target_day" "$target_month" "$target_year")
+    
     # استخراج مواقيت اليوم المطلوب
     local timings
-    timings=$(jq -r ".data[] | select(.date.gregorian.date == \"$(date -d "$target_date" +%d-%m-%Y)\") | .timings" "$filename" 2>/dev/null)
+    timings=$(jq -r ".data[] | select(.date.gregorian.date == \"$target_date_formatted\") | .timings" "$filename" 2>/dev/null)
     
     if [ -n "$timings" ] && [ "$timings" != "null" ]; then
+        silent_log "تم العثور على بيانات محفوظة لليوم: $target_date"
         echo "$timings"
         return 0
+    else
+        silent_log "لم يتم العثور على بيانات محفوظة لليوم: $target_date"
+        return 1
     fi
-    
-    return 1
 }
 
 fetch_timetable_enhanced() {
@@ -159,9 +195,7 @@ fetch_timetable_enhanced() {
     
     # أولاً حاول استخدام الذاكرة المؤقتة
     local cached_timings
-    cached_timings=$(find_prayer_time_in_cache "$today")
-    
-    if [ -n "$cached_timings" ]; then
+    if cached_timings=$(find_prayer_time_in_cache "$today"); then
         # إنشاء ملف مؤقت ببيانات اليوم من الذاكرة المؤقتة
         cat > "$TIMETABLE_FILE" <<EOF
 {
@@ -180,7 +214,61 @@ EOF
     fi
     
     # إذا لم توجد في الذاكرة المؤقتة، جلب من الإنترنت
+    silent_log "لم توجد بيانات محفوظة، جلب من الإنترنت..."
     fetch_timetable
+}
+
+# تحسين دالة fetch_timetable الأصلية
+fetch_timetable() {
+    if ! check_internet_connection; then
+        log "⚠️  لا يوجد اتصال بالإنترنت - استخدام البيانات المحفوظة"
+        # محاولة استخدام البيانات المحفوظة لليوم
+        local today=$(date +%Y-%m-%d)
+        if cached_timings=$(find_prayer_time_in_cache "$today"); then
+            cat > "$TIMETABLE_FILE" <<EOF
+{
+    "data": {
+        "date": {
+            "gregorian": {
+                "date": "$(date +%d-%m-%Y)"
+            }
+        },
+        "timings": $cached_timings
+    }
+}
+EOF
+            log "تم استخدام البيانات المحفوظة بسبب انقطاع الإنترنت"
+            return 0
+        else
+            log "❌ لا توجد بيانات محفوظة ولا اتصال بالإنترنت"
+            return 1
+        fi
+    fi
+    
+    if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+        log "لا يمكن جلب المواقيت - curl أو jq غير متوفر."
+        return 1
+    fi
+    
+    local today=$(date +%Y-%m-%d)
+    local url="${ALADHAN_API_URL}?latitude=${LAT}&longitude=${LON}&method=${METHOD_ID}&date=${today}"
+    local resp
+    
+    log "جلب جدول المواقيت من الإنترنت..."
+    resp=$(curl -fsSL --connect-timeout 10 "$url" 2>/dev/null) || { 
+        log "تعذر جلب مواقيت الصلاة من الإنترنت."
+        return 1
+    }
+    
+    # التحقق من صحة الاستجابة
+    if ! echo "$resp" | jq -e '.data.timings' >/dev/null 2>&1; then
+        log "استجابة غير صالحة من API"
+        return 1
+    fi
+    
+    echo "$resp" > "$TIMETABLE_FILE"
+    log "تم جلب جدول المواقيت من الإنترنت بنجاح"
+    return 0
 }
 
 read_timetable_enhanced() {
@@ -621,20 +709,6 @@ setup_wizard() {
     choose_notify_system
     choose_notify_settings
     save_config
-}
-
-fetch_timetable() {
-    if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
-        log "لا يمكن جلب المواقيت - curl أو jq غير متوفر."
-        return 1
-    fi
-    local today=$(date +%Y-%m-%d)
-    local url="${ALADHAN_API_URL}?latitude=${LAT}&longitude=${LON}&method=${METHOD_ID}&date=${today}"
-    local resp
-    resp=$(curl -fsSL "$url" 2>/dev/null) || { log "تعذر جلب مواقيت الصلاة."; return 1; }
-    echo "$resp" > "$TIMETABLE_FILE"
-    log "تم جلب جدول المواقيت"
-    return 0
 }
 
 show_timetable() {
@@ -1139,7 +1213,49 @@ case "${1:-}" in
         ;;
     --update-timetables)
         echo "📥 جلب مواقيت الصلاة للأشهر القادمة..."
+        if ! check_internet_connection; then
+            echo "❌ لا يوجد اتصال بالإنترنت - لا يمكن تحديث الجداول"
+            exit 1
+        fi
+        
+        # التحقق من وجود إعدادات الموقع
+        if [ -z "${LAT:-}" ] || [ -z "${LON:-}" ]; then
+            echo "❌ لم يتم تحديد الموقع بعد"
+            echo "   الرجاء تشغيل الإعدادات أولاً: gtsalat --settings"
+            exit 1
+        fi
+        
+        echo "📍 الموقع: ${CITY:-غير محدد} (${LAT}, ${LON})"
+        echo "📖 طريقة الحساب: ${METHOD_NAME:-غير محدد}"
+        echo ""
+        
         fetch_future_timetables
+        
+        # عرض تقرير عن الملفات المحفوظة
+        echo ""
+        echo "📊 تقرير التحديث:"
+        if [ -d "$MONTHLY_TIMETABLE_DIR" ]; then
+            local file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
+            if [ "$file_count" -gt 0 ]; then
+                echo "✅ تم تخزين بيانات $file_count شهر"
+                
+                # عرض الملفات المحفوظة
+                echo "📁 الملفات المحفوظة:"
+                find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f | sort | while read -r file; do
+                    local filename=$(basename "$file")
+                    local year_month=$(echo "$filename" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
+                    local size=$(du -h "$file" | cut -f1)
+                    echo "   📄 $year_month ($size)"
+                done
+                
+                echo ""
+                echo "💾 يمكنك الآن استخدام البرنامج بدون اتصال بالإنترنت"
+            else
+                echo "❌ لم يتم تخزين أي بيانات"
+            fi
+        else
+            echo "❌ فشل في إنشاء مجلد التخزين"
+        fi
         ;;
     --self-update)
         echo "🔍 التحقق من التحديثات..."
@@ -1214,26 +1330,41 @@ case "${1:-}" in
             echo "🛠 نظام الخدمة: ${NOTIFY_SYSTEM:-systemd}"
         fi
         
-        # عرض حالة التخزين المحلي
+        # عرض حالة التخزين المحلي بشكل محسن
         echo ""
         echo "💾 حالة التخزين المحلي:"
         if [ -d "$MONTHLY_TIMETABLE_DIR" ]; then
             local file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
             if [ "$file_count" -gt 0 ]; then
                 echo "  ✅ مخزن محلياً: $file_count شهر"
-                local oldest_file=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | head -1 | cut -d' ' -f2-)
-                local newest_file=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)
                 
-                if [ -n "$oldest_file" ] && [ -n "$newest_file" ]; then
-                    local oldest_date=$(basename "$oldest_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
-                    local newest_date=$(basename "$newest_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
-                    echo "  📅 الفترة: $oldest_date إلى $newest_date"
+                # عرض تواريخ الملفات
+                local files=($(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f | sort))
+                if [ ${#files[@]} -gt 0 ]; then
+                    local first_file="${files[0]}"
+                    local last_file="${files[${#files[@]}-1]}"
+                    
+                    local first_date=$(basename "$first_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
+                    local last_date=$(basename "$last_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
+                    echo "  📅 الفترة: $first_date إلى $last_date"
+                    
+                    # التحقق من وجود بيانات للشهر الحالي
+                    local current_year=$(date +%Y)
+                    local current_month=$(date +%m)
+                    local current_file="$MONTHLY_TIMETABLE_DIR/timetable_${current_year}_${current_month}.json"
+                    if [ -f "$current_file" ]; then
+                        echo "  🟢 البيانات الحالية: متوفرة"
+                    else
+                        echo "  🔴 البيانات الحالية: غير متوفرة"
+                    fi
                 fi
             else
                 echo "  ❌ لا توجد بيانات محلية"
+                echo "  💡 استخدم: gtsalat --update-timetables"
             fi
         else
             echo "  ❌ مجلد التخزين غير موجود"
+            echo "  💡 استخدم: gtsalat --update-timetables"
         fi
         
         echo ""
