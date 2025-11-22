@@ -7,7 +7,7 @@
 ![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
 ![Bash](https://img.shields.io/badge/bash-script-orange.svg)
 
-**برنامج مفتوح المصدر لتذكير الصلاة وعرض الأذكار على نظام Linux**
+**برنامج مفتوح المصدر لتذكير الصلاة وعرض الأذكار على نظام Gnu/Linux**
 
 </div>
 
