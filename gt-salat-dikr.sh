@@ -2,7 +2,7 @@
 #
 # GT-salat-dikr - برنامج الذكر و الصلاة على الطرفية و إشعارات النظام
 # Author: gnutux
-# Version: 3.2.1
+# Version: 3.2.2
 #
 set -euo pipefail
 
@@ -367,7 +367,7 @@ EOF
     local url="${ALADHAN_API_URL}?latitude=${LAT}&longitude=${LON}&method=${METHOD_ID}&date=${today}"
     local resp
     
-    log "جلب جدول المواقيت من الإنترنت..."
+    log "جرب جدول المواقيت من الإنترنت..."
     resp=$(curl -fsSL --connect-timeout 10 "$url" 2>/dev/null) || { 
         log "تعذر جلب مواقيت الصلاة من الإنترنت."
         return 1
@@ -626,26 +626,8 @@ APPROACHING_PLAYER_EOF
 }
 
 show_random_zekr() {
-    [ ! -f "$AZKAR_FILE" ] && { 
-        echo "📖 جاري تحميل الأذكار..."
-        fetch_if_missing "$AZKAR_FILE" "$REPO_AZKAR_URL" >/dev/null 2>&1
-        [ ! -f "$AZKAR_FILE" ] && { echo ""; return 1; }
-    }
-    
-    # استخدام awk لقراءة الأذكار بشكل صحيح
-    local zekr
-    zekr=$(awk -v RS='%' '
-    {
-        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
-        if (length($0) > 10 && $0 !~ /^#/) {
-            print $0
-        }
-    }' "$AZKAR_FILE" | shuf -n 1)
-    
-    [ -z "$zekr" ] && zekr="سُبْحَانَ اللهِ، وَالْحَمْدُ لِلَّهِ، وَلَا إِلَهَ إِلَّا اللهُ، وَاللهُ أَكْبَرُ"
-    
-    echo "$zekr"
-    return 0
+    [ ! -f "$AZKAR_FILE" ] && { echo ""; return 1; }
+    awk -v RS='%' '{gsub(/^[ \t\r\n]+|[ \t\r\n]+$/, "", $0); if(length($0)>0) print $0}' "$AZKAR_FILE" | shuf -n 1
 }
 
 show_zekr_notify() {
@@ -654,7 +636,7 @@ show_zekr_notify() {
     
     # إشعارات الطرفية للذكر
     if [ "${TERMINAL_ZIKR_NOTIFY:-1}" = "1" ]; then
-        echo "🕊️  $zekr"
+        echo "🕊️ $zekr"
     fi
     
     # إشعارات النظام للذكر
@@ -892,14 +874,12 @@ setup_wizard() {
 show_timetable() {
     read_timetable_enhanced || { echo "تعذر قراءة جدول المواقيت."; return 1; }
     echo "مواقيت الصلاة اليوم ($CITY):"
-    echo "═══════════════════════════════════════════"
     local names=("Fajr" "Sunrise" "Dhuhr" "Asr" "Maghrib" "Isha")
     local arnames=("الفجر" "الشروق" "الظهر" "العصر" "المغرب" "العشاء")
     for i in "${!names[@]}"; do
         local time=$(jq -r ".data.timings.${names[$i]}" "$TIMETABLE_FILE" | cut -d' ' -f1)
-        printf "  %-10s: %s\n" "${arnames[$i]}" "$time"
+        printf "%10s: %s\n" "${arnames[$i]}" "$time"
     done
-    echo "═══════════════════════════════════════════"
 }
 
 get_next_prayer() {
@@ -1722,39 +1702,19 @@ EOF
         ;;
     '')
         {
-            echo "════════════════════════════════════════════════════════"
-            # عرض الذكر أولاً
             if [ "${ENABLE_ZIKR_NOTIFY:-1}" = "1" ]; then
                 zekr=$(show_random_zekr 2>/dev/null)
                 if [ -n "$zekr" ]; then
-                    echo "🕊️  $zekr"
+                    echo "$zekr"
                     echo ""
                 fi
             fi
-            
-            # عرض مواقيت الصلاة
             if get_next_prayer 2>/dev/null; then
                 leftmin=$((PRAYER_LEFT/60))
                 lefth=$((leftmin/60))
                 leftm=$((leftmin%60))
-                
-                # تنسيق جميل
-                echo "🕌 الصلاة القادمة: \033[1;34m$PRAYER_NAME\033[0m"
-                echo "⏰ الموعد: \033[1;32m$PRAYER_TIME\033[0m"
-                
-                if [ $lefth -gt 0 ]; then
-                    printf "⏳ المتبقي: \033[1;33m%02d ساعة و %02d دقيقة\033[0m\n" "$lefth" "$leftm"
-                else
-                    printf "⏳ المتبقي: \033[1;33m%02d دقيقة\033[0m\n" "$leftm"
-                fi
-                
-                echo ""
-                echo "📌 استخدم \033[1;36mgtsalat --show-timetable\033[0m لعرض مواقيت اليوم"
-                echo "📌 استخدم \033[1;36mgtsalat --tray\033[0m لتشغيل أيقونة شريط المهام"
-            else
-                echo "📅 جاري تحميل مواقيت الصلاة..."
+                printf "\e[1;34m🕌 الصلاة القادمة: %s عند %s (باقي %02d:%02d)\e[0m\n" "$PRAYER_NAME" "$PRAYER_TIME" "$lefth" "$leftm"
             fi
-            echo "════════════════════════════════════════════════════════"
         } 2>/dev/null
         ;;
     *)
