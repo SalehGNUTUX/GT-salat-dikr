@@ -1,262 +1,227 @@
 #!/bin/bash
-#
-# GT-salat-dikr - Uninstall Script
-# إزالة كاملة لنظام إشعارات الصلاة والأذكار
-#
+# uninstall.sh - إزالة GT-salat-dikr بشكل كامل
+# يعمل مباشرة من المستودع أو محلياً
 
 set -e
 
-echo "════════════════════════════════════════════════════════"
-echo "  إزالة GT-salat-dikr - نظام إشعارات الصلاة والأذكار"
-echo "════════════════════════════════════════════════════════"
-echo ""
+# ألوان للعرض
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-# منع التشغيل بصلاحيات root
-if [ "$EUID" -eq 0 ]; then
-    echo "❌ لا تشغل هذا السكربت بصلاحيات root، استخدم حساب المستخدم العادي."
+print_info() {
+    echo -e "${GREEN}[i]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[!]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[✗]${NC} $1"
+}
+
+# عرض عنوان الإزالة
+clear
+echo -e "${RED}"
+cat << "EOF"
+  --       ___ _____    ___   _   _      _ _____    ___ ___ _  _____ 
+--      / __|_   _|__/ __| /_\ | |    /_\_   _|__|   \_ _| |/ / _ \
+--     | (_ | | ||___\__ \/ _ \| |__ / _ \| ||___| |) | || ' <|   /
+--      \___| |_|    |___/_/ \_\____/_/ \_\_|    |___/___|_|\_\_|_\
+--                                                                 
+  إزالة GT-salat-dikr بشكل كامل
+EOF
+echo -e "${NC}"
+
+# التحقق من أن المستخدم ليس root
+if [ "$EUID" -eq 0 ]; then 
+    print_error "لا تشغل هذا السكريبت كـ root!"
+    print_info "استخدم: bash uninstall.sh"
     exit 1
 fi
 
-INSTALL_DIR="$HOME/.GT-salat-dikr"
-INSTALL_DIR_ALT="$HOME/GT-salat-dikr"  # المسار البديل القديم
+# طلب التأكيد
+echo ""
+print_warning "⚠️  هذه العملية ستزيل GT-salat-dikr بشكل كامل"
+echo ""
+read -p "هل تريد الاستمرار في الإزالة؟ [y/N]: " confirm
 
-# ---------- المرحلة 1: إيقاف جميع الخدمات ----------
-echo "⏸️  إيقاف جميع الخدمات والإشعارات..."
+if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    print_info "تم إلغاء الإزالة."
+    exit 0
+fi
+
+# ============================================
+# الخطوة 1: إيقاف جميع الخدمات
+# ============================================
+print_info "الخطوة 1: إيقاف جميع الخدمات..."
+
+# إيقاف الإشعارات إذا كان البرنامج مثبتاً
+if command -v gtsalat >/dev/null 2>&1; then
+    gtsalat --notify-stop >/dev/null 2>&1 || true
+fi
 
 # إيقاف System Tray
-echo "  إيقاف System Tray..."
-pkill -f "gt-tray.py" 2>/dev/null || true
-pkill -f "pystray" 2>/dev/null || true
-
-# إيقاف إشعارات الخلفية
-echo "  إيقاف إشعارات الخلفية..."
-if [ -f "$INSTALL_DIR/gt-salat-dikr.sh" ]; then
-    "$INSTALL_DIR/gt-salat-dikr.sh" --notify-stop 2>/dev/null || true
-fi
+pkill -f "gt-tray" >/dev/null 2>&1 || true
+pkill -f "python.*tray" >/dev/null 2>&1 || true
 
 # إيقاف خدمات systemd
-echo "  إيقاف خدمات systemd..."
-if systemctl --user is-active gt-salat-dikr.service >/dev/null 2>&1; then
-    systemctl --user stop gt-salat-dikr.service 2>/dev/null || true
-    systemctl --user disable gt-salat-dikr.service 2>/dev/null || true
-    echo "  ✅ تم إيقاف خدمة systemd"
+if systemctl list-unit-files | grep -q "gt-salat-dikr"; then
+    sudo systemctl stop gt-salat-dikr.service >/dev/null 2>&1 || true
+    sudo systemctl disable gt-salat-dikr.service >/dev/null 2>&1 || true
 fi
 
-# إزالة ملف PID
-rm -f "$INSTALL_DIR/.gt-salat-dikr-notify.pid" 2>/dev/null || true
+# ============================================
+# الخطوة 2: إزالة الملفات
+# ============================================
+print_info "الخطوة 2: إزالة الملفات..."
 
-# ---------- المرحلة 2: إزالة الملفات التنفيذية ----------
-echo ""
-echo "🗑️  إزالة الملفات التنفيذية..."
-
-# إزالة الروابط
-echo "  إزالة روابط الأوامر..."
-rm -f "$HOME/.local/bin/gtsalat" 2>/dev/null || true
-rm -f "$HOME/.local/bin/gt-tray" 2>/dev/null || true
-rm -f "$HOME/bin/gtsalat" 2>/dev/null || true
-
-# إزالة ملفات التثبيت
-echo "  إزالة ملفات البرنامج..."
-if [ -d "$INSTALL_DIR" ]; then
-    echo "  📁 حذف مجلد التثبيت: $INSTALL_DIR"
-    rm -rf "$INSTALL_DIR"
-fi
-
-if [ -d "$INSTALL_DIR_ALT" ]; then
-    echo "  📁 حذف المجلد البديل: $INSTALL_DIR_ALT"
-    rm -rf "$INSTALL_DIR_ALT"
-fi
-
-# ---------- المرحلة 3: إزالة خدمات النظام ----------
-echo ""
-echo "🔧 إزالة خدمات النظام..."
-
-# إزالة خدمة systemd
-if [ -f "$HOME/.config/systemd/user/gt-salat-dikr.service" ]; then
-    echo "  إزالة خدمة systemd..."
-    rm -f "$HOME/.config/systemd/user/gt-salat-dikr.service" 2>/dev/null || true
-    systemctl --user daemon-reload 2>/dev/null || true
-fi
-
-# إزالة autostart
-if [ -f "$HOME/.config/autostart/gt-salat-dikr.desktop" ]; then
-    echo "  إزالة autostart..."
-    rm -f "$HOME/.config/autostart/gt-salat-dikr.desktop" 2>/dev/null || true
-fi
-
-# إزالة أي ملفات desktop أخرى
-find "$HOME/.local/share/applications" -name "*gt-salat*" -delete 2>/dev/null || true
-find "$HOME/.local/share/applications" -name "*salat*" -delete 2>/dev/null || true
-
-# ---------- المرحلة 4: تنظيف إعدادات الطرفية ----------
-echo ""
-echo "💻 تنظيف إعدادات الطرفية..."
-
-clean_shell_config() {
-    local shell_file="$1"
-    local shell_name="$2"
-
-    if [ -f "$shell_file" ]; then
-        echo "  تنظيف $shell_name..."
-
-        # إنشاء نسخة احتياطية
-        cp "$shell_file" "${shell_file}.backup.gtsalat" 2>/dev/null || true
-
-        # إزالة إعدادات GT-salat-dikr
-        grep -v "GT-salat-dikr" "$shell_file" > "${shell_file}.temp" 2>/dev/null && \
-            mv "${shell_file}.temp" "$shell_file" 2>/dev/null || true
-
-        # إزالة الأوامر المحددة
-        sed -i '/gtsalat/d' "$shell_file" 2>/dev/null || true
-        sed -i '/GT-salat-dikr/d' "$shell_file" 2>/dev/null || true
-        sed -i '/\.GT-salat-dikr/d' "$shell_file" 2>/dev/null || true
-
-        echo "  ✅ تم تنظيف $shell_name"
-    fi
-}
-
-# تنظيف ملفات التهيئة
-clean_shell_config "$HOME/.bashrc" "Bash"
-clean_shell_config "$HOME/.bash_profile" "Bash Profile"
-clean_shell_config "$HOME/.zshrc" "Zsh"
-clean_shell_config "$HOME/.profile" "Profile"
-
-# ---------- المرحلة 5: إزالة ملفات السجل والبيانات ----------
-echo ""
-echo "📊 إزالة ملفات السجل والبيانات..."
-
-# إزالة ملفات السجل
-echo "  إزالة ملفات السجل..."
-rm -f "$HOME/.gt-salat-dikr.log" 2>/dev/null || true
-rm -f "$HOME/gt-salat-dikr.log" 2>/dev/null || true
-rm -f "/tmp/gt-salat-*.log" 2>/dev/null || true
-rm -f "/tmp/gt-tray-*.log" 2>/dev/null || true
-
-# إزالة ملفات التكوين
-echo "  إزالة ملفات التكوين..."
-rm -f "$HOME/.config/gt-salat-dikr.conf" 2>/dev/null || true
-rm -f "$HOME/.gt-salat-dikr.conf" 2>/dev/null || true
-
-# إزالة ملفات مؤقتة
-echo "  إزالة الملفات المؤقتة..."
-rm -f "/tmp/gt-*.pid" 2>/dev/null || true
-rm -f "/tmp/gt-salat-*" 2>/dev/null || true
-rm -f "/tmp/gt-tray-*" 2>/dev/null || true
-rm -f "/tmp/*.gt-salat*" 2>/dev/null || true
-
-# ---------- المرحلة 6: تنظيف حزم Python (اختياري) ----------
-echo ""
-echo "🐍 تنظيف حزم Python (اختياري)..."
-
-read -p "هل تريد إزالة حزم Python المثبتة للبرنامج؟ [y/N]: " remove_python
-remove_python=${remove_python:-N}
-
-if [[ "$remove_python" =~ ^[Yy]$ ]]; then
-    echo "  إزالة حزم Python..."
-
-    # إزالة باستخدام pip
-    if command -v pip3 >/dev/null 2>&1; then
-        pip3 uninstall -y pystray pillow 2>/dev/null || true
-    fi
-
-    if command -v pip >/dev/null 2>&1; then
-        pip uninstall -y pystray pillow 2>/dev/null || true
-    fi
-
-    echo "  ✅ تم إزالة حزم Python"
-else
-    echo "  ⏭️  تخطي إزالة حزم Python"
-fi
-
-# ---------- المرحلة 7: التحقق النهائي ----------
-echo ""
-echo "🔍 التحقق النهائي..."
-
-# التحقق من بقايا الملفات
-REMAINING_FILES=0
-
-echo "  البحث عن الملفات المتبقية..."
-
-# البحث في المسارات الشائعة
-SEARCH_PATHS=(
-    "$HOME/.GT-salat-dikr"
-    "$HOME/GT-salat-dikr"
-    "$HOME/.local/bin/gtsalat"
+# قائمة الملفات والمجلدات للإزالة
+PATHS_TO_REMOVE=(
+    "/opt/gt-salat-dikr"
+    "/usr/local/bin/gtsalat"
     "$HOME/.local/bin/gt-tray"
-    "$HOME/.config/systemd/user/gt-salat-dikr.service"
-    "$HOME/.config/autostart/gt-salat-dikr.desktop"
+    "$HOME/.config/gt-salat-dikr"
+    "$HOME/.GT-salat-dikr"
+    "/etc/systemd/system/gt-salat-dikr.service"
+    "/etc/init.d/gt-salat-dikr"
+    "$HOME/.cache/gt-salat-dikr"
 )
 
-for path in "${SEARCH_PATHS[@]}"; do
+print_warning "الملفات التي سيتم حذفها:"
+for path in "${PATHS_TO_REMOVE[@]}"; do
     if [ -e "$path" ]; then
-        echo "  ⚠️  يوجد ملف متبقي: $path"
-        REMAINING_FILES=1
+        echo "  • $path"
     fi
 done
 
-# التحقق من العمليات النشطة
-if pgrep -f "gt-salat" >/dev/null 2>&1 || \
-   pgrep -f "gt-tray" >/dev/null 2>&1 || \
-   pgrep -f "pystray" >/dev/null 2>&1; then
-    echo "  ⚠️  توجد عمليات نشطة للبرنامج"
-    echo "  📌 يمكنك إعادة تشغيل الجهاز للتأكد من إزالة كل شيء"
-    REMAINING_FILES=1
-fi
-
-if [ $REMAINING_FILES -eq 0 ]; then
-    echo "✅ لم يتم العثور على ملفات متبقية"
-else
-    echo "⚠️  توجد بعض الملفات المتبقية، يمكنك حذفها يدوياً"
-fi
-
-# ---------- المرحلة 8: إعادة تعيين الأوامر ----------
 echo ""
-echo "🔄 إعادة تعيين جلسة الطرفية..."
+read -p "هل تريد حذف ملفات التكوين والإعدادات الشخصية أيضاً؟ [y/N]: " delete_config
 
-echo "  🔄 إعادة تحميل ملفات التهيئة..."
-# إعادة تحميل bashrc
+# حذف الملفات
+for path in "${PATHS_TO_REMOVE[@]}"; do
+    if [ -e "$path" ]; then
+        if [[ "$path" == *".config"* ]] && [[ ! "$delete_config" =~ ^[Yy]$ ]]; then
+            print_info "حفظ إعدادات $path"
+        else
+            sudo rm -rf "$path" 2>/dev/null || true
+        fi
+    fi
+done
+
+# ============================================
+# الخطوة 3: إزالة مهام cron
+# ============================================
+print_info "الخطوة 3: إزالة مهام cron..."
+
+if crontab -l 2>/dev/null | grep -q "gt-salat-dikr\|gtsalat"; then
+    crontab -l 2>/dev/null | grep -v "gt-salat-dikr\|gtsalat" | crontab -
+    print_info "تم إزالة مهام cron"
+fi
+
+# ============================================
+# الخطوة 4: تنظيف متغيرات البيئة
+# ============================================
+print_info "الخطوة 4: تنظيف متغيرات البيئة..."
+
+# إزالة من .bashrc
 if [ -f "$HOME/.bashrc" ]; then
-    source "$HOME/.bashrc" 2>/dev/null || true
+    sed -i '/gt-salat-dikr/d' "$HOME/.bashrc" 2>/dev/null || true
+    sed -i '/GT-salat-dikr/d' "$HOME/.bashrc" 2>/dev/null || true
+    sed -i '/gtsalat/d' "$HOME/.bashrc" 2>/dev/null || true
 fi
 
-# إعادة تحميل zshrc
+# إزالة من .profile
+if [ -f "$HOME/.profile" ]; then
+    sed -i '/gt-salat-dikr/d' "$HOME/.profile" 2>/dev/null || true
+    sed -i '/GT-salat-dikr/d' "$HOME/.profile" 2>/dev/null || true
+    sed -i '/gtsalat/d' "$HOME/.profile" 2>/dev/null || true
+fi
+
+# إزالة من .zshrc إذا كان مستخدماً
 if [ -f "$HOME/.zshrc" ]; then
-    source "$HOME/.zshrc" 2>/dev/null || true
+    sed -i '/gt-salat-dikr/d' "$HOME/.zshrc" 2>/dev/null || true
+    sed -i '/GT-salat-dikr/d' "$HOME/.zshrc" 2>/dev/null || true
+    sed -i '/gtsalat/d' "$HOME/.zshrc" 2>/dev/null || true
 fi
 
-# ---------- المرحلة 9: الرسالة النهائية ----------
+# ============================================
+# الخطوة 5: إزالة التبعيات (اختياري)
+# ============================================
 echo ""
-echo "════════════════════════════════════════════════════════"
-echo "🎉 تم إزالة GT-salat-dikr بنجاح!"
-echo "════════════════════════════════════════════════════════"
-echo ""
-echo "📋 ملخص الإزالة:"
-echo "════════════════════════════════════════════════════════"
-echo "✅ تم إيقاف جميع الخدمات والإشعارات"
-echo "✅ تم إزالة الملفات التنفيذية والروابط"
-echo "✅ تم إزالة خدمات النظام (systemd/autostart)"
-echo "✅ تم تنظيف إعدادات الطرفية"
-echo "✅ تم إزالة ملفات السجل والبيانات"
-echo "════════════════════════════════════════════════════════"
-echo ""
-echo "📝 ملاحظات مهمة:"
-echo "════════════════════════════════════════════════════════"
-echo "• تم إنشاء نسخ احتياطية لملفات التهيئة:"
-echo "  *.backup.gtsalat"
-echo ""
-echo "• إذا أردت إعادة التثبيت:"
-echo "  قم بتنزيل install.sh وتشغيله"
-echo ""
-echo "• لاستعادة إعدادات الطرفية الأصلية:"
-echo "  يمكنك استعادة الملفات من النسخة الاحتياطية"
-echo "════════════════════════════════════════════════════════"
-echo ""
-echo "🔧 للحصول على مساعدة إضافية أو الإبلاغ عن مشاكل:"
-echo "   https://github.com/SalehGNUTUX/GT-salat-dikr"
-echo "════════════════════════════════════════════════════════"
+read -p "هل تريد إزالة تبعيات البرنامج أيضاً؟ [y/N]: " remove_deps
 
-# إظهار رسالة وداع
+if [[ "$remove_deps" =~ ^[Yy]$ ]]; then
+    print_info "الخطوة 5: إزالة التبعيات..."
+    
+    # الكشف عن التوزيعة
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        DISTRO=$ID
+    fi
+    
+    case $DISTRO in
+        arch|manjaro)
+            sudo pacman -Rns --noconfirm python-pystray python-pillow jq libnotify mpv 2>/dev/null || true
+            ;;
+        debian|ubuntu)
+            sudo apt remove -y python3-pystray python3-pil jq libnotify-bin mpv 2>/dev/null || true
+            ;;
+        fedora|centos)
+            sudo dnf remove -y python3-pystray python3-pillow jq libnotify mpv 2>/dev/null || true
+            ;;
+    esac
+    
+    print_info "تم إزالة التبعيات"
+fi
+
+# ============================================
+# الخطوة 6: التحقق النهائي
+# ============================================
+print_info "الخطوة 6: التحقق النهائي..."
+
+# التحقق من أن البرنامج لم يعد موجوداً
+if ! command -v gtsalat >/dev/null 2>&1 && [ ! -d "/opt/gt-salat-dikr" ]; then
+    echo ""
+    echo -e "${GREEN}██████████████████████████████████████${NC}"
+    echo -e "${GREEN}█                                    █${NC}"
+    echo -e "${GREEN}█  ✅ تم الإزالة بنجاح!              █${NC}"
+    echo -e "${GREEN}█                                    █${NC}"
+    echo -e "${GREEN}██████████████████████████████████████${NC}"
+    echo ""
+    
+    print_info "تم إزالة GT-salat-dikr بشكل كامل"
+    print_info "الملفات المحذوفة:"
+    
+    if [[ "$delete_config" =~ ^[Yy]$ ]]; then
+        echo "  • جميع الملفات والإعدادات"
+    else
+        echo "  • ملفات النظام فقط (تم حفظ الإعدادات الشخصية)"
+    fi
+    
+    if [[ "$remove_deps" =~ ^[Yy]$ ]]; then
+        echo "  • تبعيات البرنامج"
+    fi
+    
+else
+    print_warning "⚠️  قد تكون بعض الملفات لا تزال موجودة"
+    print_info "يمكنك حذفها يدوياً:"
+    echo "  sudo rm -rf /opt/gt-salat-dikr"
+    echo "  sudo rm -f /usr/local/bin/gtsalat"
+    echo "  rm -rf ~/.config/gt-salat-dikr"
+fi
+
+# ============================================
+# رسالة وداع
+# ============================================
 echo ""
-echo "🕌 شكراً لاستخدامك GT-salat-dikr"
-echo "📅 نتمنى لك أوقاتاً مليئة بالذكر والصلاة"
-echo "👋 إلى اللقاء في تحديثات قادمة إن شاء الله"
+print_info "شكراً لك على استخدام GT-salat-dikr!"
+print_info "يمكنك إعادة التثبيت في أي وقت باستخدام:"
+echo ""
+echo "  bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh)\""
+echo ""
+print_info "وداعاً! 👋"
+
+exit 0
