@@ -2,7 +2,7 @@
 #
 # GT-salat-dikr - برنامج الذكر و الصلاة على الطرفية و إشعارات النظام
 # Author: gnutux
-# Version: 3.1.0
+# Version: 3.2.1
 #
 set -euo pipefail
 
@@ -626,8 +626,26 @@ APPROACHING_PLAYER_EOF
 }
 
 show_random_zekr() {
-    [ ! -f "$AZKAR_FILE" ] && { echo ""; return 1; }
-    awk -v RS='%' '{gsub(/^[ \t\r\n]+|[ \t\r\n]+$/, "", $0); if(length($0)>0) print $0}' "$AZKAR_FILE" | shuf -n 1
+    [ ! -f "$AZKAR_FILE" ] && { 
+        echo "📖 جاري تحميل الأذكار..."
+        fetch_if_missing "$AZKAR_FILE" "$REPO_AZKAR_URL" >/dev/null 2>&1
+        [ ! -f "$AZKAR_FILE" ] && { echo ""; return 1; }
+    }
+    
+    # استخدام awk لقراءة الأذكار بشكل صحيح
+    local zekr
+    zekr=$(awk -v RS='%' '
+    {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+        if (length($0) > 10 && $0 !~ /^#/) {
+            print $0
+        }
+    }' "$AZKAR_FILE" | shuf -n 1)
+    
+    [ -z "$zekr" ] && zekr="سُبْحَانَ اللهِ، وَالْحَمْدُ لِلَّهِ، وَلَا إِلَهَ إِلَّا اللهُ، وَاللهُ أَكْبَرُ"
+    
+    echo "$zekr"
+    return 0
 }
 
 show_zekr_notify() {
@@ -636,7 +654,7 @@ show_zekr_notify() {
     
     # إشعارات الطرفية للذكر
     if [ "${TERMINAL_ZIKR_NOTIFY:-1}" = "1" ]; then
-        echo "🕊️ $zekr"
+        echo "🕊️  $zekr"
     fi
     
     # إشعارات النظام للذكر
@@ -874,12 +892,14 @@ setup_wizard() {
 show_timetable() {
     read_timetable_enhanced || { echo "تعذر قراءة جدول المواقيت."; return 1; }
     echo "مواقيت الصلاة اليوم ($CITY):"
+    echo "═══════════════════════════════════════════"
     local names=("Fajr" "Sunrise" "Dhuhr" "Asr" "Maghrib" "Isha")
     local arnames=("الفجر" "الشروق" "الظهر" "العصر" "المغرب" "العشاء")
     for i in "${!names[@]}"; do
         local time=$(jq -r ".data.timings.${names[$i]}" "$TIMETABLE_FILE" | cut -d' ' -f1)
-        printf "%10s: %s\n" "${arnames[$i]}" "$time"
+        printf "  %-10s: %s\n" "${arnames[$i]}" "$time"
     done
+    echo "═══════════════════════════════════════════"
 }
 
 get_next_prayer() {
@@ -1263,6 +1283,78 @@ check_script_update() {
     fi
 }
 
+# ---------- System Tray Commands ----------
+start_system_tray() {
+    echo "🖥️  تشغيل أيقونة شريط المهام..."
+    if command -v python3 >/dev/null 2>&1; then
+        if python3 -c "import pystray, PIL" 2>/dev/null; then
+            if [ -f "${SCRIPT_DIR}/gt-tray.py" ]; then
+                # التحقق إذا كانت تعمل بالفعل
+                if pgrep -f "gt-tray.py" >/dev/null 2>&1; then
+                    echo "✅ System Tray يعمل بالفعل"
+                else
+                    python3 "${SCRIPT_DIR}/gt-tray.py" &
+                    echo "✅ تم تشغيل System Tray"
+                    echo "💡 انقر بزر الماوس الأيمن على الأيقونة للتحكم"
+                fi
+            else
+                echo "❌ ملف gt-tray.py غير موجود"
+                echo "💡 أعد تشغيل install.sh لتحميله"
+            fi
+        else
+            echo "❌ مكتبات Python غير مثبتة"
+            echo "📦 جاري التثبيت التلقائي..."
+            
+            # كشف مدير الحزم
+            if command -v apt >/dev/null 2>&1; then
+                sudo apt update && sudo apt install -y python3-pystray python3-pil && {
+                    python3 "${SCRIPT_DIR}/gt-tray.py" &
+                    echo "✅ تم تشغيل System Tray بعد التثبيت"
+                }
+            elif command -v pacman >/dev/null 2>&1; then
+                sudo pacman -Sy --noconfirm python-pystray python-pillow && {
+                    python3 "${SCRIPT_DIR}/gt-tray.py" &
+                    echo "✅ تم تشغيل System Tray بعد التثبيت"
+                }
+            elif command -v dnf >/dev/null 2>&1; then
+                sudo dnf install -y python3-pystray python3-pillow && {
+                    python3 "${SCRIPT_DIR}/gt-tray.py" &
+                    echo "✅ تم تشغيل System Tray بعد التثبيت"
+                }
+            else
+                echo "💡 قم بالتثبيت يدوياً:"
+                echo "   pip install --user pystray pillow"
+            fi
+        fi
+    else
+        echo "❌ Python3 غير مثبت"
+        echo "💡 قم بتثبيته أولاً:"
+        echo "   sudo apt install python3  أو  sudo pacman -S python"
+    fi
+}
+
+restart_system_tray() {
+    echo "🔄 إعادة تشغيل System Tray..."
+    pkill -f "gt-tray.py" 2>/dev/null
+    sleep 2
+    if [ -f "${SCRIPT_DIR}/gt-tray.py" ]; then
+        python3 "${SCRIPT_DIR}/gt-tray.py" &
+        echo "✅ تم إعادة التشغيل"
+    else
+        echo "❌ ملف gt-tray.py غير موجود"
+    fi
+}
+
+stop_system_tray() {
+    echo "⏸️  إيقاف System Tray..."
+    if pkill -f "gt-tray.py" 2>/dev/null; then
+        echo "✅ تم إيقاف System Tray"
+    else
+        echo "ℹ️  System Tray غير قيد التشغيل"
+    fi
+}
+
+# ---------- Main Execution ----------
 if [[ "${1:-}" == "--child-notify" ]]; then
     ensure_dbus
     check_tools
@@ -1303,75 +1395,6 @@ case "${1:-}" in
             bash "$INSTALL_DIR/uninstall.sh"
         else
             echo "ملف uninstall.sh غير موجود في $INSTALL_DIR"
-        fi
-        ;;
-        --tray)
-        echo "🖥️  تشغيل أيقونة شريط المهام..."
-        if command -v python3 >/dev/null 2>&1; then
-            if python3 -c "import pystray, PIL" 2>/dev/null; then
-                if [ -f "${SCRIPT_DIR}/gt-tray.py" ]; then
-                    # التحقق إذا كانت تعمل بالفعل
-                    if pgrep -f "gt-tray.py" >/dev/null 2>&1; then
-                        echo "✅ System Tray يعمل بالفعل"
-                    else
-                        python3 "${SCRIPT_DIR}/gt-tray.py" &
-                        echo "✅ تم تشغيل System Tray"
-                        echo "💡 انقر بزر الماوس الأيمن على الأيقونة للتحكم"
-                    fi
-                else
-                    echo "❌ ملف gt-tray.py غير موجود"
-                    echo "💡 أعد تشغيل install.sh لتحميله"
-                fi
-            else
-                echo "❌ مكتبات Python غير مثبتة"
-                echo "📦 جاري التثبيت التلقائي..."
-
-                # كشف مدير الحزم
-                if command -v apt >/dev/null 2>&1; then
-                    sudo apt update && sudo apt install -y python3-pystray python3-pil && {
-                        python3 "${SCRIPT_DIR}/gt-tray.py" &
-                        echo "✅ تم تشغيل System Tray بعد التثبيت"
-                    }
-                elif command -v pacman >/dev/null 2>&1; then
-                    sudo pacman -Sy --noconfirm python-pystray python-pillow && {
-                        python3 "${SCRIPT_DIR}/gt-tray.py" &
-                        echo "✅ تم تشغيل System Tray بعد التثبيت"
-                    }
-                elif command -v dnf >/dev/null 2>&1; then
-                    sudo dnf install -y python3-pystray python3-pillow && {
-                        python3 "${SCRIPT_DIR}/gt-tray.py" &
-                        echo "✅ تم تشغيل System Tray بعد التثبيت"
-                    }
-                else
-                    echo "💡 قم بالتثبيت يدوياً:"
-                    echo "   pip install --user pystray pillow"
-                fi
-            fi
-        else
-            echo "❌ Python3 غير مثبت"
-            echo "💡 قم بتثبيته أولاً:"
-            echo "   sudo apt install python3  أو  sudo pacman -S python"
-        fi
-        ;;
-
-    --tray-restart)
-        echo "🔄 إعادة تشغيل System Tray..."
-        pkill -f "gt-tray.py" 2>/dev/null
-        sleep 2
-        if [ -f "${SCRIPT_DIR}/gt-tray.py" ]; then
-            python3 "${SCRIPT_DIR}/gt-tray.py" &
-            echo "✅ تم إعادة التشغيل"
-        else
-            echo "❌ ملف gt-tray.py غير موجود"
-        fi
-        ;;
-
-    --tray-stop)
-        echo "⏸️  إيقاف System Tray..."
-        if pkill -f "gt-tray.py" 2>/dev/null; then
-            echo "✅ تم إيقاف System Tray"
-        else
-            echo "ℹ️  System Tray غير قيد التشغيل"
         fi
         ;;
     --settings) setup_wizard ;;
@@ -1484,73 +1507,13 @@ case "${1:-}" in
         check_script_update
         ;;
     --tray)
-        echo "🖥️  تشغيل أيقونة شريط المهام..."
-        if command -v python3 >/dev/null 2>&1; then
-            if python3 -c "import pystray, PIL" 2>/dev/null; then
-                if [ -f "${SCRIPT_DIR}/gt-tray.py" ]; then
-                    # التحقق إذا كانت تعمل بالفعل
-                    if pgrep -f "gt-tray.py" >/dev/null 2>&1; then
-                        echo "✅ System Tray يعمل بالفعل"
-                    else
-                        python3 "${SCRIPT_DIR}/gt-tray.py" &
-                        echo "✅ تم تشغيل System Tray"
-                        echo "💡 انقر بزر الماوس الأيمن على الأيقونة للتحكم"
-                    fi
-                else
-                    echo "❌ ملف gt-tray.py غير موجود"
-                    echo "💡 أعد تشغيل install.sh لتحميله"
-                fi
-            else
-                echo "❌ مكتبات Python غير مثبتة"
-                echo "📦 جاري التثبيت التلقائي..."
-
-                # كشف مدير الحزم
-                if command -v apt >/dev/null 2>&1; then
-                    sudo apt update && sudo apt install -y python3-pystray python3-pil && {
-                        python3 "${SCRIPT_DIR}/gt-tray.py" &
-                        echo "✅ تم تشغيل System Tray بعد التثبيت"
-                    }
-                elif command -v pacman >/dev/null 2>&1; then
-                    sudo pacman -Sy --noconfirm python-pystray python-pillow && {
-                        python3 "${SCRIPT_DIR}/gt-tray.py" &
-                        echo "✅ تم تشغيل System Tray بعد التثبيت"
-                    }
-                elif command -v dnf >/dev/null 2>&1; then
-                    sudo dnf install -y python3-pystray python3-pillow && {
-                        python3 "${SCRIPT_DIR}/gt-tray.py" &
-                        echo "✅ تم تشغيل System Tray بعد التثبيت"
-                    }
-                else
-                    echo "💡 قم بالتثبيت يدوياً:"
-                    echo "   pip install --user pystray pillow"
-                fi
-            fi
-        else
-            echo "❌ Python3 غير مثبت"
-            echo "💡 قم بتثبيته أولاً:"
-            echo "   sudo apt install python3  أو  sudo pacman -S python"
-        fi
+        start_system_tray
         ;;
-
     --tray-restart)
-        echo "🔄 إعادة تشغيل System Tray..."
-        pkill -f "gt-tray.py" 2>/dev/null
-        sleep 2
-        if [ -f "${SCRIPT_DIR}/gt-tray.py" ]; then
-            python3 "${SCRIPT_DIR}/gt-tray.py" &
-            echo "✅ تم إعادة التشغيل"
-        else
-            echo "❌ ملف gt-tray.py غير موجود"
-        fi
+        restart_system_tray
         ;;
-
     --tray-stop)
-        echo "⏸️  إيقاف System Tray..."
-        if pkill -f "gt-tray.py" 2>/dev/null; then
-            echo "✅ تم إيقاف System Tray"
-        else
-            echo "ℹ️  System Tray غير قيد التشغيل"
-        fi
+        stop_system_tray
         ;;
     --status)
         echo "📊 حالة GT-salat-dikr:"
@@ -1588,24 +1551,6 @@ case "${1:-}" in
                     echo "❌ الإشعارات: متوقفة (sysvinit)"
                 fi
                 ;;
-
-        --tray-start)
-        if command -v python3 >/dev/null 2>&1; then
-            if python3 -c "import pystray, PIL" 2>/dev/null; then
-                echo "🚀 بدء تشغيل System Tray..."
-                python3 "${SCRIPT_DIR}/gt-tray.py" &
-                echo "✅ تم تشغيل System Tray"
-            else
-                echo "❌ مكتبات Python غير مثبتة"
-                echo "💡 قم بتثبيتها: pip install pystray Pillow"
-            fi
-        else
-            echo "❌ Python3 غير مثبت"
-        fi
-        ;;
-    --tray-stop)
-        pkill -f "gt-tray.py" 2>/dev/null && echo "✅ تم إيقاف System Tray" || echo "ℹ️ System Tray غير قيد التشغيل"
-        ;;
         esac
         
         # إذا لم تكن تعمل بأي نظام، تحقق كحالة طارئة إذا كانت هناك عملية نشطة
@@ -1693,7 +1638,7 @@ case "${1:-}" in
     --help|-h)
         cat <<EOF
 ═══════════════════════════════════════════════════════════
-  GT-salat-dikr - نظام إشعارات الصلاة والأذكار - الإصدار 3.1
+  GT-salat-dikr - نظام إشعارات الصلاة والأذكار - الإصدار 3.2
 ═══════════════════════════════════════════════════════════
 
 📦 التثبيت:
@@ -1707,7 +1652,6 @@ case "${1:-}" in
 📊 العرض:
   --show-timetable    عرض مواقيت الصلاة
   --status            عرض حالة البرنامج
-  --logs              عرض السجل
 
 🔔 الإشعارات:
   --notify-start      بدء الإشعارات حسب النظام المختار
@@ -1745,15 +1689,15 @@ case "${1:-}" in
   --update-azkar          تحديث الأذكار
   --self-update           تحديث البرنامج
   --update-timetables     تحديث مواقيت الصلاة للأشهر القادمة
-  --enable-auto-update    تفعيل التحديث التلقائي 🆕
-  --disable-auto-update   تعطيل التحديث التلقائي 🆕
-  --auto-update-status    عرض حالة التحديث التلقائي 🆕
-  --force-auto-update     إجبار التحديث التلقائي الآن 🆕
+  --enable-auto-update    تفعيل التحديث التلقائي
+  --disable-auto-update   تعطيل التحديث التلقائي
+  --auto-update-status    عرض حالة التحديث التلقائي
+  --force-auto-update     إجبار التحديث التلقائي الآن
 
 🖥️  System Tray (شريط المهام):
-    --tray              تشغيل أيقونة شريط المهام 🆕
-    --tray-restart      إعادة تشغيل الأيقونة 🆕
-    --tray-stop         إيقاف الأيقونة 🆕
+  --tray              تشغيل أيقونة شريط المهام
+  --tray-restart      إعادة تشغيل الأيقونة
+  --tray-stop         إيقاف الأيقونة
 
 ℹ️  --help, -h        هذه المساعدة
 
@@ -1762,7 +1706,12 @@ case "${1:-}" in
    - يمكن للبرنامج العمل بدون اتصال بالإنترنت
    - يتم تخزين بيانات 3 أشهر مسبقاً
 
-🔄 الميزة الجديدة في الإصدار 3.1: التحديث التلقائي!
+🖥️  الميزة الجديدة: System Tray Icon
+   - أيقونة في شريط المهام للتحكم السريع
+   - عرض مواقيت الصلاة والصلاة القادمة
+   - قائمة تحكم كاملة
+
+🔄 الميزة الجديدة في الإصدار 3.2: التحديث التلقائي!
    - تحديث أسبوعي تلقائي لمواقيت الصلاة
    - تحكم كامل في تفعيل/تعطيل الميزة
    - إشعارات ذكية بعمليات التحديث
@@ -1773,19 +1722,39 @@ EOF
         ;;
     '')
         {
+            echo "════════════════════════════════════════════════════════"
+            # عرض الذكر أولاً
             if [ "${ENABLE_ZIKR_NOTIFY:-1}" = "1" ]; then
                 zekr=$(show_random_zekr 2>/dev/null)
                 if [ -n "$zekr" ]; then
-                    echo "$zekr"
+                    echo "🕊️  $zekr"
                     echo ""
                 fi
             fi
+            
+            # عرض مواقيت الصلاة
             if get_next_prayer 2>/dev/null; then
                 leftmin=$((PRAYER_LEFT/60))
                 lefth=$((leftmin/60))
                 leftm=$((leftmin%60))
-                printf "\e[1;34m🕌 الصلاة القادمة: %s عند %s (باقي %02d:%02d)\e[0m\n" "$PRAYER_NAME" "$PRAYER_TIME" "$lefth" "$leftm"
+                
+                # تنسيق جميل
+                echo "🕌 الصلاة القادمة: \033[1;34m$PRAYER_NAME\033[0m"
+                echo "⏰ الموعد: \033[1;32m$PRAYER_TIME\033[0m"
+                
+                if [ $lefth -gt 0 ]; then
+                    printf "⏳ المتبقي: \033[1;33m%02d ساعة و %02d دقيقة\033[0m\n" "$lefth" "$leftm"
+                else
+                    printf "⏳ المتبقي: \033[1;33m%02d دقيقة\033[0m\n" "$leftm"
+                fi
+                
+                echo ""
+                echo "📌 استخدم \033[1;36mgtsalat --show-timetable\033[0m لعرض مواقيت اليوم"
+                echo "📌 استخدم \033[1;36mgtsalat --tray\033[0m لتشغيل أيقونة شريط المهام"
+            else
+                echo "📅 جاري تحميل مواقيت الصلاة..."
             fi
+            echo "════════════════════════════════════════════════════════"
         } 2>/dev/null
         ;;
     *)
