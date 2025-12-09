@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-GT-salat-dikr - System Tray Icon النسخة المحسنة
-إصدار يعمل بكفاءة مع جميع بيئات سطح المكتب
+GT-salat-dikr - System Tray Icon المحسن
+إصدار يعمل بكفاءة مع جميع البيئات
 """
 
 import os
@@ -10,7 +10,7 @@ import subprocess
 import threading
 import time
 import tempfile
-from datetime import datetime
+import re  # أضف هذا الاستيراد
 from pathlib import Path
 
 # إضافة المسار للوحدات
@@ -19,16 +19,34 @@ sys.path.insert(0, INSTALL_DIR)
 
 try:
     from pystray import Icon, Menu, MenuItem
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import Image, ImageDraw
     LIBRARIES_AVAILABLE = True
 except ImportError as e:
     print(f"❌ المكتبات المطلوبة غير مثبتة: {e}")
     print("\n💡 قم بتثبيت الحزم المطلوبة:")
-    print("   Arch: sudo pacman -S python-pystray python-pillow")
-    print("   Ubuntu: sudo apt install python3-pystray python3-pil")
-    print("   أو باستخدام pip: pip install --user pystray pillow")
+    print("   pip install --user pystray pillow")
     LIBRARIES_AVAILABLE = False
     sys.exit(1)
+
+def remove_ansi_codes(text):
+    """إزالة أكواد ANSI من النص"""
+    if not text:
+        return text
+    
+    # نمط regex لإزالة أكواد ANSI
+    ansi_escape = re.compile(r'''
+        \x1B  # ESC
+        (?:   # 7-bit C1 Fe
+        [@-Z\\-_]
+        |     # أو تسلسل 8-bit
+        \[    # CSI
+        [0-?]*  # Parameter bytes
+        [ -/]*  # Intermediate bytes
+        [@-~]   # Final byte
+        )
+    ''', re.VERBOSE)
+    
+    return ansi_escape.sub('', text)
 
 class PrayerTray:
     def __init__(self):
@@ -36,102 +54,78 @@ class PrayerTray:
         self.install_dir = INSTALL_DIR
         self.main_script = os.path.join(self.install_dir, "gt-salat-dikr.sh")
         self.icon_dir = os.path.join(self.install_dir, "icons")
-        
-        # إعدادات
-        self.config_file = os.path.join(self.install_dir, "settings.conf")
-        self.config = self.load_config()
-    
-    def load_config(self):
-        """تحميل الإعدادات من الملف"""
-        config = {}
-        try:
-            with open(self.config_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if '=' in line:
-                        key, value = line.strip().split('=', 1)
-                        # إزالة الاقتباس
-                        if value.startswith('"') and value.endswith('"'):
-                            value = value[1:-1]
-                        config[key] = value
-        except:
-            pass
-        return config
-    
-    def run_command(self, cmd, use_terminal=True):
-        """تشغيل أمر"""
-        try:
-            if use_terminal:
-                # إنشاء سكربت مؤقت
-                script_content = f"""#!/bin/bash
-cd "{self.install_dir}"
-echo "════════════════════════════════════════════════════════"
-echo "   GT-salat-dikr - تشغيل من System Tray"
-echo "════════════════════════════════════════════════════════"
-echo ""
-{cmd}
-echo ""
-echo "════════════════════════════════════════════════════════"
-read -p "اضغط Enter للإغلاق... "
-"""
-                
-                script_file = tempfile.NamedTemporaryFile(
-                    mode='w', 
-                    suffix='.sh', 
-                    delete=False,
-                    encoding='utf-8'
-                )
-                script_file.write(script_content)
-                script_file.close()
-                os.chmod(script_file.name, 0o755)
-                
-                # محاولة استخدام terminal متوفر
-                terminals = [
-                    ('gnome-terminal', ['--', 'bash', script_file.name]),
-                    ('konsole', ['-e', 'bash', script_file.name]),
-                    ('xfce4-terminal', ['-e', 'bash', script_file.name]),
-                    ('mate-terminal', ['-e', 'bash', script_file.name]),
-                    ('xterm', ['-e', 'bash', script_file.name]),
-                    ('terminator', ['-e', 'bash', script_file.name]),
-                ]
-                
-                for terminal, args in terminals:
-                    if subprocess.run(['which', terminal], capture_output=True).returncode == 0:
-                        subprocess.Popen([terminal] + args, start_new_session=True)
-                        return True
-                
-                # إذا لم يعثر على terminal، تشغيل مباشر
-                result = subprocess.run(['bash', script_file.name], capture_output=True, text=True)
-                if result.stdout:
-                    print(result.stdout)
-                return True
-                
-            else:
-                # تشغيل في الخلفية بدون terminal
-                subprocess.Popen(cmd, shell=True, start_new_session=True, cwd=self.install_dir)
-                return True
-                
-        except Exception as e:
-            print(f"⚠️  خطأ في تشغيل الأمر: {e}")
-            return False
-    
-    def get_prayer_times(self):
-        """الحصول على مواقيت الصلاة"""
+
+    def run_cmd_direct(self, cmd):
+        """تشغيل أمر مباشر وعرض النتيجة"""
         try:
             result = subprocess.run(
-                [self.main_script, "--show-timetable"],
+                cmd,
+                shell=True,
+                cwd=self.install_dir,
                 capture_output=True,
                 text=True,
-                timeout=5,
-                cwd=self.install_dir
+                timeout=10
             )
-            if result.returncode == 0:
-                return result.stdout
-        except:
-            pass
-        return "مواقيت الصلاة اليوم:\nالفجر: 06:00\nالظهر: 12:00\nالعصر: 15:00\nالمغرب: 18:00\nالعشاء: 19:00"
-    
-    def get_next_prayer(self):
-        """الحصول على الصلاة القادمة"""
+
+            if result.stdout:
+                print("=" * 50)
+                print(result.stdout)
+                print("=" * 50)
+
+            return True
+        except Exception as e:
+            print(f"⚠️  خطأ: {e}")
+            return False
+
+    def run_cmd_in_terminal(self, cmd, title="GT-salat-dikr"):
+        """تشغيل أمر في terminal جديد"""
+        try:
+            # إنشاء سكربت مؤقت
+            script_content = f"""#!/bin/bash
+echo "{title}"
+echo "══════════════════════════════════════════════════"
+cd "{self.install_dir}"
+{cmd}
+echo ""
+echo "══════════════════════════════════════════════════"
+read -p "اضغط Enter للإغلاق... "
+"""
+
+            script_file = tempfile.NamedTemporaryFile(
+                mode='w',
+                suffix='.sh',
+                delete=False
+            )
+            script_file.write(script_content)
+            script_file.close()
+            os.chmod(script_file.name, 0o755)
+
+            # تشغيل في terminal
+            terminals = [
+                ('gnome-terminal', ['--', 'bash', script_file.name]),
+                ('konsole', ['-e', 'bash', script_file.name]),
+                ('xfce4-terminal', ['-e', 'bash', script_file.name]),
+                ('mate-terminal', ['-e', 'bash', script_file.name]),
+                ('xterm', ['-e', 'bash', script_file.name]),
+                ('terminator', ['-e', 'bash', script_file.name]),
+            ]
+
+            for terminal, args in terminals:
+                if subprocess.run(['which', terminal], capture_output=True).returncode == 0:
+                    subprocess.Popen([terminal] + args, start_new_session=True)
+                    return True
+
+            # إذا لم يعثر على terminal، تشغيل مباشر
+            subprocess.Popen(['bash', script_file.name], start_new_session=True)
+            return True
+
+        except Exception as e:
+            print(f"❌ خطأ في فتح terminal: {e}")
+            # محاولة مباشرة
+            return self.run_cmd_direct(cmd)
+
+    def get_next_prayer_clean(self):
+        """الحصول على الصلاة القادمة بدون أكواد ANSI"""
         try:
             result = subprocess.run(
                 [self.main_script],
@@ -140,189 +134,229 @@ read -p "اضغط Enter للإغلاق... "
                 timeout=5,
                 cwd=self.install_dir
             )
+            
             if result.returncode == 0:
-                for line in result.stdout.split('\n'):
+                output = result.stdout
+                
+                # إزالة أكواد ANSI
+                clean_output = remove_ansi_codes(output)
+                
+                # البحث عن سطر الصلاة القادمة
+                for line in clean_output.split('\n'):
                     if 'الصلاة القادمة:' in line:
-                        return line.strip()
-        except:
-            pass
-        return "الصلاة القادمة: جاري التحديث..."
-    
-    def get_location_info(self):
-        """الحصول على معلومات الموقع"""
-        city = self.config.get('CITY', 'غير محدد')
-        country = self.config.get('COUNTRY', 'غير محدد')
-        return f"{city}, {country}"
-    
-    def load_icon_image(self):
-        """تحميل صورة الأيقونة"""
-        # محاولة تحميل الأيقونة المحفوظة
-        icon_sizes = [32, 64, 128]
+                        # تنسيق النظيف: إزالة أي مسافات زائدة وتنسيق جميل
+                        line = line.strip()
+                        line = line.replace('الصلاة القادمة:', '🕌')
+                        return line
+                        
+                # إذا لم يجد السطر، إنشاء تنسيق جديد
+                return self.extract_prayer_info(clean_output)
+                
+        except Exception as e:
+            print(f"⚠️  خطأ في الحصول على موعد الصلاة: {e}")
         
-        for size in icon_sizes:
-            icon_path = os.path.join(self.icon_dir, f"prayer-icon-{size}.png")
-            if os.path.exists(icon_path):
+        return "🕌 الصلاة القادمة: جاري التحديث..."
+
+    def extract_prayer_info(self, output):
+        """استخراج معلومات الصلاة من النص النظيف"""
+        lines = output.strip().split('\n')
+        if len(lines) >= 2:
+            # آخر سطر عادة يحتوي على معلومات الصلاة
+            last_line = lines[-1].strip()
+            
+            # تحليل السطر
+            if 'الصلاة القادمة:' in last_line:
+                parts = last_line.split('الصلاة القادمة:')
+                if len(parts) == 2:
+                    time_part = parts[0].strip()
+                    prayer_part = parts[1].strip()
+                    return f"⏰ {time_part} 🕌 {prayer_part}"
+            
+            return last_line
+        
+        return "🕌 الصلاة القادمة: جاري التحديث..."
+
+    def get_next_prayer_tooltip(self):
+        """الحصول على نص للتلميح مع تنسيق أنظف"""
+        try:
+            # تشغيل الأمر الخاص بمعلومات الصلاة القادمة
+            result = subprocess.run(
+                [self.main_script, '--status'],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                cwd=self.install_dir
+            )
+            
+            if result.returncode == 0:
+                output = remove_ansi_codes(result.stdout)
+                
+                # البحث عن معلومات الصلاة القادمة في --status
+                lines = output.split('\n')
+                for i, line in enumerate(lines):
+                    if 'الصلاة القادمة:' in line:
+                        # محاولة الحصول على المعلومات من الأسطر التالية
+                        prayer_info = line.strip()
+                        
+                        # إزالة الكلمات الزائدة
+                        prayer_info = prayer_info.replace('الصلاة القادمة:', '')
+                        
+                        # البحث عن الوقت في السطر التالي
+                        if i+1 < len(lines):
+                            time_line = lines[i+1].strip()
+                            if 'الوقت:' in time_line:
+                                time_info = time_line.replace('الوقت:', '').strip()
+                                return f"🕌 الصلاة القادمة: {prayer_info.strip()} ⏰ {time_info}"
+                        
+                        return f"🕌 {prayer_info.strip()}"
+        
+        except Exception as e:
+            print(f"⚠️  خطأ في الحصول على معلومات الصلاة: {e}")
+        
+        # استدعاء الإصدار القديم كنسخة احتياطية
+        return self.get_next_prayer_clean()
+
+    def load_icon(self):
+        """تحميل الأيقونة"""
+        icon_paths = [
+            os.path.join(self.icon_dir, "prayer-icon-32.png"),
+            os.path.join(self.icon_dir, "prayer-icon-64.png"),
+            os.path.join(self.icon_dir, "icon.png"),
+        ]
+
+        for path in icon_paths:
+            if os.path.exists(path):
                 try:
-                    img = Image.open(icon_path)
-                    # تغيير الحجم إذا لزم
-                    if img.size[0] != 32 or img.size[1] != 32:
-                        img = img.resize((32, 32), Image.Resampling.LANCZOS)
-                    return img
-                except Exception as e:
-                    print(f"⚠️  خطأ في تحميل الأيقونة {icon_path}: {e}")
+                    return Image.open(path)
+                except:
                     continue
-        
+
         # إنشاء أيقونة افتراضية
-        print("🔨 إنشاء أيقونة افتراضية...")
-        image = Image.new('RGBA', (32, 32), (255, 255, 255, 0))
-        draw = ImageDraw.Draw(image)
-        
-        # ألوان جميلة
-        green_dark = (46, 125, 50)
-        green_light = (56, 142, 60)
-        blue = (33, 97, 140)
-        yellow = (255, 235, 59)
-        
-        # رسم تصميم جميل
-        # قاعدة المسجد
-        draw.rectangle([8, 20, 24, 26], fill=green_dark)
-        # جدار المسجد
-        draw.rectangle([10, 14, 22, 20], fill=green_light)
-        # قبة المسجد
-        draw.ellipse([10, 6, 22, 14], fill=blue)
-        # هلال
-        draw.arc([14, 8, 18, 12], 30, 150, fill=yellow, width=2)
-        # نجمة صغيرة
-        draw.regular_polygon((16, 12), 3, 4, fill=yellow, rotation=30)
-        
-        return image
-    
+        img = Image.new('RGBA', (32, 32), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(img)
+
+        # تصميم بسيط
+        draw.rectangle([8, 20, 24, 26], fill=(46, 125, 50))
+        draw.rectangle([10, 14, 22, 20], fill=(56, 142, 60))
+        draw.ellipse([10, 6, 22, 14], fill=(33, 97, 140))
+        draw.arc([14, 8, 18, 12], 30, 150, fill=(255, 235, 59), width=2)
+
+        return img
+
     def create_menu(self):
-        """إنشاء قائمة النظام"""
-        next_prayer = self.get_next_prayer()
-        location = self.get_location_info()
-        
+        """إنشاء القائمة - إصدار مبسط"""
+        next_prayer = self.get_next_prayer_clean()
+
         menu_items = []
-        
-        # معلومات البرنامج
-        menu_items.append(MenuItem("🕌 GT-salat-dikr v3.2", None, enabled=False))
-        menu_items.append(MenuItem(f"📍 {location}", None, enabled=False))
-        menu_items.append(MenuItem("══════════════════════", None, enabled=False))
-        
-        # الصلاة القادمة
-        menu_items.append(MenuItem(f"⏰ {next_prayer}", None, enabled=False))
+
+        # العنوان
+        menu_items.append(MenuItem("🕌 GT-salat-dikr", None, enabled=False))
+        menu_items.append(MenuItem("══════════════════", None, enabled=False))
+
+        # الصلاة القادمة (نص نظيف بدون أكواد ANSI)
+        menu_items.append(MenuItem(f"{next_prayer}", None, enabled=False))
         menu_items.append(MenuItem("", None, enabled=False))
-        
+
         # الأوامر الأساسية
-        menu_items.append(MenuItem("📊 مواقيت اليوم", 
-            lambda: self.run_command(f"./gt-salat-dikr.sh --show-timetable")))
-        
-        menu_items.append(MenuItem("🕊️  إظهار ذكر", 
-            lambda: self.run_command(f"./gt-salat-dikr.sh")))
-        
-        menu_items.append(MenuItem("📈 حالة البرنامج", 
-            lambda: self.run_command(f"./gt-salat-dikr.sh --status")))
-        
+        menu_items.append(MenuItem("📊 مواقيت اليوم",
+            lambda: self.run_cmd_in_terminal("./gt-salat-dikr.sh --show-timetable", "مواقيت الصلاة")))
+
+        menu_items.append(MenuItem("🕊️  إظهار ذكر",
+            lambda: self.run_cmd_in_terminal("./gt-salat-dikr.sh", "ذكر اليوم")))
+
+        menu_items.append(MenuItem("📈 حالة البرنامج",
+            lambda: self.run_cmd_in_terminal("./gt-salat-dikr.sh --status", "حالة البرنامج")))
+
         menu_items.append(MenuItem("", None, enabled=False))
-        menu_items.append(MenuItem("══════════════════════", None, enabled=False))
-        
+        menu_items.append(MenuItem("══════════════════", None, enabled=False))
+
         # التحكم
-        menu_items.append(MenuItem("⚙️  الإعدادات", 
-            lambda: self.run_command(f"./gt-salat-dikr.sh --settings")))
-        
-        menu_items.append(MenuItem("🔄 تحديث المواقيت", 
-            lambda: self.run_command(f"./gt-salat-dikr.sh --update-timetables")))
-        
+        menu_items.append(MenuItem("⚙️  الإعدادات",
+            lambda: self.run_cmd_in_terminal("./gt-salat-dikr.sh --settings", "الإعدادات")))
+
+        menu_items.append(MenuItem("🔄 تحديث المواقيت",
+            lambda: self.run_cmd_in_terminal("./gt-salat-dikr.sh --update-timetables", "تحديث المواقيت")))
+
         menu_items.append(MenuItem("", None, enabled=False))
-        
+
         # الإشعارات
-        menu_items.append(MenuItem("🔔 التحكم بالإشعارات:", None, enabled=False))
-        menu_items.append(MenuItem("  ▶️  تشغيل الإشعارات", 
-            lambda: self.run_command(f"./gt-salat-dikr.sh --notify-start", False)))
-        menu_items.append(MenuItem("  ⏸️  إيقاف الإشعارات", 
-            lambda: self.run_command(f"./gt-salat-dikr.sh --notify-stop", False)))
-        
+        menu_items.append(MenuItem("🔔 الإشعارات:", None, enabled=False))
+        menu_items.append(MenuItem("  ▶️  تشغيل",
+            lambda: self.run_cmd_direct("./gt-salat-dikr.sh --notify-start")))
+        menu_items.append(MenuItem("  ⏸️  إيقاف",
+            lambda: self.run_cmd_direct("./gt-salat-dikr.sh --notify-stop")))
+
         menu_items.append(MenuItem("", None, enabled=False))
-        
+
         # إدارة الأيقونة
-        menu_items.append(MenuItem("🖥️  إدارة الأيقونة:", None, enabled=False))
-        menu_items.append(MenuItem("  🔄 إعادة تشغيل الأيقونة", lambda: self.restart_tray()))
-        menu_items.append(MenuItem("  ❌ إغلاق الأيقونة", lambda: self.icon.stop()))
-        
+        menu_items.append(MenuItem("🖥️  الأيقونة:", None, enabled=False))
+        menu_items.append(MenuItem("  🔄 إعادة تشغيل", lambda: self.restart()))
+        menu_items.append(MenuItem("  ❌ إغلاق", lambda: self.icon.stop()))
+
         menu_items.append(MenuItem("", None, enabled=False))
-        menu_items.append(MenuItem("══════════════════════", None, enabled=False))
-        menu_items.append(MenuItem("❓ المساعدة", 
-            lambda: self.run_command(f"./gt-salat-dikr.sh --help")))
-        
+        menu_items.append(MenuItem("══════════════════", None, enabled=False))
+        menu_items.append(MenuItem("❓ المساعدة",
+            lambda: self.run_cmd_in_terminal("./gt-salat-dikr.sh --help", "مساعدة")))
+
         return Menu(*menu_items)
-    
-    def restart_tray(self):
+
+    def restart(self):
         """إعادة تشغيل الأيقونة"""
         print("🔄 إعادة تشغيل الأيقونة...")
         if self.icon:
             self.icon.stop()
         time.sleep(1)
         os.execv(sys.executable, [sys.executable] + sys.argv)
-    
+
     def update_tooltip(self):
-        """تحديث التلميح تلقائياً"""
+        """تحديث التلميح"""
         while True:
             if self.icon and hasattr(self.icon, 'visible') and self.icon.visible:
                 try:
-                    next_prayer = self.get_next_prayer()
-                    location = self.get_location_info()
-                    self.icon.title = f"GT-salat-dikr\n{location}\n{next_prayer}"
-                except:
-                    pass
-            time.sleep(60)  # تحديث كل دقيقة
-    
+                    # استخدام الإصدار النظيف للتلميح
+                    prayer_tooltip = self.get_next_prayer_tooltip()
+                    self.icon.title = f"GT-salat-dikr\n{prayer_tooltip}"
+                except Exception as e:
+                    print(f"⚠️  خطأ في تحديث التلميح: {e}")
+                    self.icon.title = "GT-salat-dikr\n🕌 تذكير الصلاة والأذكار"
+            time.sleep(30)  # تحديث كل 30 ثانية
+
     def run(self):
         """تشغيل الأيقونة"""
-        print("🚀 تشغيل أيقونة شريط المهام...")
-        print("📌 الأيقونة في منطقة الإشعارات (بجانب الساعة)")
-        print("🖱️  انقر بزر الماوس الأيمن للقائمة الكاملة")
-        print("💡 قد يستغرق ظهور الأيقونة بضع ثواني")
-        
-        # تحميل الأيقونة
-        icon_image = self.load_icon_image()
-        
-        # إنشاء الأيقونة
+        print("🚀 بدء أيقونة System Tray...")
+        print("📌 الأيقونة في شريط المهام")
+        print("🖱️  انقر بزر الماوس الأيمن للقائمة")
+
+        icon_image = self.load_icon()
         self.icon = Icon(
             "gt_salat_dikr",
             icon_image,
             "GT-salat-dikr - تذكير الصلاة والأذكار",
             self.create_menu()
         )
-        
-        # بدء تحديث التلميح
+
         updater = threading.Thread(target=self.update_tooltip, daemon=True)
         updater.start()
-        
-        # تشغيل الأيقونة
+
         try:
             self.icon.run()
         except KeyboardInterrupt:
-            print("\n✅ تم الإغلاق بواسطة المستخدم")
+            print("\n✅ تم الإغلاق")
         except Exception as e:
-            print(f"❌ خطأ في تشغيل الأيقونة: {e}")
+            print(f"❌ خطأ: {e}")
 
 def main():
-    """الدالة الرئيسية"""
     if not LIBRARIES_AVAILABLE:
         print("❌ لا يمكن تشغيل System Tray - المكتبات غير مثبتة")
-        print("💡 قم بتثبيت المكتبات أولاً")
         return 1
-    
-    # التأكد من وجود البرنامج الرئيسي
+
     if not os.path.exists(os.path.expanduser("~/.GT-salat-dikr/gt-salat-dikr.sh")):
         print("❌ البرنامج الرئيسي غير مثبت")
         print("💡 قم بتشغيل install.sh أولاً")
         return 1
-    
-    # تشغيل الأيقونة
+
     tray = PrayerTray()
     tray.run()
-    
     return 0
 
 if __name__ == "__main__":
