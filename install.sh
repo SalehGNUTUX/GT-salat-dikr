@@ -585,10 +585,10 @@ EOF
 
 # إعداد لـ KDE أيضًا
 if [ -d "$HOME/.config/plasma-workspace/env" ]; then
-    cat > "$HOME/.config/plasma-workspace/env/gt-salat-dikr.sh" <<EOF
+    cat > "$HOME/.config/plasma-workspace/env/gt-salat-dikr.sh" <<'EOF'
 #!/bin/bash
 sleep 30
-cd "$INSTALL_DIR"
+cd "$HOME/.GT-salat-dikr"
 ./gt-salat-dikr.sh --notify-start >/dev/null 2>&1 &
 sleep 20
 python3 ./gt-tray.py >/dev/null 2>&1 &
