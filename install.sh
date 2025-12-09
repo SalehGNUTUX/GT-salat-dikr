@@ -346,26 +346,30 @@ echo "🔧 إعدادات الطرفية..."
 setup_shell_config() {
     local shell_file="$1"
     local shell_name="$2"
-    
+
     if [ -f "$shell_file" ]; then
         echo "  إعداد $shell_name..."
-        
+
         # إزالة أي إعدادات قديمة
         sed -i '/# GT-salat-dikr/,/fi/d' "$shell_file" 2>/dev/null || true
         sed -i '/gtsalat/d' "$shell_file" 2>/dev/null || true
         sed -i '/GT-salat-dikr/d' "$shell_file" 2>/dev/null || true
-        
-        # إضافة الإعدادات البسيطة
+
+        # إضافة الإعدادات البسيطة - الإصلاح هنا
         cat >> "$shell_file" <<EOF
 
 # GT-salat-dikr - تذكير الصلاة والأذكار
 if [ -f "$INSTALL_DIR/$MAIN_SCRIPT" ]; then
     alias gtsalat="$INSTALL_DIR/$MAIN_SCRIPT"
+fi
+
+# تشغيل البرنامج عند فتح الطرفية
+if [ -f "$INSTALL_DIR/$MAIN_SCRIPT" ]; then
     echo ""
-    $INSTALL_DIR/$MAIN_SCRIPT
+    "$INSTALL_DIR/$MAIN_SCRIPT"
 fi
 EOF
-        
+
         echo "  ✅ تم إعداد $shell_name"
     else
         echo "  ⚠️  ملف $shell_name غير موجود"
