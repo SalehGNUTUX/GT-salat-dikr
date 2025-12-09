@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# GT-salat-dikr Simplified Installation Script - v3.2.2
-# تثبيت سلس ومبسط مع System Tray
+# GT-salat-dikr Hybrid Installation Script - v3.2.2-hybrid
+# تثبيت سلس ومبسط مع System Tray (مدمج من النسختين)
 #
 
 set -e
@@ -12,7 +12,7 @@ echo "════════════════════════�
 echo ""
 
 # منع التشغيل بصلاحيات root
-if [ "$EUID" -eq 0 ]; then 
+if [ "$EUID" -eq 0 ]; then
     echo "⚠️  لا تشغل هذا السكربت بصلاحيات root، استخدم حساب المستخدم العادي."
     exit 1
 fi
@@ -39,7 +39,7 @@ done
 # تثبيت الأدوات الناقصة تلقائياً
 if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
     echo "📦 تثبيت الأدوات الناقصة: ${MISSING_TOOLS[*]}"
-    
+
     # الكشف عن مدير الحزم
     if command -v apt >/dev/null 2>&1; then
         sudo apt update && sudo apt install -y "${MISSING_TOOLS[@]}" || {
@@ -132,7 +132,7 @@ echo "⬇️  جاري تحميل الأيقونات..."
 for size in 32 64 128; do
     icon_url="$REPO_BASE/icons/prayer-icon-${size}.png"
     icon_file="$ICON_DIR/prayer-icon-${size}.png"
-    
+
     if curl -fsSL "$icon_url" -o "$icon_file" 2>/dev/null; then
         echo "  ✅ تم تحميل أيقونة ${size}x${size}"
     else
@@ -154,13 +154,13 @@ COUNTRY="السعودية"
 if command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
     echo "🔍 جاري اكتشاف موقعك..."
     LOCATION_DATA=$(curl -fsSL "http://ip-api.com/json/" --connect-timeout 5 2>/dev/null || echo "")
-    
+
     if [ -n "$LOCATION_DATA" ]; then
         DETECTED_LAT=$(echo "$LOCATION_DATA" | jq -r '.lat // empty' 2>/dev/null)
         DETECTED_LON=$(echo "$LOCATION_DATA" | jq -r '.lon // empty' 2>/dev/null)
         DETECTED_CITY=$(echo "$LOCATION_DATA" | jq -r '.city // empty' 2>/dev/null)
         DETECTED_COUNTRY=$(echo "$LOCATION_DATA" | jq -r '.country // empty' 2>/dev/null)
-        
+
         if [ -n "$DETECTED_LAT" ] && [ -n "$DETECTED_LON" ]; then
             LAT="$DETECTED_LAT"
             LON="$DETECTED_LON"
@@ -254,27 +254,27 @@ echo "📥 جلب مواقيت الصلاة للأشهر القادمة..."
 # تشغيل التحميل في الخلفية دون إزعاج المستخدم
 (
     echo "  ⏳ جاري تحميل بيانات الصلاة..."
-    
+
     # التحقق من اتصال الإنترنت
-    if curl -s --connect-timeout 5 https://api.aladhan.com >/dev/null 2>&1; then
+    if curl -s --connect-timeout 5 https://api.aladhan.com >/dev/null 2>/dev/null; then
         # إنشاء مجلد الجداول الشهرية
         mkdir -p "$INSTALL_DIR/monthly_timetables"
-        
+
         # تحميل بيانات 3 أشهر
         CURRENT_YEAR=$(date +%Y)
         CURRENT_MONTH=$(date +%m)
-        
+
         for i in {0..2}; do
             YEAR=$((CURRENT_YEAR + (CURRENT_MONTH + i - 1) / 12))
             MONTH=$(((CURRENT_MONTH + i - 1) % 12 + 1))
             MONTH_FORMATTED=$(printf "%02d" "$MONTH")
-            
+
             echo "  📅 تحميل شهر $MONTH_FORMATTED-$YEAR..."
             curl -fsSL "https://api.aladhan.com/v1/calendar/${YEAR}/${MONTH_FORMATTED}?latitude=${LAT}&longitude=${LON}&method=${METHOD_ID}" \
                 -o "$INSTALL_DIR/monthly_timetables/timetable_${YEAR}_${MONTH_FORMATTED}.json" 2>/dev/null || true
             sleep 1
         done
-        
+
         echo "  ✅ تم تحميل مواقيت الصلاة لـ 3 أشهر"
     else
         echo "  ⚠️  لا يوجد اتصال بالإنترنت، سيتم استخدام البيانات المحلية عند الحاجة"
@@ -287,7 +287,7 @@ echo "🚀 إعداد التشغيل التلقائي..."
 
 if [ "$NOTIFY_SYSTEM" = "systemd" ]; then
     mkdir -p "$HOME/.config/systemd/user"
-    
+
     # إنشاء خدمة systemd
     cat > "$HOME/.config/systemd/user/gt-salat-dikr.service" <<EOF
 [Unit]
@@ -306,11 +306,11 @@ Environment="DISPLAY=:0"
 [Install]
 WantedBy=default.target
 EOF
-    
+
     systemctl --user daemon-reload >/dev/null 2>&1
     systemctl --user enable gt-salat-dikr.service >/dev/null 2>&1
     echo "✅ تم تفعيل التشغيل التلقائي (systemd)"
-    
+
     # محاولة البدء الآن
     if systemctl --user start gt-salat-dikr.service >/dev/null 2>&1; then
         echo "✅ تم بدء الخدمة"
@@ -331,7 +331,7 @@ Terminal=false
 Categories=Utility;
 EOF
     echo "✅ تم تفعيل التشغيل التلقائي (autostart)"
-    
+
     # بدء الإشعارات الآن
     if [ -f "$MAIN_SCRIPT" ]; then
         "$MAIN_SCRIPT" --notify-start >/dev/null 2>&1 &
@@ -339,49 +339,41 @@ EOF
     fi
 fi
 
-# ---------- المرحلة 8: إعدادات الطرفية ----------
+# ---------- المرحلة 8: إعدادات الطرفية (من النسخة القديمة) ----------
 echo ""
 echo "🔧 إعدادات الطرفية..."
 
-setup_shell_config() {
+# استخدام الدالة الأصلية من الإصدار القديم (كانت تعمل)
+setup_terminal_config() {
     local shell_file="$1"
     local shell_name="$2"
-
+    
     if [ -f "$shell_file" ]; then
-        echo "  إعداد $shell_name..."
-
-        # إزالة أي إعدادات قديمة
-        sed -i '/# GT-salat-dikr/,/fi/d' "$shell_file" 2>/dev/null || true
-        sed -i '/gtsalat/d' "$shell_file" 2>/dev/null || true
-        sed -i '/GT-salat-dikr/d' "$shell_file" 2>/dev/null || true
-
-        # إضافة الإعدادات البسيطة - الإصلاح هنا
-        cat >> "$shell_file" <<EOF
-
-# GT-salat-dikr - تذكير الصلاة والأذكار
-if [ -f "$INSTALL_DIR/$MAIN_SCRIPT" ]; then
-    alias gtsalat="$INSTALL_DIR/$MAIN_SCRIPT"
-fi
-
-# تشغيل البرنامج عند فتح الطرفية
-if [ -f "$INSTALL_DIR/$MAIN_SCRIPT" ]; then
-    echo ""
-    "$INSTALL_DIR/$MAIN_SCRIPT"
-fi
-EOF
-
-        echo "  ✅ تم إعداد $shell_name"
+        # التحقق إذا كانت الإعدادات موجودة مسبقاً
+        if ! grep -q "gtsalat" "$shell_file" 2>/dev/null; then
+            echo "" >> "$shell_file"
+            echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$shell_file"
+            echo "alias gtsalat='$HOME/.local/bin/gtsalat'" >> "$shell_file"
+            echo "echo ''" >> "$shell_file"
+            echo "$HOME/.local/bin/gtsalat" >> "$shell_file"
+            echo "✅ تم إضافة إعدادات GT-salat-dikr إلى $shell_name"
+        else
+            echo "ℹ️  إعدادات GT-salat-dikr موجودة مسبقاً في $shell_name"
+        fi
     else
-        echo "  ⚠️  ملف $shell_name غير موجود"
+        echo "⚠️  ملف $shell_name غير موجود، تخطي الإعدادات"
     fi
 }
 
 # إعدادات لأنواع الطرفيات المختلفة
-setup_shell_config "$HOME/.bashrc" "Bash"
-setup_shell_config "$HOME/.bash_profile" "Bash Profile"
+setup_terminal_config "$HOME/.bashrc" "Bash"
 
 if [ -f "$HOME/.zshrc" ]; then
-    setup_shell_config "$HOME/.zshrc" "Zsh"
+    setup_terminal_config "$HOME/.zshrc" "Zsh"
+fi
+
+if [ -f "$HOME/.bash_profile" ]; then
+    setup_terminal_config "$HOME/.bash_profile" "Bash Profile"
 fi
 
 echo "✅ تم إعداد الطرفية لعرض الذكر وموعد الصلاة عند الافتتاح"
@@ -397,14 +389,14 @@ check_and_install_python_deps() {
         echo "  💡 سيتم استخدام الإشعارات العادية بدون System Tray"
         return 1
     fi
-    
+
     # التحقق من المكتبات
     if python3 -c "import pystray, PIL" 2>/dev/null; then
         echo "  ✅ مكتبات Python مثبتة"
         return 0
     else
         echo "  📦 جاري تثبيت المكتبات..."
-        
+
         # تثبيت باستخدام مدير الحزم المناسب
         if command -v apt >/dev/null 2>&1; then
             sudo apt update && sudo apt install -y python3-pystray python3-pil 2>/dev/null && {
@@ -422,14 +414,14 @@ check_and_install_python_deps() {
                 return 0
             }
         fi
-        
+
         # محاولة باستخدام pip
         echo "  🔨 محاولة التثبيت باستخدام pip..."
         if python3 -m pip install --user pystray pillow 2>/dev/null; then
             echo "  ✅ تم التثبيت (pip)"
             return 0
         fi
-        
+
         echo "  ❌ فشل تثبيت المكتبات"
         echo "  💡 يمكنك تثبيتها يدوياً لاحقاً"
         return 1
@@ -460,7 +452,36 @@ else
     echo "ℹ️  يمكنك تشغيل System Tray لاحقاً: gtsalat --tray"
 fi
 
-# ---------- المرحلة 11: العرض النهائي ----------
+# ---------- المرحلة 11: السؤال عن الإعدادات التفصيلية ----------
+echo ""
+echo "⚙️  تكوين إضافي اختياري..."
+
+read -p "هل تريد تعديل الإعدادات الآن؟ (موقع، طريقة حساب، إلخ) [y/N]: " CUSTOM_SETTINGS
+CUSTOM_SETTINGS=${CUSTOM_SETTINGS:-N}
+if [[ "$CUSTOM_SETTINGS" =~ ^[Yy]$ ]]; then
+    echo "🎛️  تشغيل معالج الإعدادات..."
+    "$INSTALL_DIR/$MAIN_SCRIPT" --settings
+fi
+
+read -p "هل تريد تفعيل التحديث التلقائي الأسبوعي لمواقيت الصلاة؟ [y/N]: " AUTO_UPDATE
+AUTO_UPDATE=${AUTO_UPDATE:-N}
+if [[ "$AUTO_UPDATE" =~ ^[Yy]$ ]]; then
+    echo "🔄 تفعيل التحديث التلقائي..."
+    "$INSTALL_DIR/$MAIN_SCRIPT" --enable-auto-update
+fi
+
+read -p "هل تريد بدء الإشعارات الآن؟ [Y/n]: " START_NOTIFY
+START_NOTIFY=${START_NOTIFY:-Y}
+if [[ "$START_NOTIFY" =~ ^[Yy]$ ]]; then
+    echo "🔔 بدء تشغيل الإشعارات..."
+    if "$INSTALL_DIR/$MAIN_SCRIPT" --notify-start; then
+        echo "✅ تم بدء الإشعارات بنجاح!"
+    else
+        echo "⚠️  يمكنك تشغيلها يدوياً لاحقاً: gtsalat --notify-start"
+    fi
+fi
+
+# ---------- المرحلة 12: العرض النهائي ----------
 echo ""
 echo "════════════════════════════════════════════════════════"
 echo "🎉 تم التثبيت بنجاح!"
@@ -474,7 +495,7 @@ echo "════════════════════════�
 echo "════════════════════════════════════════════════════════"
 
 echo ""
-echo "📋 الإعدادات الافتراضية المطبقة:"
+echo "📋 ملخص الإعدادات المطبقة:"
 echo "════════════════════════════════════════════════════════"
 echo "📍 الموقع: $CITY, $COUNTRY"
 echo "🧭 الإحداثيات: $LAT, $LON"
@@ -484,17 +505,17 @@ echo "🕊️ فاصل الأذكار: $((ZIKR_NOTIFY_INTERVAL/60)) دقيقة"
 echo "📢 نوع الأذان: $ADHAN_TYPE (قصير افتراضي)"
 echo "🔔 جميع الإشعارات: مفعلة ✓"
 echo "🛠 نظام الخدمة: $NOTIFY_SYSTEM"
-echo "🔄 التحديث التلقائي: معطل (لتجنب استهلاك البيانات)"
+echo "🔄 التحديث التلقائي: معطل (إلا إذا قمت بتفعيله)"
 echo "💾 التخزين المحلي: جاري التحميل تلقائياً ✓"
 echo "════════════════════════════════════════════════════════"
 
 echo ""
 echo "🔧 أوامر التحكم السريعة:"
 echo "════════════════════════════════════════════════════════"
-echo "gtsalat                    # عرض ذكر وموعد الصلاة"
+echo "gtsalat                    # عرض ذكر وموعد الصلاة (عند فتح terminal)"
 echo "gtsalat --show-timetable   # عرض مواقيت اليوم"
 echo "gtsalat --status          # عرض حالة البرنامج"
-echo "gtsalat --settings        # تعديل الإعدادات (لاحقاً)"
+echo "gtsalat --settings        # تعديل الإعدادات"
 echo "gtsalat --notify-stop     # إيقاف الإشعارات مؤقتاً"
 echo "gtsalat --notify-start    # استئناف الإشعارات"
 echo "════════════════════════════════════════════════════════"
@@ -507,7 +528,7 @@ echo "📊 تعرض الأيقونة: مواقيت اليوم + الصلاة ا�
 echo "🔧 أوامر System Tray:"
 echo "   gtsalat --tray         # تشغيل الأيقونة"
 echo "   gtsalat --tray-restart # إعادة تشغيلها"
-echo "   gtsalat --tray-stop    # إيقافها"
+echo "   gtsalat --tray-stop    # إوقفها"
 echo "════════════════════════════════════════════════════════"
 
 echo ""
@@ -515,8 +536,8 @@ echo "📝 ملاحظات مهمة:"
 echo "════════════════════════════════════════════════════════"
 echo "• البرنامج يعمل تلقائياً عند تشغيل الجهاز"
 echo "• تم تفعيل التخزين المحلي (يعمل بدون إنترنت)"
-echo "• الأذان القصير مفعل افتراضياً (يمكن تغييره)"
 echo "• يمكنك تعديل أي إعداد لاحقاً: gtsalat --settings"
+echo "• عند فتح terminal جديد، سيظهر تلقائياً ذكر وموعد الصلاة"
 echo "════════════════════════════════════════════════════════"
 
 echo ""
@@ -529,4 +550,5 @@ echo "════════════════════════�
 
 echo ""
 echo "✅ تم اكتمال التثبيت! افتح terminal جديد لرؤية النتيجة"
+echo "   أو نفذ الآن: source ~/.bashrc"
 echo ""
