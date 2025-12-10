@@ -1,12 +1,13 @@
 #!/bin/bash
 #
-# GT-salat-dikr Fixed Auto-start Installation Script - v3.2.2-fixed
+# GT-salat-dikr - Complete Installation Script v3.2.3
+# يدعم جميع التوزيعات ويتضمن System Tray تلقائياً
 #
 
 set -e
 
 echo "════════════════════════════════════════════════════════"
-echo "  تثبيت GT-salat-dikr مع إصلاح الإقلاع التلقائي"
+echo "  تثبيت GT-salat-dikr - نظام إشعارات الصلاة والأذكار"
 echo "════════════════════════════════════════════════════════"
 echo ""
 
@@ -15,314 +16,230 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
+# ---------- تعريف المتغيرات ----------
 INSTALL_DIR="$HOME/.GT-salat-dikr"
 REPO_BASE="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main"
-MAIN_SCRIPT="gt-salat-dikr.sh"
-CONFIG_FILE="$INSTALL_DIR/settings.conf"
-TRAY_SCRIPT="$INSTALL_DIR/gt-tray.py"
-DESKTOP_FILE="$INSTALL_DIR/gt-salat-dikr.desktop"
+LOG_FILE="$INSTALL_DIR/install.log"
+TEMP_DIR="/tmp/gt-salat-install-$$"
 
-# ---------- المرحلة 1: التثبيت الأساسي ----------
-echo "📥 تحميل البرنامج..."
-mkdir -p "$INSTALL_DIR"
-cd "$INSTALL_DIR"
-
-# تحميل الملفات الأساسية
-ESSENTIAL_FILES=(
-    "$MAIN_SCRIPT"
+# قائمة الملفات المطلوبة
+FILES_TO_DOWNLOAD=(
+    "gt-salat-dikr.sh"
     "azkar.txt"
     "adhan.ogg"
     "short_adhan.ogg"
     "prayer_approaching.ogg"
     "gt-tray.py"
+    "install-system-tray.sh"
+    "install-python-deps.sh"
+    "uninstall.sh"
+    "LICENSE"
+    "README.md"
 )
 
-for file in "${ESSENTIAL_FILES[@]}"; do
-    echo "  تحميل: $file"
-    curl -fsSL "$REPO_BASE/$file" -o "$file" 2>/dev/null || echo "  ⚠️  لم يتم تحميل $file"
-done
+# ---------- دالة التسجيل ----------
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $*" | tee -a "$LOG_FILE"
+}
 
-chmod +x "$MAIN_SCRIPT" "gt-tray.py" 2>/dev/null || true
+# ---------- دالة التنزيل ----------
+download_file() {
+    local file=$1
+    local url="$REPO_BASE/$file"
+    local dest="$INSTALL_DIR/$file"
+    
+    log "جاري تنزيل: $file"
+    
+    if curl -fsSL "$url" -o "$dest" 2>/dev/null; then
+        echo "  ✅ تم تنزيل: $file"
+        return 0
+    else
+        echo "  ⚠️  فشل تنزيل: $file"
+        return 1
+    fi
+}
 
-# ---------- المرحلة 2: إنشاء ملف .desktop للتطبيقات ----------
-echo ""
-echo "🖥️  إنشاء ملف تطبيق لنظام القائمة..."
+# ---------- دالة تثبيت اعتماديات Python ----------
+install_python_deps() {
+    echo ""
+    echo "📦 تثبيت اعتماديات Python لـ System Tray..."
+    
+    if [ -f "$INSTALL_DIR/install-python-deps.sh" ]; then
+        chmod +x "$INSTALL_DIR/install-python-deps.sh"
+        
+        # تثبيت الاعتماديات
+        if "$INSTALL_DIR/install-python-deps.sh" 2>/dev/null; then
+            echo "✅ تم تثبيت اعتماديات Python بنجاح"
+            return 0
+        else
+            echo "⚠️  فشل في تثبيت الاعتماديات عبر السكربت"
+            echo "🔄 المحاولة يدوياً..."
+        fi
+    fi
+    
+    # محاولة يدوية
+    echo "🔍 المحاولة اليدوية لتثبيت اعتماديات Python..."
+    
+    if python3 -c "import pystray, PIL" 2>/dev/null; then
+        echo "✅ مكتبات Python مثبتة بالفعل"
+    else
+        echo "📦 تثبيت المكتبات عبر pip..."
+        pip3 install --user pystray pillow requests 2>/dev/null || {
+            echo "⚠️  فشل التثبيت عبر pip"
+            echo "💡 يمكنك تثبيتها يدوياً لاحقاً:"
+            echo "   pip3 install --user pystray pillow requests"
+        }
+    fi
+    
+    return 0
+}
 
-cat > "$DESKTOP_FILE" <<EOF
+# ---------- دالة إنشاء الأيقونات ----------
+download_icons() {
+    local ICON_DIR="$INSTALL_DIR/icons"
+    mkdir -p "$ICON_DIR"
+    
+    echo ""
+    echo "⬇️  جاري تحميل الأيقونات..."
+    
+    local icon_sizes=("16" "32" "48" "64" "128" "256")
+    local downloaded=0
+    
+    for size in "${icon_sizes[@]}"; do
+        local icon_url="$REPO_BASE/icons/prayer-icon-${size}.png"
+        local icon_file="$ICON_DIR/prayer-icon-${size}.png"
+        
+        if curl -fsSL "$icon_url" -o "$icon_file" 2>/dev/null; then
+            echo "  ✅ أيقونة ${size}x${size}"
+            downloaded=$((downloaded + 1))
+        else
+            # إنشاء أيقونة افتراضية إذا فشل التنزيل
+            convert -size "${size}x${size}" xc:none \
+                -fill "#2E7D32" -draw "rectangle $((size/4)),$((size*2/3)) $((size*3/4)),$((size*5/6))" \
+                -fill "#388E3C" -draw "rectangle $((size*5/16)),$((size*7/16)) $((size*11/16)),$((size*2/3))" \
+                -fill "#2196F3" -draw "ellipse $((size/2)),$((size*5/16)) $((size*3/16)),$((size/8)) 0,360" \
+                -fill "#FFEB3B" -stroke "#FFEB3B" -draw "arc $((size*7/16)),$((size/4)) $((size*9/16)),$((size*3/8)) 30,150" \
+                "$icon_file" 2>/dev/null || true
+        fi
+    done
+    
+    if [ $downloaded -gt 0 ]; then
+        echo "✅ تم تحميل $downloaded أيقونة"
+    fi
+}
+
+# ---------- دالة إعداد System Tray ----------
+setup_system_tray() {
+    echo ""
+    echo "🖥️  إعداد System Tray..."
+    
+    # إنشاء ملف تطبيق لنظام القائمة
+    cat > "$HOME/.local/share/applications/gt-salat-dikr.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=GT-salat-dikr
 Comment=نظام إشعارات الصلاة والأذكار مع System Tray
-Exec=$INSTALL_DIR/launcher.sh
+Exec=python3 $INSTALL_DIR/gt-tray.py
 Icon=$INSTALL_DIR/icons/prayer-icon-64.png
 Categories=Utility;
 Terminal=false
 StartupNotify=false
 NoDisplay=false
+Keywords=prayer;islam;azan;reminder;ذكر;صلاة
 EOF
-
-# إنشاء ملف Launcher ذكي
-cat > "$INSTALL_DIR/launcher.sh" <<'EOF'
+    
+    # إنشاء ملف لتشغيل System Tray
+    cat > "$INSTALL_DIR/start-tray.sh" <<EOF
 #!/bin/bash
-#
-# GT-salat-dikr Launcher - يمنع التكرار ويدير System Tray
-#
+# بدء System Tray مع التحكم في التكرار
 
-set -e
+LOCK_FILE="/tmp/gt-salat-tray.lock"
 
-INSTALL_DIR="$(dirname "$(realpath "$0")")"
-LOCK_FILE="/tmp/gt-salat-dikr.lock"
-TRAY_PID_FILE="/tmp/gt-salat-tray.pid"
-NOTIFY_PID_FILE="$INSTALL_DIR/.notify.pid"
-
-# دالة للتحقق من تشغيل System Tray
-is_tray_running() {
-    if [ -f "$TRAY_PID_FILE" ]; then
-        local pid=$(cat "$TRAY_PID_FILE" 2>/dev/null)
-        if [ -n "$pid" ] && ps -p "$pid" >/dev/null 2>&1; then
-            return 0  # يعمل
-        fi
+if [ -f "\$LOCK_FILE" ]; then
+    lock_age=\$(date +%s)
+    file_age=\$(stat -c %Y "\$LOCK_FILE" 2>/dev/null || echo 0)
+    if [ \$((lock_age - file_age)) -lt 10 ]; then
+        exit 0
     fi
-    
-    # التحقق عبر pgrep
-    if pgrep -f "gt-tray.py" >/dev/null 2>&1; then
-        # حفظ PID للاستخدام المستقبلي
-        pgrep -f "gt-tray.py" | head -1 > "$TRAY_PID_FILE"
-        return 0
-    fi
-    
-    return 1  # غير يعمل
-}
+fi
 
-# دالة بدء System Tray
-start_tray() {
-    echo "🖥️  بدء تشغيل System Tray..."
-    
-    # الانتظار حتى تحميل بيئة المستخدم
-    while [ -z "$DISPLAY" ]; do
-        sleep 1
-        export DISPLAY=":0"
-    done
-    
-    export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
-    
-    # تشغيل System Tray
-    cd "$INSTALL_DIR"
-    python3 "$INSTALL_DIR/gt-tray.py" >/dev/null 2>&1 &
-    local tray_pid=$!
-    
-    # حفظ PID
-    echo $tray_pid > "$TRAY_PID_FILE"
-    sleep 3
-    
-    if ps -p $tray_pid >/dev/null 2>&1; then
-        echo "✅ تم تشغيل System Tray (PID: $tray_pid)"
-        return 0
-    else
-        echo "❌ فشل تشغيل System Tray"
-        return 1
-    fi
-}
+echo \$\$ > "\$LOCK_FILE"
+trap 'rm -f "\$LOCK_FILE"' EXIT
 
-# دالة بدء الإشعارات
-start_notifications() {
-    echo "🔔 بدء إشعارات الصلاة..."
-    
-    if [ -f "$INSTALL_DIR/gt-salat-dikr.sh" ]; then
-        cd "$INSTALL_DIR"
-        "$INSTALL_DIR/gt-salat-dikr.sh" --notify-start >/dev/null 2>&1 &
-        local notify_pid=$!
-        echo $notify_pid > "$NOTIFY_PID_FILE"
-        sleep 2
-        
-        if ps -p $notify_pid >/dev/null 2>&1; then
-            echo "✅ تم تشغيل الإشعارات (PID: $notify_pid)"
-            return 0
-        fi
-    fi
-    
-    return 1
-}
+export DISPLAY="\${DISPLAY:-:0}"
+export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/\$(id -u)/bus"
 
-# دالة رئيسية
-main() {
-    # التحقق من القفل لمنع التكرار
-    if [ -f "$LOCK_FILE" ]; then
-        local lock_age=$(($(date +%s) - $(stat -c %Y "$LOCK_FILE" 2>/dev/null || echo 0)))
-        if [ $lock_age -lt 10 ]; then
-            echo "⏳ البرنامج يعمل بالفعل، انتظر..."
-            exit 0
-        fi
-    fi
-    
-    echo "🚀 بدء GT-salat-dikr..." > "$LOCK_FILE"
-    
-    # 1. بدء الإشعارات
-    start_notifications
-    
-    # 2. التحقق وبدء System Tray إذا لم يكن يعمل
-    if is_tray_running; then
-        echo "✅ System Tray يعمل بالفعل"
-    else
-        start_tray
-    fi
-    
-    # تنظيف القفل بعد التأخير
-    sleep 5
-    rm -f "$LOCK_FILE" 2>/dev/null || true
-    
-    echo "🎉 تم تشغيل GT-salat-dikr بنجاح!"
-}
-
-# التنفيذ
-main
-exit 0
+cd "$INSTALL_DIR"
+exec python3 "$INSTALL_DIR/gt-tray.py"
 EOF
-
-chmod +x "$INSTALL_DIR/launcher.sh"
-
-# نسخ ملف .desktop لمجلد التطبيقات
-mkdir -p "$HOME/.local/share/applications"
-cp "$DESKTOP_FILE" "$HOME/.local/share/applications/"
-echo "✅ تم إنشاء رمز التطبيق في قائمة البرامج"
-
-# ---------- المرحلة 3: إصلاح التشغيل التلقائي عند الإقلاع ----------
-echo ""
-echo "🔧 إصلاح التشغيل التلقائي عند الإقلاع..."
-
-# إنشاء سكربت autostart محسن
-cat > "$INSTALL_DIR/autostart-fixed.sh" <<'EOF'
+    
+    chmod +x "$INSTALL_DIR/start-tray.sh"
+    
+    # إنشاء سكربت لإدارة التشغيل التلقائي
+    cat > "$INSTALL_DIR/autostart-manager.sh" <<'EOF'
 #!/bin/bash
-#
-# GT-salat-dikr Auto-start Fixed - يعمل عند إقلاع النظام
-#
-
-set -e
+# مدير التشغيل التلقائي لـ GT-salat-dikr
 
 INSTALL_DIR="$(dirname "$(realpath "$0")")"
 LOG_FILE="$INSTALL_DIR/autostart.log"
-MAX_WAIT=60  # أقصى وقت انتظار: 60 ثانية
 
-# دالة التسجيل
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $*" >> "$LOG_FILE"
 }
 
-# دالة الانتظار لتحميل بيئة المستخدم
-wait_for_desktop() {
-    log "⏳ انتظار تحميل سطح المكتب..."
+start_services() {
+    log "بدء خدمات GT-salat-dikr..."
     
-    local wait_time=0
-    
-    # الانتظار لظهور DISPLAY
-    while [ -z "$DISPLAY" ] && [ $wait_time -lt $MAX_WAIT ]; do
-        sleep 2
-        export DISPLAY=":0"
-        wait_time=$((wait_time + 2))
-        
-        # محاولة اكتشاف DISPLAY
-        if [ -z "$DISPLAY" ] && [ -S "/tmp/.X11-unix/X0" ]; then
-            export DISPLAY=":0"
+    # الانتظار لتحميل بيئة المستخدم
+    for i in {1..30}; do
+        if [ -n "$DISPLAY" ] && [ -S "/run/user/$(id -u)/bus" ]; then
+            break
         fi
-        
-        log "الانتظار: $wait_time ثانية, DISPLAY=$DISPLAY"
+        sleep 1
     done
     
-    # التأكد من DBUS
-    if [ -S "/run/user/$(id -u)/bus" ]; then
-        export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
-    else
-        # البحث عن DBUS
-        local dbus_path=$(find /tmp -name "dbus-*" -type s 2>/dev/null | head -1)
-        if [ -n "$dbus_path" ]; then
-            export DBUS_SESSION_BUS_ADDRESS="unix:path=$dbus_path"
-        fi
-    fi
+    export DISPLAY="${DISPLAY:-:0}"
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
     
-    # انتظار إضافي للتأكد من تحميل البيئة
-    sleep 8
-    
-    log "✅ بيئة المستخدم جاهزة - DISPLAY=$DISPLAY"
-}
-
-# دالة بدء الخدمات
-start_services() {
-    log "🚀 بدء خدمات GT-salat-dikر..."
-    
-    # 1. بدء الإشعارات
-    log "بدء إشعارات الصلاة..."
+    # بدء الإشعارات
     cd "$INSTALL_DIR"
     if [ -f "gt-salat-dikr.sh" ]; then
-        # تحميل الإعدادات أولاً
-        if [ -f "settings.conf" ]; then
-            source "settings.conf" 2>/dev/null || true
-        fi
-        
-        # بدء الإشعارات
-        ./gt-salat-dikr.sh --notify-start >> "$LOG_FILE" 2>&1 &
-        local notify_pid=$!
-        sleep 5
-        
-        if ps -p $notify_pid >/dev/null 2>&1; then
-            log "✅ إشعارات الصلاة تعمل (PID: $notify_pid)"
-        else
-            log "⚠️  فشل بدء الإشعارات، محاولة بديلة..."
-            # محاولة مباشرة
-            nohup bash -c 'cd "$INSTALL_DIR" && ./gt-salat-dikr.sh --child-notify' >> "$LOG_FILE" 2>&1 &
-        fi
+        ./gt-salat-dikr.sh --notify-start >/dev/null 2>&1 &
+        log "تم بدء الإشعارات"
     fi
     
-    # 2. بدء System Tray (بعد تأخير)
+    # بدء System Tray بعد تأخير
     sleep 10
-    log "بدء System Tray..."
-    
-    if command -v python3 >/dev/null 2>&1 && [ -f "gt-tray.py" ]; then
-        # التحقق من عدم تشغيله مسبقاً
-        if ! pgrep -f "gt-tray.py" >/dev/null 2>&1; then
-            python3 ./gt-tray.py >> "$LOG_FILE" 2>&1 &
-            local tray_pid=$!
-            sleep 5
-            
-            if ps -p $tray_pid >/dev/null 2>&1; then
-                log "✅ System Tray يعمل (PID: $tray_pid)"
-            else
-                log "⚠️  فشل بدء System Tray"
-            fi
-        else
-            log "✅ System Tray يعمل بالفعل"
-        fi
-    else
-        log "❌ System Tray غير متوفر (Python أو الملف مفقود)"
+    if [ -f "gt-tray.py" ] && command -v python3 >/dev/null 2>&1; then
+        python3 "$INSTALL_DIR/gt-tray.py" >/dev/null 2>&1 &
+        log "تم بدء System Tray"
     fi
 }
 
-# دالة رئيسية
-main() {
-    log "════════════════════════════════════════════════════════"
-    log "بدء تشغيل GT-salat-dikر التلقائي"
-    log "المستخدم: $(whoami)"
-    log "التاريخ: $(date)"
-    log "════════════════════════════════════════════════════════"
+case "${1:-}" in
+    start)
+        start_services
+        ;;
+    stop)
+        pkill -f "gt-salat-dikr\|gt-tray.py" 2>/dev/null || true
+        log "تم إيقاف الخدمات"
+        ;;
+    *)
+        start_services
+        ;;
+esac
+EOF
     
-    # الانتظار لتحميل البيئة
-    wait_for_desktop
+    chmod +x "$INSTALL_DIR/autostart-manager.sh"
     
-    # بدء الخدمات
-    start_services
-    
-    log "✅ اكتمل التشغيل التلقائي"
-    log "════════════════════════════════════════════════════════"
+    # إعداد التشغيل التلقائي لجميع بيئات سطح المكتب
+    setup_autostart
 }
 
-# التنفيذ
-main
-EOF
-
-chmod +x "$INSTALL_DIR/autostart-fixed.sh"
-
-# إعداد autostart لكل بيئة سطح مكتب
-setup_autostart_all() {
-    echo "🔧 إعداد التشغيل التلقائي لجميع بيئات سطح المكتب..."
+# ---------- دالة إعداد التشغيل التلقائي ----------
+setup_autostart() {
+    echo ""
+    echo "🔧 إعداد التشغيل التلقائي..."
     
     # 1. نظام autostart القياسي
     mkdir -p "$HOME/.config/autostart"
@@ -332,7 +249,7 @@ setup_autostart_all() {
 Type=Application
 Name=GT-salat-dikr
 Comment=Auto-start prayer notifications and system tray
-Exec=bash -c 'sleep 20 && "$INSTALL_DIR/autostart-fixed.sh"'
+Exec=bash -c 'sleep 20 && "$INSTALL_DIR/autostart-manager.sh"'
 Icon=$INSTALL_DIR/icons/prayer-icon-32.png
 Hidden=false
 NoDisplay=false
@@ -348,100 +265,187 @@ EOF
         cat > "$HOME/.config/plasma-workspace/env/gt-salat-dikr.sh" <<EOF
 #!/bin/bash
 sleep 25
-"$INSTALL_DIR/autostart-fixed.sh" &
+"$INSTALL_DIR/autostart-manager.sh" &
 EOF
         chmod +x "$HOME/.config/plasma-workspace/env/gt-salat-dikr.sh"
+        echo "✅ تم إعداد التشغيل التلقائي لـ KDE Plasma"
     fi
     
     # 3. لـ XFCE
     if command -v xfce4-session >/dev/null 2>&1; then
         mkdir -p "$HOME/.config/xfce4/autostart"
         cp "$HOME/.config/autostart/gt-salat-dikr.desktop" "$HOME/.config/xfce4/autostart/"
+        echo "✅ تم إعداد التشغيل التلقائي لـ XFCE"
     fi
     
     # 4. لـ LXDE/LXQt
     if [ -d "$HOME/.config/lxsession" ]; then
         mkdir -p "$HOME/.config/lxsession/LXDE"
-        echo "@bash \"$INSTALL_DIR/autostart-fixed.sh\"" >> "$HOME/.config/lxsession/LXDE/autostart" 2>/dev/null
+        echo "@bash \"$INSTALL_DIR/autostart-manager.sh\"" >> "$HOME/.config/lxsession/LXDE/autostart" 2>/dev/null
+        echo "✅ تم إعداد التشغيل التلقائي لـ LXDE/LXQt"
     fi
     
-    echo "✅ تم إعداد التشغيل التلقائي لجميع البيئات"
+    echo "✅ تم إعداد التشغيل التلقائي"
 }
 
-setup_autostart_all
-
-# ---------- المرحلة 4: إعدادات إضافية ----------
-echo ""
-echo "⚙️  إعدادات إضافية..."
-
-# 1. تحميل الأيقونات
-ICON_DIR="$INSTALL_DIR/icons"
-mkdir -p "$ICON_DIR"
-
-echo "⬇️  جاري تحميل الأيقونات..."
-for size in 16 32 48 64 128 256; do
-    icon_url="$REPO_BASE/icons/prayer-icon-${size}.png"
-    icon_file="$ICON_DIR/prayer-icon-${size}.png"
+# ---------- دالة إعداد الطرفية ----------
+setup_terminal() {
+    echo ""
+    echo "🔧 إعدادات الطرفية..."
     
-    if curl -fsSL "$icon_url" -o "$icon_file" 2>/dev/null; then
-        echo "  ✅ تم تحميل أيقونة ${size}x${size}"
+    # إنشاء رابط في PATH
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$INSTALL_DIR/gt-salat-dikr.sh" "$HOME/.local/bin/gtsalat" 2>/dev/null || true
+    
+    # إضافة إلى bashrc
+    if [ -f "$HOME/.bashrc" ]; then
+        if ! grep -q "gtsalat" "$HOME/.bashrc" 2>/dev/null; then
+            echo "" >> "$HOME/.bashrc"
+            echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$HOME/.bashrc"
+            echo "alias gtsalat='$HOME/.local/bin/gtsalat'" >> "$HOME/.bashrc"
+            echo "echo ''" >> "$HOME/.bashrc"
+            echo "$HOME/.local/bin/gtsalat" >> "$HOME/.bashrc"
+            echo "✅ تم إضافة الألياس إلى .bashrc"
+        fi
     fi
-done
+    
+    # إضافة إلى zshrc
+    if [ -f "$HOME/.zshrc" ]; then
+        if ! grep -q "gtsalat" "$HOME/.zshrc" 2>/dev/null; then
+            echo "" >> "$HOME/.zshrc"
+            echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$HOME/.zshrc"
+            echo "alias gtsalat='$HOME/.local/bin/gtsalat'" >> "$HOME/.zshrc"
+            echo "✅ تم إضافة الألياس إلى .zshrc"
+        fi
+    fi
+}
 
-# 2. إنشاء رابط في PATH
-mkdir -p "$HOME/.local/bin"
-ln -sf "$INSTALL_DIR/$MAIN_SCRIPT" "$HOME/.local/bin/gtsalat" 2>/dev/null || true
+# ---------- بدء التثبيت ----------
+main() {
+    log "════════════════════════════════════════════════════════"
+    log "بدء تثبيت GT-salat-dikr"
+    log "التاريخ: $(date)"
+    log "المستخدم: $(whoami)"
+    log "════════════════════════════════════════════════════════"
+    
+    echo "📁 مجلد التثبيت: $INSTALL_DIR"
+    
+    # إنشاء مجلد التثبيت
+    mkdir -p "$INSTALL_DIR"
+    cd "$INSTALL_DIR"
+    
+    # ---------- المرحلة 1: تنزيل الملفات ----------
+    echo ""
+    echo "📥 جاري تنزيل الملفات..."
+    
+    for file in "${FILES_TO_DOWNLOAD[@]}"; do
+        download_file "$file"
+    done
+    
+    # جعل الملفات قابلة للتنفيذ
+    chmod +x "$INSTALL_DIR/gt-salat-dikr.sh" 2>/dev/null || true
+    chmod +x "$INSTALL_DIR/gt-tray.py" 2>/dev/null || true
+    chmod +x "$INSTALL_DIR/uninstall.sh" 2>/dev/null || true
+    
+    # ---------- المرحلة 2: تنزيل الأيقونات ----------
+    download_icons
+    
+    # ---------- المرحلة 3: تثبيت اعتماديات Python ----------
+    install_python_deps
+    
+    # ---------- المرحلة 4: إعداد System Tray ----------
+    setup_system_tray
+    
+    # ---------- المرحلة 5: إعداد الطرفية ----------
+    setup_terminal
+    
+    # ---------- المرحلة 6: الإعدادات الأولية ----------
+    echo ""
+    echo "⚙️  الإعدادات الأولية..."
+    
+    # تشغيل سكربت الإعدادات
+    if [ -f "$INSTALL_DIR/gt-salat-dikr.sh" ]; then
+        echo "🔄 تشغيل معالج الإعدادات..."
+        "$INSTALL_DIR/gt-salat-dikr.sh" --settings 2>/dev/null || {
+            echo "⚠️  يمكنك تشغيل الإعدادات لاحقاً باستخدام: gtsalat --settings"
+        }
+    fi
+    
+    # ---------- المرحلة 7: بدء الخدمات ----------
+    echo ""
+    echo "🚀 بدء الخدمات..."
+    
+    # بدء الإشعارات
+    if [ -f "$INSTALL_DIR/gt-salat-dikr.sh" ]; then
+        "$INSTALL_DIR/gt-salat-dikr.sh" --notify-start >/dev/null 2>&1 &
+        echo "✅ تم بدء إشعارات الصلاة"
+    fi
+    
+    # بدء System Tray بعد تأخير قصير
+    sleep 3
+    if [ -f "$INSTALL_DIR/gt-tray.py" ] && command -v python3 >/dev/null 2>&1; then
+        if python3 -c "import pystray, PIL" 2>/dev/null; then
+            python3 "$INSTALL_DIR/gt-tray.py" >/dev/null 2>&1 &
+            echo "✅ تم بدء System Tray"
+            echo "📌 ستظهر الأيقونة في شريط المهام خلال لحظات"
+        else
+            echo "⚠️  مكتبات Python غير مثبتة، لا يمكن تشغيل System Tray"
+            echo "💡 يمكنك تثبيتها باستخدام: $INSTALL_DIR/install-python-deps.sh"
+        fi
+    fi
+    
+    # ---------- المرحلة 8: التقرير النهائي ----------
+    echo ""
+    echo "════════════════════════════════════════════════════════"
+    echo "🎉 تم التثبيت بنجاح!"
+    echo "════════════════════════════════════════════════════════"
+    echo ""
+    echo "📋 الملفات المثبتة:"
+    echo "════════════════════════════════════════════════════════"
+    echo "📁 $INSTALL_DIR/"
+    echo "  📄 gt-salat-dikr.sh (البرنامج الرئيسي)"
+    echo "  📄 gt-tray.py (أيقونة System Tray)"
+    echo "  📄 azkar.txt (قائمة الأذكار)"
+    echo "  📄 uninstall.sh (إلغاء التثبيت)"
+    echo "  📄 install-system-tray.sh (تثبيت System Tray)"
+    echo "  📄 install-python-deps.sh (تثبيت اعتماديات Python)"
+    echo "  📁 icons/ (مجلد الأيقونات)"
+    echo "════════════════════════════════════════════════════════"
+    echo ""
+    echo "🔧 طرق التشغيل:"
+    echo "════════════════════════════════════════════════════════"
+    echo "1. من الطرفية: gtsalat"
+    echo "2. من قائمة البرامج: ابحث عن 'GT-salat-dikr'"
+    echo "3. من System Tray: انقر بزر الماوس الأيمن على الأيقونة"
+    echo "4. تلقائياً: عند إقلاع النظام"
+    echo "════════════════════════════════════════════════════════"
+    echo ""
+    echo "⚙️  أوامر مفيدة:"
+    echo "════════════════════════════════════════════════════════"
+    echo "gtsalat --help              عرض المساعدة"
+    echo "gtsalat --settings          تغيير الإعدادات"
+    echo "gtsalat --tray              تشغيل System Tray"
+    echo "gtsalat --status            عرض حالة البرنامج"
+    echo "gtsalat --show-timetable    عرض مواقيت الصلاة"
+    echo "════════════════════════════════════════════════════════"
+    echo ""
+    echo "🗑️  إلغاء التثبيت:"
+    echo "════════════════════════════════════════════════════════"
+    echo "bash $INSTALL_DIR/uninstall.sh"
+    echo "════════════════════════════════════════════════════════"
+    echo ""
+    echo "📝 ملاحظات:"
+    echo "════════════════════════════════════════════════════════"
+    echo "• قد تحتاج إلى إعادة تشغيل الطرفية لتفعيل الألياس"
+    echo "• System Tray يحتاج إلى مكتبات Python (pystray, pillow)"
+    echo "• البرنامج سيبدأ تلقائياً عند إقلاع النظام"
+    echo "• للتحديث: gtsalat --self-update"
+    echo "════════════════════════════════════════════════════════"
+    
+    log "اكتمل التثبيت بنجاح"
+}
 
-# 3. إعدادات الطرفية
-if [ -f "$HOME/.bashrc" ] && ! grep -q "gtsalat" "$HOME/.bashrc" 2>/dev/null; then
-    echo "" >> "$HOME/.bashrc"
-    echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$HOME/.bashrc"
-    echo "alias gtsalat='$HOME/.local/bin/gtsalat'" >> "$HOME/.bashrc"
-    echo "echo ''" >> "$HOME/.bashrc"
-    echo "$HOME/.local/bin/gtsalat" >> "$HOME/.bashrc"
-fi
+# تنفيذ التثبيت
+main
 
-# ---------- المرحلة 5: بدء التشغيل الآن ----------
-echo ""
-echo "🚀 بدء تشغيل البرنامج الآن..."
-
-# بدء autostart في الخلفية مع تأخير
-bash -c "sleep 5 && '$INSTALL_DIR/autostart-fixed.sh' >/dev/null 2>&1 &" &
-
-# عرض التعليمات
-echo ""
-echo "════════════════════════════════════════════════════════"
-echo "🎉 تم التثبيت بنجاح!"
-echo "════════════════════════════════════════════════════════"
-echo ""
-echo "📋 الميزات المثبتة:"
-echo "════════════════════════════════════════════════════════"
-echo "✅ ملف تطبيق في قائمة البرامج"
-echo "✅ System Tray يمنع التكرار"
-echo "✅ إصلاح التشغيل التلقائي عند الإقلاع"
-echo "✅ أيقونات متعددة الأحجام"
-echo "✅ دعم جميع بيئات سطح المكتب"
-echo "════════════════════════════════════════════════════════"
-echo ""
-echo "🔧 كيفية الاستخدام:"
-echo "════════════════════════════════════════════════════════"
-echo "1. افتح قائمة البرامج → ابحث عن 'GT-salat-dikr'"
-echo "2. انقر عليه لبدء System Tray والإشعارات"
-echo "3. System Tray لن يتكرر إذا كان يعمل"
-echo "4. الإشعارات تبدأ تلقائياً عند الإقلاع"
-echo "════════════════════════════════════════════════════════"
-echo ""
-echo "📝 ملاحظات مهمة:"
-echo "════════════════════════════════════════════════════════"
-echo "• قد يستغرق التشغيل التلقائي 20-30 ثانية بعد الإقلاع"
-echo "• System Tray يظهر فقط إذا كانت مكتبات Python مثبتة"
-echo "• يمكنك التحكم عبر الأيقونة في شريط المهام"
-echo "• للتحديث: gtsalat --self-update"
-echo "════════════════════════════════════════════════════════"
-echo ""
-echo "🔍 للتحقق من التشغيل:"
-echo "════════════════════════════════════════════════════════"
-echo "tail -f $INSTALL_DIR/autostart.log"
-echo "ps aux | grep -E '(gt-salat|gt-tray)'"
-echo "ls -la ~/.local/share/applications/ | grep gt-salat"
-echo "════════════════════════════════════════════════════════"
+exit 0
