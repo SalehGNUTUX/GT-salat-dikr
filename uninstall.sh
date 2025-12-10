@@ -2,16 +2,6 @@
 # uninstall.sh - إزالة كاملة ونظيفة لـ GT-salat-dikr
 # يعمل بدون صلاحيات root في معظم الحالات
 
-# إصلاح: نسخ الملف إلى مكان مؤقت أولاً
-TEMP_UNINSTALL="/tmp/gt-uninstall-$$.sh"
-cat "$0" > "$TEMP_UNINSTALL"
-chmod +x "$TEMP_UNINSTALL"
-exec "$TEMP_UNINSTALL" "$@"
-
-# -----------------------------------------------------------------
-# بداية الكود الفعلي (سيتم تنفيذه من الملف المؤقت)
-# -----------------------------------------------------------------
-
 set -e
 
 # ألوان للعرض
@@ -36,8 +26,6 @@ echo ""
 read -p "هل تريد الاستمرار في الإزالة؟ [y/N]: " confirm
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
     echo "تم إلغاء الإزالة."
-    # حذف الملف المؤقت قبل الخروج
-    rm -f "/tmp/gt-uninstall-"*.sh 2>/dev/null || true
     exit 0
 fi
 
@@ -162,10 +150,7 @@ CONFIG_DIRS=(
 for dir in "${INSTALL_DIRS[@]}"; do
     if [ -d "$dir" ]; then
         echo "  حذف مجلد: $dir"
-        # لا نحاول حذف الملف المؤقت نفسه
-        if [[ "$dir" != "/tmp/gt-uninstall-"* ]]; then
-            rm -rf "$dir" 2>/dev/null || sudo rm -rf "$dir" 2>/dev/null || true
-        fi
+        rm -rf "$dir" 2>/dev/null || sudo rm -rf "$dir" 2>/dev/null || true
     fi
 done
 
@@ -200,89 +185,35 @@ if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 fi
 
-# ---------- المرحلة 8: تنظيف ملفات التهيئة (الطريقة المحسنة) ----------
+# ---------- المرحلة 8: تنظيف ملفات التهيئة ----------
 echo ""
 echo "8. تنظيف ملفات التهيئة..."
 
-clean_shell_file_safe() {
-    local shell_file="$1"
-    local shell_name="$2"
-    
-    if [ ! -f "$shell_file" ]; then
-        return
+# إزالة من .bashrc
+if [ -f "$HOME/.bashrc" ]; then
+    if grep -q "GT-salat-dikr\|gtsalat" "$HOME/.bashrc" 2>/dev/null; then
+        echo "  تنظيف .bashrc"
+        grep -v "GT-salat-dikr\|gtsalat\|gt-tray\|gt-launcher" "$HOME/.bashrc" > "$HOME/.bashrc.tmp" 2>/dev/null && \
+        mv "$HOME/.bashrc.tmp" "$HOME/.bashrc" 2>/dev/null || true
     fi
-    
-    echo "  تنظيف $shell_name..."
-    
-    # إنشاء ملف مؤقت
-    TEMP_FILE=$(mktemp)
-    
-    # تنظيف الملف بطريقة آمنة
-    awk '
-    BEGIN { 
-        in_gt_block = 0
-        if_count = 0
-        block_start = 0
-    }
-    
-    # بداية بلوك GT-salat-dikr
-    /^# GT-salat-dikr/ || /^# إضافة GT-salat-dikr/ || /^# عرض ذكر/ {
-        if (in_gt_block == 0) {
-            in_gt_block = 1
-            block_start = NR
-        }
-        next
-    }
-    
-    # داخل بلوك GT
-    in_gt_block {
-        # عدّ أسطر if
-        if (/^if \[/ || /^if test /) {
-            if_count++
-        }
-        
-        # نهاية بلوك
-        if (/^fi$/ || /^end$/) {
-            if (if_count > 0) {
-                if_count--
-            }
-            if (if_count == 0) {
-                in_gt_block = 0
-                next
-            }
-        }
-        next
-    }
-    
-    # خارج بلوك GT
-    !in_gt_block {
-        # إزالة أي أسطر متبقية تحتوي على كلمات مفتاحية
-        if (!/\bGT-salat-dikr\b/ && !/\bgtsalat\b/ && !/\bgt-tray\b/ && !/\.GT-salat-dikr\b/) {
-            print
-        }
-    }
-    ' "$shell_file" > "$TEMP_FILE"
-    
-    # استبدال الملف الأصلي إذا كان الملف المؤقت ليس فارغاً
-    if [ -s "$TEMP_FILE" ]; then
-        mv "$TEMP_FILE" "$shell_file"
-        echo "    ✅ تم تنظيف $shell_name"
-    else
-        echo "    ⚠️  الملف المؤقت فارغ، الاحتفاظ بالملف الأصلي"
-        rm -f "$TEMP_FILE"
+fi
+
+# إزالة من .zshrc
+if [ -f "$HOME/.zshrc" ]; then
+    if grep -q "GT-salat-dikr\|gtsalat" "$HOME/.zshrc" 2>/dev/null; then
+        echo "  تنظيف .zshrc"
+        grep -v "GT-salat-dikr\|gtsalat\|gt-tray\|gt-launcher" "$HOME/.zshrc" > "$HOME/.zshrc.tmp" 2>/dev/null && \
+        mv "$HOME/.zshrc.tmp" "$HOME/.zshrc" 2>/dev/null || true
     fi
-}
+fi
 
-# تنظيف ملفات shell
-clean_shell_file_safe "$HOME/.bashrc" ".bashrc"
-clean_shell_file_safe "$HOME/.zshrc" ".zshrc"
-
-# تنظيف fish config (بطريقة أبسط)
+# إزالة من fish config
 if [ -f "$HOME/.config/fish/config.fish" ]; then
-    echo "  تنظيف fish config"
-    grep -v "GT-salat-dikr\|gtsalat\|gt-tray\|\.GT-salat-dikr" \
-        "$HOME/.config/fish/config.fish" > "$HOME/.config/fish/config.fish.tmp" 2>/dev/null && \
-    mv "$HOME/.config/fish/config.fish.tmp" "$HOME/.config/fish/config.fish" 2>/dev/null || true
+    if grep -q "GT-salat-dikr\|gtsalat" "$HOME/.config/fish/config.fish" 2>/dev/null; then
+        echo "  تنظيف fish config"
+        grep -v "GT-salat-dikr\|gtsalat\|gt-tray\|gt-launcher" "$HOME/.config/fish/config.fish" > "$HOME/.config/fish/config.fish.tmp" 2>/dev/null && \
+        mv "$HOME/.config/fish/config.fish.tmp" "$HOME/.config/fish/config.fish" 2>/dev/null || true
+    fi
 fi
 
 # ---------- المرحلة 9: تنظيف الملفات المؤقتة ----------
@@ -296,9 +227,6 @@ rm -f /tmp/gt-salat-* 2>/dev/null || true
 
 # حذف سجلات البرنامج
 rm -f /var/log/gt-salat-*.log 2>/dev/null || true
-
-# حذف الملف المؤقت نفسه
-rm -f "/tmp/gt-uninstall-"*.sh 2>/dev/null || true
 
 # ---------- المرحلة 10: التحقق النهائي ----------
 echo ""
@@ -360,5 +288,10 @@ echo "لإعادة التثبيت في أي وقت:"
 echo "bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh)\""
 echo ""
 echo "مع السلامة! 👋"
+
+# حذف هذا الملف نفسه إذا كان في مجلد البرنامج
+if [[ "$(dirname "$(realpath "$0")")" == *"GT-salat-dikr"* ]]; then
+    rm -f "$0" 2>/dev/null || true
+fi
 
 exit 0
