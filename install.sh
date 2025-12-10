@@ -44,32 +44,7 @@ LAUNCHER_FILE="$INSTALL_DIR/launcher.sh"
 UNIVERSAL_LAUNCHER="$INSTALL_DIR/launcher-universal.sh"
 UNINSTALLER="$INSTALL_DIR/uninstall.sh"
 
-# ---------- إضافة: إعداد الموقع أولاً ----------
-echo "📍 إعداد الموقع الإفتراضي أولاً..."
-
-# إنشاء مجلد الإعدادات
-mkdir -p "$INSTALL_DIR/config"
-
-# إنشاء ملف الإعدادات الافتراضي
-cat > "$INSTALL_DIR/config/settings.conf" << 'EOF'
-# إعدادات GT-salat-dikr - الموقع الافتراضي
-CITY="مكة المكرمة"
-COUNTRY="السعودية"
-LATITUDE="21.4225"
-LONGITUDE="39.8262"
-TIMEZONE="auto"
-CALCULATION_METHOD="MWL"
-ASR_METHOD="Standard"
-HIGH_LATITUDE_ADJUSTMENT="MiddleOfTheNight"
-NOTIFICATIONS_ENABLED="true"
-SOUND_ENABLED="true"
-EOF
-
-echo "✅ تم إعداد الموقع الافتراضي: مكة المكرمة، السعودية"
-echo "   ⚙️  يمكنك تغيير الإعدادات لاحقاً من أيقونة النظام"
-
 # ---------- المرحلة 1: التثبيت الأساسي ----------
-echo ""
 echo "📥 تحميل البرنامج..."
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
@@ -129,44 +104,58 @@ cat > "$INSTALL_DIR/show-prayer.sh" << 'EOF'
 INSTALL_DIR="$HOME/.GT-salat-dikr"
 MAIN_SCRIPT="$INSTALL_DIR/gt-salat-dikr.sh"
 
-# دالة محسنة لجلب مواقيت الصلاة
+# دالة لجلب مواقيت الصلاة
 get_prayer_times() {
     if [ -f "$MAIN_SCRIPT" ]; then
-        # استدعاء البرنامج الرئيسي للحصول على مواقيت اليوم
-        PRAYER_TIMES=$("$MAIN_SCRIPT" --show-next-prayer 2>/dev/null)
+        # محاولة الحصول على مواقيت اليوم من البرنامج الرئيسي
+        TIMES_FILE="$INSTALL_DIR/today_prayers.txt"
         
-        if [ -n "$PRAYER_TIMES" ]; then
+        # إذا كان ملف المواقيت قديماً (أكبر من 24 ساعة) أو غير موجود، قم بتحديثه
+        if [ ! -f "$TIMES_FILE" ] || [ $(find "$TIMES_FILE" -mtime +0 -print 2>/dev/null) ]; then
+            "$MAIN_SCRIPT" --show-timetable > "$TIMES_FILE" 2>/dev/null || true
+        fi
+        
+        # قراءة المواقيت من الملف
+        if [ -f "$TIMES_FILE" ]; then
             # البحث عن الصلاة القادمة
+            CURRENT_TIME=$(date +%H:%M)
             NEXT_PRAYER=""
             NEXT_TIME=""
-            TIME_LEFT=""
             
-            # تحليل النتيجة
-            if echo "$PRAYER_TIMES" | grep -q "الصلاة القادمة:"; then
-                NEXT_PRAYER=$(echo "$PRAYER_TIMES" | sed -n 's/.*الصلاة القادمة: \(.*\) عند.*/\1/p')
-                NEXT_TIME=$(echo "$PRAYER_TIMES" | sed -n 's/.*عند \([0-9]\{2\}:[0-9]\{2\}\).*/\1/p')
-                TIME_LEFT=$(echo "$PRAYER_TIMES" | sed -n 's/.*(باقي \(.*\))/\1/p')
-            fi
-            
-            if [ -n "$NEXT_PRAYER" ] && [ -n "$NEXT_TIME" ] && [ -n "$TIME_LEFT" ]; then
-                echo "🕌 الصلاة القادمة: $NEXT_PRAYER عند $NEXT_TIME (باقي $TIME_LEFT)"
-                return 0
-            fi
-        fi
-        
-        # محاولة بديلة: استخدام الملف الموجود
-        TIMES_FILE="$INSTALL_DIR/today_prayers.txt"
-        if [ -f "$TIMES_FILE" ]; then
-            # قراءة أول صلاة موجودة
             while IFS= read -r line; do
-                if [[ "$line" == *"القادمة:"* ]]; then
-                    echo "$line"
-                    return 0
+                if [[ "$line" == *"🕌 الصلاة القادمة:"* ]]; then
+                    NEXT_PRAYER=$(echo "$line" | sed 's/🕌 الصلاة القادمة: //' | cut -d ':' -f1)
+                    NEXT_TIME=$(echo "$line" | grep -o '[0-9]\{2\}:[0-9]\{2\}')
+                    break
+                elif [[ "$line" == *"القادمة:"* ]]; then
+                    NEXT_PRAYER=$(echo "$line" | sed 's/.*القادمة: //' | awk '{print $1}')
+                    NEXT_TIME=$(echo "$line" | grep -o '[0-9]\{2\}:[0-9]\{2\}')
+                    break
                 fi
             done < "$TIMES_FILE"
+            
+            if [ -n "$NEXT_PRAYER" ] && [ -n "$NEXT_TIME" ]; then
+                # حساب الوقت المتبقي
+                CURRENT_SECONDS=$(date -d "$CURRENT_TIME" +%s 2>/dev/null || date +%s)
+                NEXT_SECONDS=$(date -d "$NEXT_TIME" +%s 2>/dev/null || date +%s)
+                
+                if [ -n "$CURRENT_SECONDS" ] && [ -n "$NEXT_SECONDS" ] && [ "$NEXT_SECONDS" -gt "$CURRENT_SECONDS" ]; then
+                    TIME_LEFT=$((NEXT_SECONDS - CURRENT_SECONDS))
+                    HOURS=$((TIME_LEFT / 3600))
+                    MINUTES=$(((TIME_LEFT % 3600) / 60))
+                    
+                    if [ "$HOURS" -gt 0 ]; then
+                        TIME_LEFT_STR=$(printf "%02d:%02d" "$HOURS" "$MINUTES")
+                    else
+                        TIME_LEFT_STR=$(printf "%02d دقيقة" "$MINUTES")
+                    fi
+                    
+                    echo "🕌 الصلاة القادمة: $NEXT_PRAYER عند $NEXT_TIME (باقي $TIME_LEFT_STR)"
+                    return 0
+                fi
+            fi
         fi
     fi
-    
     echo "🔄 جاري تحميل مواقيت الصلاة..."
     return 1
 }
@@ -184,7 +173,7 @@ if [ -f "$INSTALL_DIR/azkar.txt" ]; then
             RANDOM_LINE=$((RANDOM % TOTAL_LINES + 1))
             AZKAR=$(sed -n "${RANDOM_LINE}p" "$INSTALL_DIR/azkar.txt")
             
-            # عرض الذكر - بدون "═" في النهاية
+            # عرض الذكر - بدون "══" في النهاية
             echo "${AZKAR%"═"}"  # إزالة أي "═" في النهاية
             echo "══════════════════════════════════════"
         fi
@@ -213,41 +202,56 @@ cat > "$INSTALL_DIR/show-azkar-tray.sh" << 'EOF'
 INSTALL_DIR="$HOME/.GT-salat-dikr"
 MAIN_SCRIPT="$INSTALL_DIR/gt-salat-dikr.sh"
 
-# دالة محسنة لجلب مواقيت الصلاة
+# دالة لجلب مواقيت الصلاة
 get_prayer_times() {
     if [ -f "$MAIN_SCRIPT" ]; then
-        # استدعاء البرنامج الرئيسي للحصول على مواقيت اليوم
-        PRAYER_TIMES=$("$MAIN_SCRIPT" --show-next-prayer 2>/dev/null)
+        # محاولة الحصول على مواقيت اليوم من البرنامج الرئيسي
+        TIMES_FILE="$INSTALL_DIR/today_prayers.txt"
         
-        if [ -n "$PRAYER_TIMES" ]; then
-            # البحث عن الصلاة القادمة
-            NEXT_PRAYER=""
-            NEXT_TIME=""
-            TIME_LEFT=""
-            
-            # تحليل النتيجة
-            if echo "$PRAYER_TIMES" | grep -q "الصلاة القادمة:"; then
-                NEXT_PRAYER=$(echo "$PRAYER_TIMES" | sed -n 's/.*الصلاة القادمة: \(.*\) عند.*/\1/p')
-                NEXT_TIME=$(echo "$PRAYER_TIMES" | sed -n 's/.*عند \([0-9]\{2\}:[0-9]\{2\}\).*/\1/p')
-                TIME_LEFT=$(echo "$PRAYER_TIMES" | sed -n 's/.*(باقي \(.*\))/\1/p')
-            fi
-            
-            if [ -n "$NEXT_PRAYER" ] && [ -n "$NEXT_TIME" ] && [ -n "$TIME_LEFT" ]; then
-                echo "🕌 الصلاة القادمة: $NEXT_PRAYER عند $NEXT_TIME (باقي $TIME_LEFT)"
-                return 0
-            fi
+        # إذا كان ملف المواقيت قديماً (أكبر من 24 ساعة) أو غير موجود، قم بتحديثه
+        if [ ! -f "$TIMES_FILE" ] || [ $(find "$TIMES_FILE" -mtime +0 -print 2>/dev/null) ]; then
+            "$MAIN_SCRIPT" --show-timetable > "$TIMES_FILE" 2>/dev/null || true
         fi
         
-        # محاولة بديلة: استخدام الملف الموجود
-        TIMES_FILE="$INSTALL_DIR/today_prayers.txt"
+        # قراءة المواقيت من الملف
         if [ -f "$TIMES_FILE" ]; then
-            # قراءة أول صلاة موجودة
+            # البحث عن الصلاة القادمة
+            CURRENT_TIME=$(date +%H:%M)
+            NEXT_PRAYER=""
+            NEXT_TIME=""
+            
             while IFS= read -r line; do
-                if [[ "$line" == *"القادمة:"* ]]; then
-                    echo "$line"
-                    return 0
+                if [[ "$line" == *"🕌 الصلاة القادمة:"* ]]; then
+                    NEXT_PRAYER=$(echo "$line" | sed 's/🕌 الصلاة القادمة: //' | cut -d ':' -f1)
+                    NEXT_TIME=$(echo "$line" | grep -o '[0-9]\{2\}:[0-9]\{2\}')
+                    break
+                elif [[ "$line" == *"القادمة:"* ]]; then
+                    NEXT_PRAYER=$(echo "$line" | sed 's/.*القادمة: //' | awk '{print $1}')
+                    NEXT_TIME=$(echo "$line" | grep -o '[0-9]\{2\}:[0-9]\{2\}')
+                    break
                 fi
             done < "$TIMES_FILE"
+            
+            if [ -n "$NEXT_PRAYER" ] && [ -n "$NEXT_TIME" ]; then
+                # حساب الوقت المتبقي
+                CURRENT_SECONDS=$(date -d "$CURRENT_TIME" +%s 2>/dev/null || date +%s)
+                NEXT_SECONDS=$(date -d "$NEXT_TIME" +%s 2>/dev/null || date +%s)
+                
+                if [ -n "$CURRENT_SECONDS" ] && [ -n "$NEXT_SECONDS" ] && [ "$NEXT_SECONDS" -gt "$CURRENT_SECONDS" ]; then
+                    TIME_LEFT=$((NEXT_SECONDS - CURRENT_SECONDS))
+                    HOURS=$((TIME_LEFT / 3600))
+                    MINUTES=$(((TIME_LEFT % 3600) / 60))
+                    
+                    if [ "$HOURS" -gt 0 ]; then
+                        TIME_LEFT_STR=$(printf "%02d:%02d" "$HOURS" "$MINUTES")
+                    else
+                        TIME_LEFT_STR=$(printf "%02d دقيقة" "$MINUTES")
+                    fi
+                    
+                    echo "🕌 الصلاة القادمة: $NEXT_PRAYER عند $NEXT_TIME (باقي $TIME_LEFT_STR)"
+                    return 0
+                fi
+            fi
         fi
     fi
     return 1
@@ -267,7 +271,7 @@ if [ -f "$INSTALL_DIR/azkar.txt" ]; then
             RANDOM_LINE=$((RANDOM % TOTAL_LINES + 1))
             AZKAR=$(sed -n "${RANDOM_LINE}p" "$INSTALL_DIR/azkar.txt")
             
-            # عرض الذكر - بدون "═" في النهاية
+            # عرض الذكر - بدون "══" في النهاية
             echo "${AZKAR%"═"}"  # إزالة أي "═" في النهاية
             echo ""
         fi
@@ -297,7 +301,7 @@ setup_terminal_config() {
     
     if [ -f "$shell_file" ]; then
         # التحقق إذا كانت الإعدادات موجودة مسبقاً
-        if ! grep -q "GT-salat-dikr" "$shell_file" 2>/dev/null; then
+        if ! grep -q "gtsalat\|GT-salat-dikr" "$shell_file" 2>/dev/null; then
             echo "" >> "$shell_file"
             echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$shell_file"
             echo "if [ -f \"$INSTALL_DIR/show-prayer.sh\" ]; then" >> "$shell_file"
@@ -306,6 +310,19 @@ setup_terminal_config() {
             echo "✅ تم إضافة إعدادات GT-salat-dikr إلى $shell_name"
         else
             echo "ℹ️  إعدادات GT-salat-dikr موجودة مسبقاً في $shell_name"
+            
+            # إصلاح: تنظيف الإعدادات القديمة المعطوبة
+            sed -i '/^if \[ -f "\$INSTALL_DIR\/\$MAIN_SCRIPT" \]; then/,/^fi$/d' "$shell_file" 2>/dev/null || true
+            sed -i '/alias gtsalat=/d' "$shell_file" 2>/dev/null || true
+            sed -i '/\$INSTALL_DIR\/\$MAIN_SCRIPT/d' "$shell_file" 2>/dev/null || true
+            
+            # إضافة الإعدادات الجديدة
+            echo "" >> "$shell_file"
+            echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$shell_file"
+            echo "if [ -f \"$INSTALL_DIR/show-prayer.sh\" ]; then" >> "$shell_file"
+            echo "    . \"$INSTALL_DIR/show-prayer.sh\"" >> "$shell_file"
+            echo "fi" >> "$shell_file"
+            echo "✅ تم تحديث إعدادات GT-salat-dikr في $shell_name"
         fi
     else
         echo "⚠️  ملف $shell_name غير موجود، تخطي الإعدادات"
@@ -323,15 +340,23 @@ if command -v fish >/dev/null 2>&1 && [ -d "$HOME/.config/fish" ]; then
     FISH_CONFIG="$HOME/.config/fish/config.fish"
     mkdir -p "$HOME/.config/fish"
     
-    if [ ! -f "$FISH_CONFIG" ] || ! grep -q "GT-salat-dikr" "$FISH_CONFIG" 2>/dev/null; then
-        echo "" >> "$FISH_CONFIG"
+    if [ -f "$FISH_CONFIG" ]; then
+        if ! grep -q "GT-salat-dikr" "$FISH_CONFIG" 2>/dev/null; then
+            echo "" >> "$FISH_CONFIG"
+            echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$FISH_CONFIG"
+            echo "if test -f \"$INSTALL_DIR/show-prayer.sh\"" >> "$FISH_CONFIG"
+            echo "    bash \"$INSTALL_DIR/show-prayer.sh\"" >> "$FISH_CONFIG"
+            echo "end" >> "$FISH_CONFIG"
+            echo "  ✅ تم الإضافة إلى fish config"
+        else
+            echo "  ℹ️  إعدادات GT-salat-dikr موجودة مسبقاً في fish config"
+        fi
+    else
         echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$FISH_CONFIG"
         echo "if test -f \"$INSTALL_DIR/show-prayer.sh\"" >> "$FISH_CONFIG"
         echo "    bash \"$INSTALL_DIR/show-prayer.sh\"" >> "$FISH_CONFIG"
         echo "end" >> "$FISH_CONFIG"
-        echo "  ✅ تم الإضافة إلى fish config"
-    else
-        echo "  ℹ️  إعدادات GT-salat-dikr موجودة مسبقاً في fish config"
+        echo "  ✅ تم إنشاء وإضافة إلى fish config"
     fi
 fi
 
@@ -347,7 +372,6 @@ cat > "$LAUNCHER_FILE" << 'EOF'
 
 INSTALL_DIR="$(dirname "$(realpath "$0")")"
 TRAY_SCRIPT="$INSTALL_DIR/gt-tray.py"
-PID_FILE="/tmp/gt-salat-tray.pid"
 
 # ألوان للواجهة
 RED='\033[0;31m'
@@ -370,19 +394,6 @@ echo -e "${BLUE}═════════════════════�
 echo -e "${GREEN}           جاري تشغيل النظام...${NC}"
 echo -e "${BLUE}════════════════════════════════════════════════════════${NC}"
 echo ""
-
-# إصلاح: التحقق من وجود العملية أولاً لمنع التكرار
-if [ -f "$PID_FILE" ]; then
-    OLD_PID=$(cat "$PID_FILE" 2>/dev/null)
-    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-        echo -e "${YELLOW}⚠️  System Tray يعمل بالفعل (PID: $OLD_PID)${NC}"
-        echo -e "${YELLOW}💡 لا حاجة لتشغيل نسخة أخرى${NC}"
-        sleep 3
-        exit 0
-    else
-        rm -f "$PID_FILE" 2>/dev/null
-    fi
-fi
 
 # التحقق من Python ومكتباته
 echo -e "${YELLOW}🔍 التحقق من متطلبات النظام...${NC}"
@@ -411,11 +422,11 @@ if [ "$PYTHON_OK" = true ]; then
     
     # تشغيل System Tray في الخلفية
     cd "$INSTALL_DIR"
-    python3 "$TRAY_SCRIPT" &
+    nohup python3 "$TRAY_SCRIPT" >/dev/null 2>&1 &
     TRAY_PID=$!
     
-    # حفظ PID لمنع التكرار
-    echo $TRAY_PID > "$PID_FILE"
+    # حفظ PID
+    echo $TRAY_PID > "/tmp/gt-salat-tray.pid"
     
     # عرض مؤشر تقدم
     echo -ne "${GREEN}"
@@ -469,18 +480,6 @@ cat > "$UNIVERSAL_LAUNCHER" << 'EOF'
 #
 
 INSTALL_DIR="$(dirname "$(realpath "$0")")"
-PID_FILE="/tmp/gt-salat-tray.pid"
-
-# إصلاح: التحقق من وجود العملية أولاً
-if [ -f "$PID_FILE" ]; then
-    OLD_PID=$(cat "$PID_FILE" 2>/dev/null)
-    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-        # العملية تعمل بالفعل، لا حاجة لتشغيل نسخة أخرى
-        exit 0
-    else
-        rm -f "$PID_FILE" 2>/dev/null
-    fi
-fi
 
 # تحديد terminal المناسب
 TERMINAL_CMD=""
@@ -639,14 +638,8 @@ fi
 # بدء System Tray إذا طلب المستخدم
 if [[ "$install_tray" != "n" && "$install_tray" != "N" ]] && [ -f "$TRAY_SCRIPT" ]; then
     echo "🖥️  بدء System Tray..."
-    # إصلاح: التحقق من عدم وجود نسخة تعمل بالفعل
-    if [ ! -f "/tmp/gt-salat-tray.pid" ] || ! kill -0 $(cat "/tmp/gt-salat-tray.pid" 2>/dev/null) 2>/dev/null; then
-        bash -c "sleep 5 && python3 '$TRAY_SCRIPT' >/dev/null 2>&1 &" &
-        echo $! > "/tmp/gt-salat-tray.pid" 2>/dev/null
-        echo "  ✅ تم بدء System Tray"
-    else
-        echo "  ℹ️  System Tray يعمل بالفعل"
-    fi
+    bash -c "sleep 5 && python3 '$TRAY_SCRIPT' >/dev/null 2>&1 &" &
+    echo "  ✅ تم بدء System Tray"
 fi
 
 # ---------- المرحلة 13: عرض رسالة النجاح ----------
@@ -662,9 +655,9 @@ echo "✨ التعديلات الجديدة:"
 echo "══════════════════════════════════════════════════════════════════════════════"
 echo "✅ 1. تنسيق جديد لعرض الذكر والصلاة"
 echo "✅ 2. ﷽ بجانب اسم البرنامج"
-echo "✅ 3. إعداد الموقع الافتراضي تلقائياً"
-echo "✅ 4. منع تكرار أيقونة النظام"
-echo "✅ 5. إصلاح عرض مواقيت الصلاة"
+echo "✅ 3. عرض مواقيت الصلاة بشكل صحيح"
+echo "✅ 4. دعم bash, zsh, fish"
+echo "✅ 5. ملفين منفصلين: show-prayer.sh و show-azkar-tray.sh"
 echo "══════════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "🚀 عرض تنسيق الذكر الجديد:"
@@ -681,17 +674,11 @@ echo "gtsalat                 - البرنامج الرئيسي"
 echo "gt-launcher             - تشغيل System Tray"
 echo "gt-azkar                - عرض الذكر من الطرفية"
 echo ""
-echo "💡 التحديث اليدوي:"
-echo "══════════════════════════════════════════════════════════════════════════════"
-echo "للتحديث، استخدم هذا الأمر:"
-echo "bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh)\""
-echo ""
 echo "📁 الملفات المثبتة:"
 echo "══════════════════════════════════════════════════════════════════════════════"
 echo "• $INSTALL_DIR/show-prayer.sh"
 echo "• $INSTALL_DIR/show-azkar-tray.sh"
 echo "• $INSTALL_DIR/launcher.sh"
-echo "• $INSTALL_DIR/config/settings.conf"
 echo ""
 echo "💡 افتح terminal جديد لترى الذكر تلقائياً!"
 echo "══════════════════════════════════════════════════════════════════════════════"
