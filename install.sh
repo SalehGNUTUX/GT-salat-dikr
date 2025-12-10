@@ -43,7 +43,6 @@ DESKTOP_FILE="$INSTALL_DIR/gt-salat-dikr.desktop"
 LAUNCHER_FILE="$INSTALL_DIR/launcher.sh"
 UNIVERSAL_LAUNCHER="$INSTALL_DIR/launcher-universal.sh"
 UNINSTALLER="$INSTALL_DIR/uninstall.sh"
-CONFIG_FILE="$INSTALL_DIR/.gtsalat_config"
 
 # ---------- المرحلة 1: التثبيت الأساسي ----------
 echo "📥 تحميل البرنامج..."
@@ -104,18 +103,10 @@ cat > "$INSTALL_DIR/show-prayer.sh" << 'EOF'
 
 INSTALL_DIR="$HOME/.GT-salat-dikr"
 MAIN_SCRIPT="$INSTALL_DIR/gt-salat-dikr.sh"
-CONFIG_FILE="$INSTALL_DIR/.gtsalat_config"
 
-# دالة للتحقق من إتمام الإعداد
-is_configured() {
-    [ -f "$CONFIG_FILE" ] && \
-    grep -q "LOCATION_CONFIGURED=true" "$CONFIG_FILE" 2>/dev/null && \
-    grep -q "METHOD_CONFIGURED=true" "$CONFIG_FILE" 2>/dev/null
-}
-
-# دالة لجلب مواقيت الصلاة
+# دالة محسنة لجلب مواقيت الصلاة
 get_prayer_times() {
-    if [ -f "$MAIN_SCRIPT" ] && is_configured; then
+    if [ -f "$MAIN_SCRIPT" ]; then
         # محاولة الحصول على مواقيت اليوم من البرنامج الرئيسي
         TIMES_OUTPUT=$("$MAIN_SCRIPT" --show-timetable 2>/dev/null)
         
@@ -128,11 +119,24 @@ get_prayer_times() {
                 return 0
             fi
         fi
+        
+        # محاولة بديلة: استخدام الملف الموجود
+        TIMES_FILE="$INSTALL_DIR/today_prayers.txt"
+        if [ -f "$TIMES_FILE" ]; then
+            # قراءة أول صلاة موجودة
+            while IFS= read -r line; do
+                if [[ "$line" == *"🕌 الصلاة القادمة:"* ]] || [[ "$line" == *"القادمة:"* ]]; then
+                    echo "$line"
+                    return 0
+                fi
+            done < "$TIMES_FILE"
+        fi
     fi
     
-    # إذا لم يتم الإعداد
-    if ! is_configured; then
-        echo "⚙️  قم بإعداد البرنامج أولاً: gtsalat --setup"
+    # إذا لم تكن هناك إعدادات
+    SETTINGS_FILE="$INSTALL_DIR/config/settings.conf"
+    if [ ! -f "$SETTINGS_FILE" ]; then
+        echo "⚙️  قم بإعداد البرنامج أولاً من أيقونة شريط المهام"
     else
         echo "🔄 جاري تحميل مواقيت الصلاة..."
     fi
@@ -152,8 +156,8 @@ if [ -f "$INSTALL_DIR/azkar.txt" ]; then
             RANDOM_LINE=$((RANDOM % TOTAL_LINES + 1))
             AZKAR=$(sed -n "${RANDOM_LINE}p" "$INSTALL_DIR/azkar.txt")
             
-            # عرض الذكر - إزالة أي "═" في البداية والنهاية
-            CLEAN_AZKAR=$(echo "$AZKAR" | sed 's/^═*//; s/═*$//')
+            # عرض الذكر - إزالة أي "═" في النهاية
+            CLEAN_AZKAR=$(echo "$AZKAR" | sed 's/═*$//')
             echo "$CLEAN_AZKAR"
             echo "══════════════════════════════════════"
         fi
@@ -181,18 +185,10 @@ cat > "$INSTALL_DIR/show-azkar-tray.sh" << 'EOF'
 
 INSTALL_DIR="$HOME/.GT-salat-dikr"
 MAIN_SCRIPT="$INSTALL_DIR/gt-salat-dikr.sh"
-CONFIG_FILE="$INSTALL_DIR/.gtsalat_config"
 
-# دالة للتحقق من إتمام الإعداد
-is_configured() {
-    [ -f "$CONFIG_FILE" ] && \
-    grep -q "LOCATION_CONFIGURED=true" "$CONFIG_FILE" 2>/dev/null && \
-    grep -q "METHOD_CONFIGURED=true" "$CONFIG_FILE" 2>/dev/null
-}
-
-# دالة لجلب مواقيت الصلاة
+# دالة محسنة لجلب مواقيت الصلاة
 get_prayer_times() {
-    if [ -f "$MAIN_SCRIPT" ] && is_configured; then
+    if [ -f "$MAIN_SCRIPT" ]; then
         TIMES_OUTPUT=$("$MAIN_SCRIPT" --show-timetable 2>/dev/null)
         
         if [ -n "$TIMES_OUTPUT" ]; then
@@ -203,9 +199,22 @@ get_prayer_times() {
                 return 0
             fi
         fi
+        
+        # محاولة بديلة: استخدام الملف الموجود
+        TIMES_FILE="$INSTALL_DIR/today_prayers.txt"
+        if [ -f "$TIMES_FILE" ]; then
+            while IFS= read -r line; do
+                if [[ "$line" == *"🕌 الصلاة القادمة:"* ]] || [[ "$line" == *"القادمة:"* ]]; then
+                    echo "$line"
+                    return 0
+                fi
+            done < "$TIMES_FILE"
+        fi
     fi
     
-    if ! is_configured; then
+    # إذا لم تكن هناك إعدادات
+    SETTINGS_FILE="$INSTALL_DIR/config/settings.conf"
+    if [ ! -f "$SETTINGS_FILE" ]; then
         echo "⚙️  قم بإعداد البرنامج أولاً من أيقونة شريط المهام"
     fi
     return 1
@@ -225,8 +234,8 @@ if [ -f "$INSTALL_DIR/azkar.txt" ]; then
             RANDOM_LINE=$((RANDOM % TOTAL_LINES + 1))
             AZKAR=$(sed -n "${RANDOM_LINE}p" "$INSTALL_DIR/azkar.txt")
             
-            # عرض الذكر - إزالة أي "═" في البداية والنهاية
-            CLEAN_AZKAR=$(echo "$AZKAR" | sed 's/^═*//; s/═*$//')
+            # عرض الذكر - إزالة أي "═" في النهاية
+            CLEAN_AZKAR=$(echo "$AZKAR" | sed 's/═*$//')
             echo "$CLEAN_AZKAR"
             echo ""
         fi
@@ -254,18 +263,17 @@ setup_terminal_config() {
     local shell_name="$2"
     
     if [ -f "$shell_file" ]; then
-        # تنظيف الإعدادات القديمة
-        sed -i '/^# GT-salat-dikr/,/^fi$/d' "$shell_file" 2>/dev/null || true
-        sed -i '/alias gtsalat=/d' "$shell_file" 2>/dev/null || true
-        sed -i '/GT-salat-dikr/d' "$shell_file" 2>/dev/null || true
-        
-        # إضافة الإعدادات الجديدة
-        echo "" >> "$shell_file"
-        echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$shell_file"
-        echo "if [ -f \"$INSTALL_DIR/show-prayer.sh\" ]; then" >> "$shell_file"
-        echo "    . \"$INSTALL_DIR/show-prayer.sh\"" >> "$shell_file"
-        echo "fi" >> "$shell_file"
-        echo "✅ تم إضافة إعدادات GT-salat-dikr إلى $shell_name"
+        # التحقق إذا كانت الإعدادات موجودة مسبقاً
+        if ! grep -q "GT-salat-dikr" "$shell_file" 2>/dev/null; then
+            echo "" >> "$shell_file"
+            echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$shell_file"
+            echo "if [ -f \"$INSTALL_DIR/show-prayer.sh\" ]; then" >> "$shell_file"
+            echo "    . \"$INSTALL_DIR/show-prayer.sh\"" >> "$shell_file"
+            echo "fi" >> "$shell_file"
+            echo "✅ تم إضافة إعدادات GT-salat-dikr إلى $shell_name"
+        else
+            echo "ℹ️  إعدادات GT-salat-dikr موجودة مسبقاً في $shell_name"
+        fi
     else
         echo "⚠️  ملف $shell_name غير موجود، تخطي الإعدادات"
     fi
@@ -282,18 +290,16 @@ if command -v fish >/dev/null 2>&1 && [ -d "$HOME/.config/fish" ]; then
     FISH_CONFIG="$HOME/.config/fish/config.fish"
     mkdir -p "$HOME/.config/fish"
     
-    # تنظيف الإعدادات القديمة
-    if [ -f "$FISH_CONFIG" ]; then
-        sed -i '/# GT-salat-dikr/,/^end$/d' "$FISH_CONFIG" 2>/dev/null || true
+    if [ ! -f "$FISH_CONFIG" ] || ! grep -q "GT-salat-dikr" "$FISH_CONFIG" 2>/dev/null; then
+        echo "" >> "$FISH_CONFIG"
+        echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$FISH_CONFIG"
+        echo "if test -f \"$INSTALL_DIR/show-prayer.sh\"" >> "$FISH_CONFIG"
+        echo "    bash \"$INSTALL_DIR/show-prayer.sh\"" >> "$FISH_CONFIG"
+        echo "end" >> "$FISH_CONFIG"
+        echo "  ✅ تم الإضافة إلى fish config"
+    else
+        echo "  ℹ️  إعدادات GT-salat-dikr موجودة مسبقاً في fish config"
     fi
-    
-    # إضافة الإعدادات الجديدة
-    echo "" >> "$FISH_CONFIG"
-    echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$FISH_CONFIG"
-    echo "if test -f \"$INSTALL_DIR/show-prayer.sh\"" >> "$FISH_CONFIG"
-    echo "    bash \"$INSTALL_DIR/show-prayer.sh\"" >> "$FISH_CONFIG"
-    echo "end" >> "$FISH_CONFIG"
-    echo "  ✅ تم الإضافة إلى fish config"
 fi
 
 # ---------- المرحلة 6: إنشاء Launcher محسّن مع منع التكرار ----------
@@ -319,8 +325,8 @@ NC='\033[0m'
 
 # التحقق من وجود عملية قيد التشغيل
 if [ -f "$PID_FILE" ]; then
-    OLD_PID=$(cat "$PID_FILE")
-    if kill -0 "$OLD_PID" 2>/dev/null; then
+    OLD_PID=$(cat "$PID_FILE" 2>/dev/null)
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
         echo -e "${YELLOW}⚠️  GT-salat-dikr System Tray يعمل بالفعل!${NC}"
         echo -e "${YELLOW}📌 يمكنك إيجاد الأيقونة 🕌 في شريط المهام${NC}"
         echo ""
@@ -328,7 +334,7 @@ if [ -f "$PID_FILE" ]; then
         exit 0
     else
         # حذف ملف PID القديم
-        rm -f "$PID_FILE"
+        rm -f "$PID_FILE" 2>/dev/null
     fi
 fi
 
@@ -374,11 +380,11 @@ if [ "$PYTHON_OK" = true ]; then
     
     # تشغيل System Tray في الخلفية
     cd "$INSTALL_DIR"
-    nohup python3 "$TRAY_SCRIPT" >/dev/null 2>&1 &
+    python3 "$TRAY_SCRIPT" &
     TRAY_PID=$!
     
     # حفظ PID
-    echo $TRAY_PID > "$PID_FILE"
+    echo $TRAY_PID > "$PID_FILE" 2>/dev/null
     
     # عرض مؤشر تقدم
     echo -ne "${GREEN}"
@@ -403,7 +409,7 @@ if [ "$PYTHON_OK" = true ]; then
         echo ""
     else
         echo -e "${YELLOW}⚠️  System Tray توقف عن العمل${NC}"
-        rm -f "$PID_FILE"
+        rm -f "$PID_FILE" 2>/dev/null
     fi
 else
     echo ""
@@ -508,34 +514,8 @@ echo "🔗 إنشاء أوامر سهلة الوصول..."
 
 mkdir -p "$HOME/.local/bin"
 
-# إنشاء wrapper script للبرنامج الرئيسي مع خيار التحديث اليدوي
-cat > "$HOME/.local/bin/gtsalat" << 'WRAPPER_EOF'
-#!/bin/bash
-INSTALL_DIR="$HOME/.GT-salat-dikr"
-MAIN_SCRIPT="$INSTALL_DIR/gt-salat-dikr.sh"
-
-# خيار التحديث اليدوي
-if [ "$1" = "--update" ] || [ "$1" = "update" ]; then
-    echo "🔄 جاري تحديث GT-salat-dikr..."
-    echo ""
-    bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh)"
-    exit $?
-fi
-
-# تشغيل البرنامج الرئيسي
-if [ -f "$MAIN_SCRIPT" ]; then
-    bash "$MAIN_SCRIPT" "$@"
-else
-    echo "❌ GT-salat-dikr غير مثبت!"
-    echo "💡 قم بتثبيته باستخدام:"
-    echo "   bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh)\""
-    exit 1
-fi
-WRAPPER_EOF
-
-chmod +x "$HOME/.local/bin/gtsalat"
-
-# إنشاء الأوامر الأخرى
+# إنشاء الأوامر
+ln -sf "$INSTALL_DIR/$MAIN_SCRIPT" "$HOME/.local/bin/gtsalat" 2>/dev/null || true
 ln -sf "$LAUNCHER_FILE" "$HOME/.local/bin/gt-launcher" 2>/dev/null || true
 ln -sf "$INSTALL_DIR/show-azkar-tray.sh" "$HOME/.local/bin/gt-azkar" 2>/dev/null || true
 
@@ -618,21 +598,14 @@ fi
 # بدء System Tray إذا طلب المستخدم
 if [[ "$install_tray" != "n" && "$install_tray" != "N" ]] && [ -f "$TRAY_SCRIPT" ]; then
     echo "🖥️  بدء System Tray..."
-    
-    # التحقق من عدم وجود عملية قيد التشغيل
+    # التحقق من عدم وجود نسخة تعمل بالفعل
     PID_FILE="/tmp/gt-salat-tray.pid"
-    if [ -f "$PID_FILE" ]; then
-        OLD_PID=$(cat "$PID_FILE")
-        if kill -0 "$OLD_PID" 2>/dev/null; then
-            echo "  ℹ️  System Tray يعمل بالفعل"
-        else
-            rm -f "$PID_FILE"
-            bash -c "sleep 5 && python3 '$TRAY_SCRIPT' >/dev/null 2>&1 &" &
-            echo "  ✅ تم بدء System Tray"
-        fi
-    else
+    if [ ! -f "$PID_FILE" ] || ! kill -0 $(cat "$PID_FILE" 2>/dev/null) 2>/dev/null; then
         bash -c "sleep 5 && python3 '$TRAY_SCRIPT' >/dev/null 2>&1 &" &
+        echo $! > "$PID_FILE" 2>/dev/null
         echo "  ✅ تم بدء System Tray"
+    else
+        echo "  ℹ️  System Tray يعمل بالفعل"
     fi
 fi
 
@@ -645,55 +618,46 @@ echo "════════════════════════�
 echo ""
 echo "🎉 مبروك! تم تثبيت GT-salat-dikr الإصدار 3.2.8 بنجاح 🎉"
 echo ""
-echo "✨ الإصلاحات الجديدة في 3.2.8:"
+echo "✨ الإصلاحات الجديدة:"
 echo "══════════════════════════════════════════════════════════════════════════════"
 echo "✅ 1. إصلاح عرض مواقيت الصلاة في الطرفية"
-echo "✅ 2. منع تكرار أيقونة System Tray في شريط المهام"
-echo "✅ 3. إصلاح مشكلة تكرار مراحل الإعداد"
-echo "✅ 4. إزالة التحديث التلقائي (استخدم: gtsalat --update)"
-echo "✅ 5. تنظيف عرض الذكر من علامات ═ الزائدة"
-echo "✅ 6. التحقق من إتمام الإعداد قبل عرض المواقيت"
+echo "✅ 2. منع تكرار أيقونة System Tray"
+echo "✅ 3. إزالة مشكلة ══ من نهاية الذكر"
+echo "✅ 4. إضافة ﷽ بجانب اسم البرنامج"
+echo "✅ 5. تحسين اكتشاف مواقيت الصلاة"
 echo "══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "⚙️  خطوات مهمة للبدء:"
+echo "🚀 عرض تنسيق الذكر الجديد:"
 echo "══════════════════════════════════════════════════════════════════════════════"
-echo "1. 🔍 افتح أيقونة 🕌 من شريط المهام (System Tray)"
-echo "2. 🖱️  انقر بزر الماوس الأيمن واختر 'إعدادات'"
-echo "3. 📍 قم بإعداد الموقع وطريقة حساب الصلاة"
-echo "4. ✅ بعد إتمام الإعداد، افتح terminal جديد لرؤية المواقيت"
+echo "🕌 GT-salat-dikr 🕋 ﷽"
+echo "══════════════════════════════════════"
+echo "سُبْحَانَ اللهِ وَالْحَمْدُ لِلَّهِ وَلَا إِلَهَ إِلَّا اللهُ وَاللهُ أَكْبَرُ"
+echo "══════════════════════════════════════"
+echo "🕌 الصلاة القادمة: العصر عند 16:00 (باقي 01:47)"
 echo ""
 echo "✨ الأوامر المتاحة:"
 echo "══════════════════════════════════════════════════════════════════════════════"
 echo "gtsalat                 - البرنامج الرئيسي"
-echo "gtsalat --update        - تحديث البرنامج يدوياً"
-echo "gtsalat --setup         - إعداد الموقع والمواقيت"
 echo "gt-launcher             - تشغيل System Tray"
 echo "gt-azkar                - عرض الذكر من الطرفية"
 echo ""
-echo "🔄 كيفية التحديث:"
+echo "💡 التحديث اليدوي:"
 echo "══════════════════════════════════════════════════════════════════════════════"
-echo "لتحديث البرنامج إلى أحدث إصدار، استخدم:"
-echo "  gtsalat --update"
-echo ""
-echo "هذا سيقوم بتحميل وتثبيت جميع المكونات الجديدة من المستودع"
+echo "للتحديث، استخدم هذا الأمر:"
+echo "bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh)\""
 echo ""
 echo "📁 الملفات المثبتة:"
 echo "══════════════════════════════════════════════════════════════════════════════"
 echo "• $INSTALL_DIR/show-prayer.sh"
 echo "• $INSTALL_DIR/show-azkar-tray.sh"
 echo "• $INSTALL_DIR/launcher.sh"
-echo "• $HOME/.local/bin/gtsalat (مع خيار --update)"
 echo ""
-echo "💡 ملاحظات مهمة:"
+echo "💡 افتح terminal جديد لترى الذكر تلقائياً!"
 echo "══════════════════════════════════════════════════════════════════════════════"
-echo "• لن ترى مواقيت الصلاة حتى تُتم عملية الإعداد الأولى"
-echo "• افتح terminal جديد بعد الإعداد لرؤية التحديثات"
-echo "• يمكنك تشغيل أيقونة System Tray مرة واحدة فقط"
-echo "• استخدم gtsalat --update للتحديث اليدوي"
 echo ""
 echo "📞 الدعم: https://github.com/SalehGNUTUX/GT-salat-dikr"
 echo ""
-echo "══════════════════════════════════════════════════════════════════════════════"
+echo "يمكنك البدء في استخدام البرنامج الآن! 🚀"
 
 # اختبار نهائي
 echo ""
@@ -708,6 +672,5 @@ fi
 
 echo ""
 echo "👋 تم التثبيت بنجاح!"
-echo "⚠️  لا تنسى إعداد الموقع ومواقيت الصلاة من أيقونة شريط المهام!"
 
 exit 0
