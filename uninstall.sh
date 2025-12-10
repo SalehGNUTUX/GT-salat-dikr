@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# GT-salat-dikr Complete Uninstall Script - v3.2.2-full
-# إزالة كاملة للبرنامج وكل مكوناته
+# GT-salat-dikr Complete Uninstall Script - v3.2.3
+# إزالة كاملة مع دعم إزالة السكربت نفسه
 #
 
 set -e
@@ -19,14 +19,26 @@ fi
 
 INSTALL_DIR="$HOME/.GT-salat-dikr"
 LOG_FILE="$INSTALL_DIR/uninstall.log"
+SCRIPT_SELF="$0"
 
-# دالة التسجيل
+# ---------- دالة نسخ السكربت إلى موقع مؤقت ----------
+copy_self_to_temp() {
+    local temp_script="/tmp/gt-salat-uninstall-$$.sh"
+    
+    echo "📋 نسخ سكربت الإزالة إلى موقع مؤقت: $temp_script"
+    
+    # نسخ محتوى السكربت الحالي
+    cat "$SCRIPT_SELF" > "$temp_script"
+    chmod +x "$temp_script"
+    
+    # تشغيل النسخة المؤقتة
+    exec "$temp_script" "$@"
+}
+
+# ---------- دالة التسجيل ----------
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $*" | tee -a "$LOG_FILE"
 }
-
-# بدء عملية الإزالة
-log "بدأت عملية الإزالة"
 
 # ---------- المرحلة 1: التحقق والتأكيد ----------
 echo ""
@@ -51,7 +63,12 @@ echo ""
 read -p "هل تريد حفظ نسخة احتياطية من الإعدادات؟ [Y/n]: " BACKUP
 BACKUP=${BACKUP:-Y}
 
-# إنشاء نسخة احتياطية إذا طلب المستخدم
+# ---------- نسخ السكربت إلى موقع مؤقت ----------
+copy_self_to_temp "$@"
+
+# ---------- (الاستمرار من النسخة المؤقتة) ----------
+
+# ---------- إنشاء نسخة احتياطية إذا طلب المستخدم ----------
 if [[ "$BACKUP" =~ ^[Yy]$ ]]; then
     BACKUP_DIR="$HOME/gt-salat-dikr-backup-$(date +%Y%m%d-%H%M%S)"
     mkdir -p "$BACKUP_DIR"
@@ -60,13 +77,18 @@ if [[ "$BACKUP" =~ ^[Yy]$ ]]; then
     
     # نسخ الملفات المهمة
     if [ -d "$INSTALL_DIR" ]; then
+        echo "📁 جاري إنشاء نسخة احتياطية..."
+        
         cp -r "$INSTALL_DIR/settings.conf" "$BACKUP_DIR/" 2>/dev/null || true
         cp -r "$INSTALL_DIR/monthly_timetables" "$BACKUP_DIR/" 2>/dev/null || true
         cp -r "$INSTALL_DIR/azkar.txt" "$BACKUP_DIR/" 2>/dev/null || true
+        cp -r "$INSTALL_DIR/icons" "$BACKUP_DIR/" 2>/dev/null || true
         
         echo "✅ تم إنشاء نسخة احتياطية في: $BACKUP_DIR"
         echo "📁 الملفات المحفوظة:"
-        ls -la "$BACKUP_DIR/" 2>/dev/null | grep -v "^total"
+        find "$BACKUP_DIR" -type f -name "*" | head -10 | while read -r file; do
+            echo "  📄 $(basename "$file")"
+        done
     else
         echo "⚠️  مجلد التثبيت غير موجود، لا توجد بيانات للنسخ الاحتياطي"
     fi
@@ -148,6 +170,22 @@ if [ -d "$HOME/.config/plasma-workspace/env" ]; then
     echo "  ✅ تم إزالة إعدادات KDE Plasma"
 fi
 
+# إزالة إعدادات XFCE
+if [ -d "$HOME/.config/xfce4/autostart" ]; then
+    rm -f "$HOME/.config/xfce4/autostart/gt-salat-dikr.desktop" 2>/dev/null || true
+    echo "  ✅ تم إزالة إعدادات XFCE"
+fi
+
+# إزالة إعدادات LXDE/LXQt
+if [ -f "$HOME/.config/lxsession/LXDE/autostart" ]; then
+    sed -i '/gt-salat-dikr/d' "$HOME/.config/lxsession/LXDE/autostart" 2>/dev/null || true
+    echo "  ✅ تم إزالة إعدادات LXDE/LXQt"
+fi
+
+# إزالة ملف التطبيق من القائمة
+rm -f "$HOME/.local/share/applications/gt-salat-dikr.desktop" 2>/dev/null || true
+update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+
 # ---------- المرحلة 4: إزالة إعدادات الطرفية ----------
 echo ""
 echo "🔧 تنظيف إعدادات الطرفية..."
@@ -166,6 +204,7 @@ clean_shell_config() {
         sed -i '/gt-salat-dikr/d' "$shell_file" 2>/dev/null || true
         sed -i '/GT-salat-dikr/d' "$shell_file" 2>/dev/null || true
         sed -i '/~\/.local\/bin\/gtsalat/d' "$shell_file" 2>/dev/null || true
+        sed -i '/~\/.GT-salat-dikr/d' "$shell_file" 2>/dev/null || true
         
         # إزالة الأسطر الفارغة الزائدة
         sed -i '/^$/N;/^\n$/D' "$shell_file" 2>/dev/null || true
@@ -179,6 +218,7 @@ clean_shell_config() {
 clean_shell_config "$HOME/.bashrc" "Bash"
 clean_shell_config "$HOME/.bash_profile" "Bash Profile"
 clean_shell_config "$HOME/.zshrc" "Zsh"
+clean_shell_config "$HOME/.profile" "Profile"
 
 # إزالة الرابط من PATH
 if [ -L "$HOME/.local/bin/gtsalat" ]; then
@@ -198,7 +238,7 @@ echo "🗑️  إزالة مجلد التثبيت..."
 if [ -d "$INSTALL_DIR" ]; then
     # عرض محتويات المجلد قبل الحذف
     echo "📁 محتويات المجلد الذي سيتم حذفه:"
-    ls -la "$INSTALL_DIR/" 2>/dev/null || echo "  (فارغ أو غير قابل للقراءة)"
+    du -sh "$INSTALL_DIR" 2>/dev/null || echo "  (غير قابل للقراءة)"
     
     read -p "هل تريد حذف مجلد التثبيت بالكامل؟ [Y/n]: " DELETE_DIR
     DELETE_DIR=${DELETE_DIR:-Y}
@@ -230,10 +270,11 @@ echo "🧹 تنظيف الملفات المؤقتة..."
 
 # إزالة ملفات PID
 rm -f /tmp/gt-*.pid 2>/dev/null || true
-rm -f /tmp/gt-* 2>/dev/null || true
+rm -f /tmp/gt-salat-*.lock 2>/dev/null || true
 
 # إزالة ملفات القفل
 rm -f "$HOME/.cache/gt-salat-*" 2>/dev/null || true
+rm -f "/tmp/gt-salat-uninstall-*.sh" 2>/dev/null || true
 
 # إزالة ملفات النظام
 rm -f /tmp/dbus-*/gt-* 2>/dev/null || true
@@ -330,11 +371,16 @@ echo "════════════════════════�
 echo ""
 echo "🔄 لإعادة التثبيت:"
 echo "════════════════════════════════════════════════════════"
+echo "curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh | bash"
+echo "أو"
 echo "git clone https://github.com/SalehGNUTUX/GT-salat-dikr.git"
 echo "cd GT-salat-dikr"
 echo "bash install.sh"
 echo "════════════════════════════════════════════════════════"
 
 log "اكتملت عملية الإزالة بنجاح"
+
+# تنظيف النسخة المؤقتة من السكربت (إن وجدت)
+rm -f "/tmp/gt-salat-uninstall-$$.sh" 2>/dev/null || true
 
 exit 0
