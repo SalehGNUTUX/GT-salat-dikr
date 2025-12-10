@@ -150,7 +150,12 @@ CONFIG_DIRS=(
 for dir in "${INSTALL_DIRS[@]}"; do
     if [ -d "$dir" ]; then
         echo "  حذف مجلد: $dir"
-        rm -rf "$dir" 2>/dev/null || sudo rm -rf "$dir" 2>/dev/null || true
+        # لا تحذف المجلد الذي يحتوي على سكريبت الإزالة نفسه
+        if [[ "$dir" == "$(dirname "$(realpath "$0")" 2>/dev/null || echo "")" ]]; then
+            echo "    (تم تخطي المجلد الحالي لحفظ سكريبت الإزالة)"
+        else
+            rm -rf "$dir" 2>/dev/null || sudo rm -rf "$dir" 2>/dev/null || true
+        fi
     fi
 done
 
@@ -289,9 +294,13 @@ echo "bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-s
 echo ""
 echo "مع السلامة! 👋"
 
-# حذف هذا الملف نفسه إذا كان في مجلد البرنامج
-if [[ "$(dirname "$(realpath "$0")")" == *"GT-salat-dikr"* ]]; then
-    rm -f "$0" 2>/dev/null || true
+# إزالة هذا الملف نفسه فقط إذا كان العملية ناجحة وتم الرد على السؤال
+# لا تحذف الملف أثناء تشغيله
+if [[ -n "$remove_python" && "$(dirname "$(realpath "$0")" 2>/dev/null || echo "")" == *"GT-salat-dikr"* ]]; then
+    echo ""
+    echo "إزالة سكريبت الإزالة نفسه..."
+    SCRIPT_PATH="$(realpath "$0")"
+    rm -f "$SCRIPT_PATH" 2>/dev/null || true
 fi
 
 exit 0
