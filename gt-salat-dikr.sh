@@ -1345,6 +1345,7 @@ fi
 #     check_script_update >/dev/null 2>&1 || true
 # fi
 
+
 case "${1:-}" in
     --install)
         if [ -f "$INSTALL_DIR/install.sh" ]; then
@@ -1386,18 +1387,19 @@ case "${1:-}" in
     --test-adhan)
         ensure_dbus
         create_adhan_player
-        
+
         if [ -f "$CONFIG_FILE" ]; then
             source "$CONFIG_FILE"
         fi
-        
-        local adhan_file="$ADHAN_FILE"
+
+        # إزالة كلمة local هنا
+        adhan_file="$ADHAN_FILE"
         if [ ! -f "$adhan_file" ]; then
             echo "❌ ملف الأذان الكامل غير موجود: $adhan_file"
             echo "💡 تأكد من وجود ملف adhan.ogg في مجلد البرنامج"
             exit 1
         fi
-        
+
         echo "🔊 اختبار الأذان الكامل..."
         "$ADHAN_PLAYER_SCRIPT" "$adhan_file" "اختبار الأذان الكامل" &
         echo "✅ تم تشغيل اختبار الأذان الكامل"
@@ -1405,18 +1407,19 @@ case "${1:-}" in
     --test-adhan-short)
         ensure_dbus
         create_adhan_player
-        
+
         if [ -f "$CONFIG_FILE" ]; then
             source "$CONFIG_FILE"
         fi
-        
-        local adhan_file="$SHORT_ADHAN_FILE"
+
+        # إزالة كلمة local هنا
+        adhan_file="$SHORT_ADHAN_FILE"
         if [ ! -f "$adhan_file" ]; then
             echo "❌ ملف الأذان القصير غير موجود: $adhan_file"
             echo "💡 تأكد من وجود ملف short_adhan.ogg في مجلد البرنامج"
             exit 1
         fi
-        
+
         echo "🔊 اختبار الأذان القصير..."
         "$ADHAN_PLAYER_SCRIPT" "$adhan_file" "اختبار الأذان القصير" &
         echo "✅ تم تشغيل اختبار الأذان القصير"
@@ -1436,17 +1439,17 @@ case "${1:-}" in
             echo "❌ لا يوجد اتصال بالإنترنت - لا يمكن تحديث الجداول"
             exit 1
         fi
-        
+
         if [ -z "${LAT:-}" ] || [ -z "${LON:-}" ]; then
             echo "❌ لم يتم تحديد الموقع بعد"
             echo "   الرجاء تشغيل الإعدادات أولاً: gtsalat --settings"
             exit 1
         fi
-        
+
         echo "📍 الموقع: ${CITY:-غير محدد} (${LAT}, ${LON})"
         echo "📖 طريقة الحساب: ${METHOD_NAME:-غير محدد}"
         echo ""
-        
+
         fetch_future_timetables "manual"
         ;;
     --enable-auto-update)
@@ -1481,13 +1484,13 @@ case "${1:-}" in
     --status)
         echo "📊 حالة GT-salat-dikr:"
         echo "═══════════════════════════════════════════"
-        
+
         if [ -f "$CONFIG_FILE" ]; then
             source "$CONFIG_FILE"
         fi
-        
+
         notify_running=false
-        
+
         case "${NOTIFY_SYSTEM:-$DEFAULT_NOTIFY_SYSTEM}" in
             systemd)
                 if command -v systemctl >/dev/null 2>&1 && \
@@ -1513,7 +1516,7 @@ case "${1:-}" in
                 fi
                 ;;
         esac
-        
+
         if [ "$notify_running" = false ] && [ -f "$PID_FILE" ]; then
             pid=$(cat "$PID_FILE" 2>/dev/null)
             if [ -n "$pid" ] && ps -p "$pid" >/dev/null 2>&1; then
@@ -1523,7 +1526,7 @@ case "${1:-}" in
                 rm -f "$PID_FILE" 2>/dev/null || true
             fi
         fi
-        
+
         echo ""
         if [ -f "$CONFIG_FILE" ]; then
             echo "📍 الموقع: ${CITY:-غير محدد}, ${COUNTRY:-غير محدد}"
@@ -1543,23 +1546,23 @@ case "${1:-}" in
             echo ""
             echo "🛠 نظام الخدمة: ${NOTIFY_SYSTEM:-$DEFAULT_NOTIFY_SYSTEM}"
         fi
-        
+
         echo ""
         echo "💾 حالة التخزين المحلي:"
         if [ -d "$MONTHLY_TIMETABLE_DIR" ]; then
             file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
             if [ "$file_count" -gt 0 ]; then
                 echo "  ✅ مخزن محلياً: $file_count شهر"
-                
+
                 files=($(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f | sort))
                 if [ ${#files[@]} -gt 0 ]; then
                     first_file="${files[0]}"
                     last_file="${files[${#files[@]}-1]}"
-                    
+
                     first_date=$(basename "$first_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
                     last_date=$(basename "$last_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
                     echo "  📅 الفترة: $first_date إلى $last_date"
-                    
+
                     current_year=$(date +%Y)
                     current_month=$(date +%m)
                     current_file="$MONTHLY_TIMETABLE_DIR/timetable_${current_year}_${current_month}.json"
@@ -1577,11 +1580,11 @@ case "${1:-}" in
             echo "  ❌ مجلد التخزين غير موجود"
             echo "  💡 استخدم: gtsalat --update-timetables"
         fi
-        
+
         echo ""
         echo "🔄 حالة التحديث التلقائي:"
         show_auto_update_status
-        
+
         echo ""
         if get_next_prayer 2>/dev/null; then
             leftmin=$((PRAYER_LEFT/60))
@@ -1616,7 +1619,7 @@ case "${1:-}" in
   --notify-stop       إيقاف الإشعارات حسب النظام المختار
 
 🟢 التحكم في الإشعارات:
-  
+
   🧩 أوامر عامة:
     --enable-all-notify       تفعيل جميع الإشعارات (طرفية + نظام)
     --disable-all-notify      تعطيل جميع الإشعارات
@@ -1661,7 +1664,7 @@ case "${1:-}" in
 
 ═══════════════════════════════════════════════════════════
 ✨ المميزات الجديدة في الإصدار 3.2:
-   
+
    ✅ جميع الإشعارات مفعلة افتراضياً
    ✅ التحديث التلقائي للمواقيت مفعل افتراضياً
    ✅ اكتشاف نظام الخدمة تلقائياً
