@@ -156,7 +156,7 @@ get_prayer_times() {
             fi
         fi
     fi
-    echo "🔄 جاري تحديث مواقيت الصلاة..."
+    echo "🔄 جاري تحميل مواقيت الصلاة..."
     return 1
 }
 
@@ -173,8 +173,8 @@ if [ -f "$INSTALL_DIR/azkar.txt" ]; then
             RANDOM_LINE=$((RANDOM % TOTAL_LINES + 1))
             AZKAR=$(sed -n "${RANDOM_LINE}p" "$INSTALL_DIR/azkar.txt")
             
-            # عرض الذكر
-            echo "$AZKAR"
+            # عرض الذكر - بدون "══" في النهاية
+            echo "${AZKAR%"═"}"  # إزالة أي "═" في النهاية
             echo "══════════════════════════════════════"
         fi
     fi
@@ -205,17 +205,35 @@ MAIN_SCRIPT="$INSTALL_DIR/gt-salat-dikr.sh"
 # دالة لجلب مواقيت الصلاة
 get_prayer_times() {
     if [ -f "$MAIN_SCRIPT" ]; then
-        # استدعاء البرنامج الرئيسي مباشرة
-        PRAYER_INFO=$("$MAIN_SCRIPT" --show-timetable 2>/dev/null | grep -A1 "القادمة:" | tail -1)
+        # محاولة الحصول على مواقيت اليوم من البرنامج الرئيسي
+        TIMES_FILE="$INSTALL_DIR/today_prayers.txt"
         
-        if [ -n "$PRAYER_INFO" ]; then
-            # استخراج المعلومات
-            NEXT_PRAYER=$(echo "$PRAYER_INFO" | awk '{print $1}')
-            NEXT_TIME=$(echo "$PRAYER_INFO" | grep -o '[0-9]\{2\}:[0-9]\{2\}')
+        # إذا كان ملف المواقيت قديماً (أكبر من 24 ساعة) أو غير موجود، قم بتحديثه
+        if [ ! -f "$TIMES_FILE" ] || [ $(find "$TIMES_FILE" -mtime +0 -print 2>/dev/null) ]; then
+            "$MAIN_SCRIPT" --show-timetable > "$TIMES_FILE" 2>/dev/null || true
+        fi
+        
+        # قراءة المواقيت من الملف
+        if [ -f "$TIMES_FILE" ]; then
+            # البحث عن الصلاة القادمة
+            CURRENT_TIME=$(date +%H:%M)
+            NEXT_PRAYER=""
+            NEXT_TIME=""
+            
+            while IFS= read -r line; do
+                if [[ "$line" == *"🕌 الصلاة القادمة:"* ]]; then
+                    NEXT_PRAYER=$(echo "$line" | sed 's/🕌 الصلاة القادمة: //' | cut -d ':' -f1)
+                    NEXT_TIME=$(echo "$line" | grep -o '[0-9]\{2\}:[0-9]\{2\}')
+                    break
+                elif [[ "$line" == *"القادمة:"* ]]; then
+                    NEXT_PRAYER=$(echo "$line" | sed 's/.*القادمة: //' | awk '{print $1}')
+                    NEXT_TIME=$(echo "$line" | grep -o '[0-9]\{2\}:[0-9]\{2\}')
+                    break
+                fi
+            done < "$TIMES_FILE"
             
             if [ -n "$NEXT_PRAYER" ] && [ -n "$NEXT_TIME" ]; then
                 # حساب الوقت المتبقي
-                CURRENT_TIME=$(date +%H:%M)
                 CURRENT_SECONDS=$(date -d "$CURRENT_TIME" +%s 2>/dev/null || date +%s)
                 NEXT_SECONDS=$(date -d "$NEXT_TIME" +%s 2>/dev/null || date +%s)
                 
@@ -253,8 +271,8 @@ if [ -f "$INSTALL_DIR/azkar.txt" ]; then
             RANDOM_LINE=$((RANDOM % TOTAL_LINES + 1))
             AZKAR=$(sed -n "${RANDOM_LINE}p" "$INSTALL_DIR/azkar.txt")
             
-            # عرض الذكر
-            echo "$AZKAR"
+            # عرض الذكر - بدون "══" في النهاية
+            echo "${AZKAR%"═"}"  # إزالة أي "═" في النهاية
             echo ""
         fi
     fi
@@ -276,41 +294,69 @@ chmod +x "$INSTALL_DIR/show-azkar-tray.sh"
 echo ""
 echo "🔧 إضافة عرض الذكر إلى جميع أنواع الطرفيات..."
 
-# 1. لـ bash
-if [ -f "$HOME/.bashrc" ]; then
-    if ! grep -q "GT-salat-dikr" "$HOME/.bashrc"; then
-        echo "" >> "$HOME/.bashrc"
-        echo "# عرض ذكر وموعد الصلاة عند فتح الطرفية - GT-salat-dikr" >> "$HOME/.bashrc"
-        echo "if [ -f \"$INSTALL_DIR/show-prayer.sh\" ]; then" >> "$HOME/.bashrc"
-        echo "    . \"$INSTALL_DIR/show-prayer.sh\"" >> "$HOME/.bashrc"
-        echo "fi" >> "$HOME/.bashrc"
-        echo "  ✅ تم الإضافة إلى .bashrc"
+# إصلاح: استخدم الطريقة القديمة الصحيحة التي تعمل
+setup_terminal_config() {
+    local shell_file="$1"
+    local shell_name="$2"
+    
+    if [ -f "$shell_file" ]; then
+        # التحقق إذا كانت الإعدادات موجودة مسبقاً
+        if ! grep -q "gtsalat\|GT-salat-dikr" "$shell_file" 2>/dev/null; then
+            echo "" >> "$shell_file"
+            echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$shell_file"
+            echo "if [ -f \"$INSTALL_DIR/show-prayer.sh\" ]; then" >> "$shell_file"
+            echo "    . \"$INSTALL_DIR/show-prayer.sh\"" >> "$shell_file"
+            echo "fi" >> "$shell_file"
+            echo "✅ تم إضافة إعدادات GT-salat-dikr إلى $shell_name"
+        else
+            echo "ℹ️  إعدادات GT-salat-dikr موجودة مسبقاً في $shell_name"
+            
+            # إصلاح: تنظيف الإعدادات القديمة المعطوبة
+            sed -i '/^if \[ -f "\$INSTALL_DIR\/\$MAIN_SCRIPT" \]; then/,/^fi$/d' "$shell_file" 2>/dev/null || true
+            sed -i '/alias gtsalat=/d' "$shell_file" 2>/dev/null || true
+            sed -i '/\$INSTALL_DIR\/\$MAIN_SCRIPT/d' "$shell_file" 2>/dev/null || true
+            
+            # إضافة الإعدادات الجديدة
+            echo "" >> "$shell_file"
+            echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$shell_file"
+            echo "if [ -f \"$INSTALL_DIR/show-prayer.sh\" ]; then" >> "$shell_file"
+            echo "    . \"$INSTALL_DIR/show-prayer.sh\"" >> "$shell_file"
+            echo "fi" >> "$shell_file"
+            echo "✅ تم تحديث إعدادات GT-salat-dikr في $shell_name"
+        fi
+    else
+        echo "⚠️  ملف $shell_name غير موجود، تخطي الإعدادات"
     fi
-fi
+}
+
+# 1. لـ bash
+setup_terminal_config "$HOME/.bashrc" ".bashrc"
 
 # 2. لـ zsh
-if [ -f "$HOME/.zshrc" ]; then
-    if ! grep -q "GT-salat-dikr" "$HOME/.zshrc"; then
-        echo "" >> "$HOME/.zshrc"
-        echo "# عرض ذكر وموعد الصلاة عند فتح الطرفية - GT-salat-dikr" >> "$HOME/.zshrc"
-        echo "if [ -f \"$INSTALL_DIR/show-prayer.sh\" ]; then" >> "$HOME/.zshrc"
-        echo "    . \"$INSTALL_DIR/show-prayer.sh\"" >> "$HOME/.zshrc"
-        echo "fi" >> "$HOME/.zshrc"
-        echo "  ✅ تم الإضافة إلى .zshrc"
-    fi
-fi
+setup_terminal_config "$HOME/.zshrc" ".zshrc"
 
 # 3. لـ fish
 if command -v fish >/dev/null 2>&1 && [ -d "$HOME/.config/fish" ]; then
     FISH_CONFIG="$HOME/.config/fish/config.fish"
     mkdir -p "$HOME/.config/fish"
-    if [ ! -f "$FISH_CONFIG" ] || ! grep -q "GT-salat-dikr" "$FISH_CONFIG"; then
-        echo "" >> "$FISH_CONFIG"
-        echo "# عرض ذكر وموعد الصلاة عند فتح الطرفية - GT-salat-dikr" >> "$FISH_CONFIG"
+    
+    if [ -f "$FISH_CONFIG" ]; then
+        if ! grep -q "GT-salat-dikr" "$FISH_CONFIG" 2>/dev/null; then
+            echo "" >> "$FISH_CONFIG"
+            echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$FISH_CONFIG"
+            echo "if test -f \"$INSTALL_DIR/show-prayer.sh\"" >> "$FISH_CONFIG"
+            echo "    bash \"$INSTALL_DIR/show-prayer.sh\"" >> "$FISH_CONFIG"
+            echo "end" >> "$FISH_CONFIG"
+            echo "  ✅ تم الإضافة إلى fish config"
+        else
+            echo "  ℹ️  إعدادات GT-salat-dikr موجودة مسبقاً في fish config"
+        fi
+    else
+        echo "# GT-salat-dikr - تذكير الصلاة والأذكار" >> "$FISH_CONFIG"
         echo "if test -f \"$INSTALL_DIR/show-prayer.sh\"" >> "$FISH_CONFIG"
         echo "    bash \"$INSTALL_DIR/show-prayer.sh\"" >> "$FISH_CONFIG"
         echo "end" >> "$FISH_CONFIG"
-        echo "  ✅ تم الإضافة إلى fish config"
+        echo "  ✅ تم إنشاء وإضافة إلى fish config"
     fi
 fi
 
@@ -624,9 +670,9 @@ echo "🕌 الصلاة القادمة: العصر عند 16:00 (باقي 01:47)
 echo ""
 echo "✨ الأوامر الجديدة:"
 echo "══════════════════════════════════════════════════════════════════════════════"
-echo "${GREEN}gtsalat${NC}                 - البرنامج الرئيسي"
-echo "${GREEN}gt-launcher${NC}             - تشغيل System Tray"
-echo "${GREEN}gt-azkar${NC}                - عرض الذكر من الطرفية"
+echo "gtsalat                 - البرنامج الرئيسي"
+echo "gt-launcher             - تشغيل System Tray"
+echo "gt-azkar                - عرض الذكر من الطرفية"
 echo ""
 echo "📁 الملفات المثبتة:"
 echo "══════════════════════════════════════════════════════════════════════════════"
