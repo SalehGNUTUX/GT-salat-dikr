@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# GT-salat-dikr - Complete Installation Script v3.2.3
+# GT-salat-dikr - Complete Installation Script v3.2.3-fixed
 # يدعم جميع التوزيعات ويتضمن System Tray تلقائياً
 #
 
@@ -19,8 +19,7 @@ fi
 # ---------- تعريف المتغيرات ----------
 INSTALL_DIR="$HOME/.GT-salat-dikr"
 REPO_BASE="https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main"
-LOG_FILE="$INSTALL_DIR/install.log"
-TEMP_DIR="/tmp/gt-salat-install-$$"
+TEMP_LOG="/tmp/gt-salat-install-$$.log"
 
 # قائمة الملفات المطلوبة
 FILES_TO_DOWNLOAD=(
@@ -39,7 +38,12 @@ FILES_TO_DOWNLOAD=(
 
 # ---------- دالة التسجيل ----------
 log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $*" | tee -a "$LOG_FILE"
+    local message="$*"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | tee -a "$TEMP_LOG"
+    # إذا كان مجلد التثبيت موجوداً، نسخ أيضاً إلى السجل الدائم
+    if [ -d "$INSTALL_DIR" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" >> "$INSTALL_DIR/install.log" 2>/dev/null || true
+    fi
 }
 
 # ---------- دالة التنزيل ----------
@@ -114,17 +118,35 @@ download_icons() {
             downloaded=$((downloaded + 1))
         else
             # إنشاء أيقونة افتراضية إذا فشل التنزيل
-            convert -size "${size}x${size}" xc:none \
-                -fill "#2E7D32" -draw "rectangle $((size/4)),$((size*2/3)) $((size*3/4)),$((size*5/6))" \
-                -fill "#388E3C" -draw "rectangle $((size*5/16)),$((size*7/16)) $((size*11/16)),$((size*2/3))" \
-                -fill "#2196F3" -draw "ellipse $((size/2)),$((size*5/16)) $((size*3/16)),$((size/8)) 0,360" \
-                -fill "#FFEB3B" -stroke "#FFEB3B" -draw "arc $((size*7/16)),$((size/4)) $((size*9/16)),$((size*3/8)) 30,150" \
-                "$icon_file" 2>/dev/null || true
+            echo "  ⚠️  إنشاء أيقونة افتراضية ${size}x${size}"
+            # استخدام ImageMagick أو إنشاء صورة بسيطة
+            if command -v convert >/dev/null 2>&1; then
+                convert -size "${size}x${size}" xc:none \
+                    -fill "#2E7D32" -draw "rectangle $((size/4)),$((size*2/3)) $((size*3/4)),$((size*5/6))" \
+                    -fill "#388E3C" -draw "rectangle $((size*5/16)),$((size*7/16)) $((size*11/16)),$((size*2/3))" \
+                    -fill "#2196F3" -draw "ellipse $((size/2)),$((size*5/16)) $((size*3/16)),$((size/8)) 0,360" \
+                    -fill "#FFEB3B" -stroke "#FFEB3B" -draw "arc $((size*7/16)),$((size/4)) $((size*9/16)),$((size*3/8)) 30,150" \
+                    "$icon_file" 2>/dev/null || true
+            else
+                # إنشاء صورة بسيطة باستخدام Python
+                python3 -c "
+from PIL import Image, ImageDraw
+img = Image.new('RGBA', ($size, $size), (255, 255, 255, 0))
+draw = ImageDraw.Draw(img)
+draw.rectangle([$((size/4)), $((size*2/3)), $((size*3/4)), $((size*5/6))], fill=(46, 125, 50))
+draw.rectangle([$((size*5/16)), $((size*7/16)), $((size*11/16)), $((size*2/3))], fill=(56, 142, 60))
+draw.ellipse([$((size*5/16)), $((size/4)), $((size*11/16)), $((size*3/8))], fill=(33, 150, 243))
+draw.arc([$((size*7/16)), $((size/4)), $((size*9/16)), $((size*3/8))], 30, 150, fill=(255, 235, 59), width=2)
+img.save('$icon_file')
+" 2>/dev/null || true
+            fi
         fi
     done
     
     if [ $downloaded -gt 0 ]; then
         echo "✅ تم تحميل $downloaded أيقونة"
+    else
+        echo "⚠️  تم إنشاء أيقونات افتراضية"
     fi
 }
 
@@ -132,6 +154,9 @@ download_icons() {
 setup_system_tray() {
     echo ""
     echo "🖥️  إعداد System Tray..."
+    
+    # إنشاء مجلد التطبيقات إذا لم يكن موجوداً
+    mkdir -p "$HOME/.local/share/applications"
     
     # إنشاء ملف تطبيق لنظام القائمة
     cat > "$HOME/.local/share/applications/gt-salat-dikr.desktop" <<EOF
@@ -148,29 +173,36 @@ NoDisplay=false
 Keywords=prayer;islam;azan;reminder;ذكر;صلاة
 EOF
     
-    # إنشاء ملف لتشغيل System Tray
-    cat > "$INSTALL_DIR/start-tray.sh" <<EOF
+    # إنشاء سكربت لبدء System Tray
+    cat > "$INSTALL_DIR/start-tray.sh" <<'EOF'
 #!/bin/bash
 # بدء System Tray مع التحكم في التكرار
 
+INSTALL_DIR="$(dirname "$(realpath "$0")")"
 LOCK_FILE="/tmp/gt-salat-tray.lock"
 
-if [ -f "\$LOCK_FILE" ]; then
-    lock_age=\$(date +%s)
-    file_age=\$(stat -c %Y "\$LOCK_FILE" 2>/dev/null || echo 0)
-    if [ \$((lock_age - file_age)) -lt 10 ]; then
-        exit 0
+# التحقق من القفل
+if [ -f "$LOCK_FILE" ]; then
+    lock_age=$(date +%s)
+    file_age=$(stat -c %Y "$LOCK_FILE" 2>/dev/null || echo 0)
+    if [ $((lock_age - file_age)) -lt 10 ]; then
+        exit 0  # يعمل بالفعل
     fi
 fi
 
-echo \$\$ > "\$LOCK_FILE"
-trap 'rm -f "\$LOCK_FILE"' EXIT
+# إنشاء قفل جديد
+echo $$ > "$LOCK_FILE"
+trap 'rm -f "$LOCK_FILE"' EXIT
 
-export DISPLAY="\${DISPLAY:-:0}"
-export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/\$(id -u)/bus"
+# ضبط البيئة
+export DISPLAY="${DISPLAY:-:0}"
+if [ -S "/run/user/$(id -u)/bus" ]; then
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
+fi
 
+# بدء System Tray
 cd "$INSTALL_DIR"
-exec python3 "$INSTALL_DIR/gt-tray.py"
+python3 "$INSTALL_DIR/gt-tray.py"
 EOF
     
     chmod +x "$INSTALL_DIR/start-tray.sh"
@@ -295,7 +327,10 @@ setup_terminal() {
     
     # إنشاء رابط في PATH
     mkdir -p "$HOME/.local/bin"
-    ln -sf "$INSTALL_DIR/gt-salat-dikr.sh" "$HOME/.local/bin/gtsalat" 2>/dev/null || true
+    if [ -f "$INSTALL_DIR/gt-salat-dikr.sh" ]; then
+        ln -sf "$INSTALL_DIR/gt-salat-dikr.sh" "$HOME/.local/bin/gtsalat" 2>/dev/null || true
+        echo "✅ تم إنشاء رابط في: ~/.local/bin/gtsalat"
+    fi
     
     # إضافة إلى bashrc
     if [ -f "$HOME/.bashrc" ]; then
@@ -320,48 +355,17 @@ setup_terminal() {
     fi
 }
 
-# ---------- بدء التثبيت ----------
-main() {
-    log "════════════════════════════════════════════════════════"
-    log "بدء تثبيت GT-salat-dikr"
-    log "التاريخ: $(date)"
-    log "المستخدم: $(whoami)"
-    log "════════════════════════════════════════════════════════"
-    
-    echo "📁 مجلد التثبيت: $INSTALL_DIR"
-    
-    # إنشاء مجلد التثبيت
-    mkdir -p "$INSTALL_DIR"
-    cd "$INSTALL_DIR"
-    
-    # ---------- المرحلة 1: تنزيل الملفات ----------
-    echo ""
-    echo "📥 جاري تنزيل الملفات..."
-    
-    for file in "${FILES_TO_DOWNLOAD[@]}"; do
-        download_file "$file"
-    done
-    
-    # جعل الملفات قابلة للتنفيذ
-    chmod +x "$INSTALL_DIR/gt-salat-dikr.sh" 2>/dev/null || true
-    chmod +x "$INSTALL_DIR/gt-tray.py" 2>/dev/null || true
-    chmod +x "$INSTALL_DIR/uninstall.sh" 2>/dev/null || true
-    
-    # ---------- المرحلة 2: تنزيل الأيقونات ----------
-    download_icons
-    
-    # ---------- المرحلة 3: تثبيت اعتماديات Python ----------
-    install_python_deps
-    
-    # ---------- المرحلة 4: إعداد System Tray ----------
-    setup_system_tray
-    
-    # ---------- المرحلة 5: إعداد الطرفية ----------
-    setup_terminal
-    
-    # ---------- المرحلة 6: الإعدادات الأولية ----------
+# ---------- دالة تنفيذ الإعدادات الأولية ----------
+run_initial_setup() {
     echo ""
     echo "⚙️  الإعدادات الأولية..."
+    
+    # التحقق إذا كانت الإعدادات موجودة مسبقاً
+    if [ -f "$INSTALL_DIR/settings.conf" ]; then
+        echo "📂 إعدادات موجودة مسبقاً، استخدامها..."
+        echo "💡 لتغيير الإعدادات استخدم: gtsalat --settings"
+        return 0
+    fi
     
     # تشغيل سكربت الإعدادات
     if [ -f "$INSTALL_DIR/gt-salat-dikr.sh" ]; then
@@ -369,32 +373,153 @@ main() {
         "$INSTALL_DIR/gt-salat-dikr.sh" --settings 2>/dev/null || {
             echo "⚠️  يمكنك تشغيل الإعدادات لاحقاً باستخدام: gtsalat --settings"
         }
+    else
+        echo "⚠️  ملف البرنامج الرئيسي غير موجود، لا يمكن تشغيل الإعدادات"
     fi
-    
-    # ---------- المرحلة 7: بدء الخدمات ----------
+}
+
+# ---------- دالة بدء الخدمات ----------
+start_services() {
     echo ""
     echo "🚀 بدء الخدمات..."
     
     # بدء الإشعارات
     if [ -f "$INSTALL_DIR/gt-salat-dikr.sh" ]; then
+        echo "🔔 بدء إشعارات الصلاة..."
         "$INSTALL_DIR/gt-salat-dikr.sh" --notify-start >/dev/null 2>&1 &
-        echo "✅ تم بدء إشعارات الصلاة"
+        sleep 2
+        if pgrep -f "gt-salat-dikr" >/dev/null 2>&1; then
+            echo "✅ تم بدء إشعارات الصلاة"
+        else
+            echo "⚠️  قد تكون الإشعارات بحاجة لإعدادات أولية"
+        fi
     fi
     
-    # بدء System Tray بعد تأخير قصير
+    # بدء System Tray
     sleep 3
     if [ -f "$INSTALL_DIR/gt-tray.py" ] && command -v python3 >/dev/null 2>&1; then
         if python3 -c "import pystray, PIL" 2>/dev/null; then
+            echo "🖥️  بدء System Tray..."
             python3 "$INSTALL_DIR/gt-tray.py" >/dev/null 2>&1 &
-            echo "✅ تم بدء System Tray"
-            echo "📌 ستظهر الأيقونة في شريط المهام خلال لحظات"
+            sleep 3
+            if pgrep -f "gt-tray.py" >/dev/null 2>&1; then
+                echo "✅ تم بدء System Tray"
+                echo "📌 ستظهر الأيقونة في شريط المهام خلال لحظات"
+            else
+                echo "⚠️  فشل بدء System Tray"
+            fi
         else
             echo "⚠️  مكتبات Python غير مثبتة، لا يمكن تشغيل System Tray"
             echo "💡 يمكنك تثبيتها باستخدام: $INSTALL_DIR/install-python-deps.sh"
         fi
     fi
+}
+
+# ---------- دالة نسخ السجل إلى الموقع الدائم ----------
+copy_log_to_permanent_location() {
+    if [ -f "$TEMP_LOG" ] && [ -d "$INSTALL_DIR" ]; then
+        cp "$TEMP_LOG" "$INSTALL_DIR/install.log" 2>/dev/null || true
+        rm -f "$TEMP_LOG" 2>/dev/null || true
+    fi
+}
+
+# ---------- بدء التثبيت ----------
+main() {
+    # بدء السجل المؤقت
+    echo "📝 بدء سجل التثبيت..."
+    echo "════════════════════════════════════════════════════════" > "$TEMP_LOG"
+    echo "بدء تثبيت GT-salat-dikr" >> "$TEMP_LOG"
+    echo "التاريخ: $(date)" >> "$TEMP_LOG"
+    echo "المستخدم: $(whoami)" >> "$TEMP_LOG"
+    echo "════════════════════════════════════════════════════════" >> "$TEMP_LOG"
     
-    # ---------- المرحلة 8: التقرير النهائي ----------
+    echo "📁 مجلد التثبيت: $INSTALL_DIR"
+    log "مجلد التثبيت: $INSTALL_DIR"
+    
+    # ---------- المرحلة 0: تنظيف مجلد قديم إن وجد ----------
+    if [ -d "$INSTALL_DIR" ]; then
+        echo "📂 مجلد موجود مسبقاً، تنظيف..."
+        log "مجلد موجود مسبقاً، تنظيف المحتويات"
+        
+        # حذف الملفات القديمة مع الاحتفاظ بالإعدادات إن وجدت
+        if [ -f "$INSTALL_DIR/settings.conf" ]; then
+            echo "💾 الاحتفاظ بالإعدادات الموجودة"
+            cp "$INSTALL_DIR/settings.conf" "/tmp/gt-salat-settings-backup-$$.conf" 2>/dev/null || true
+        fi
+        
+        # حذف جميع الملفات عدا الإعدادات المهمة
+        find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 -type f -name "*.log" -delete 2>/dev/null || true
+        find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 -type f -name "*.pid" -delete 2>/dev/null || true
+        find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 -type f -name "*.tmp" -delete 2>/dev/null || true
+    else
+        # إنشاء مجلد التثبيت
+        mkdir -p "$INSTALL_DIR"
+    fi
+    
+    # الانتقال إلى مجلد التثبيت
+    cd "$INSTALL_DIR"
+    
+    # استعادة الإعدادات إذا كانت موجودة
+    if [ -f "/tmp/gt-salat-settings-backup-$$.conf" ]; then
+        cp "/tmp/gt-salat-settings-backup-$$.conf" "$INSTALL_DIR/settings.conf" 2>/dev/null || true
+        rm -f "/tmp/gt-salat-settings-backup-$$.conf" 2>/dev/null || true
+        echo "✅ تم استعادة الإعدادات السابقة"
+    fi
+    
+    # ---------- المرحلة 1: تنزيل الملفات ----------
+    echo ""
+    echo "📥 جاري تنزيل الملفات..."
+    log "بدأ تنزيل الملفات"
+    
+    local download_count=0
+    local failed_count=0
+    
+    for file in "${FILES_TO_DOWNLOAD[@]}"; do
+        if download_file "$file"; then
+            download_count=$((download_count + 1))
+        else
+            failed_count=$((failed_count + 1))
+        fi
+    done
+    
+    echo "📊 تنزيل الملفات: $download_count ✅, $failed_count ❌"
+    log "اكتمل تنزيل الملفات: $download_count نجاح, $failed_count فشل"
+    
+    # جعل الملفات قابلة للتنفيذ
+    chmod +x "$INSTALL_DIR/gt-salat-dikr.sh" 2>/dev/null || true
+    chmod +x "$INSTALL_DIR/gt-tray.py" 2>/dev/null || true
+    chmod +x "$INSTALL_DIR/uninstall.sh" 2>/dev/null || true
+    chmod +x "$INSTALL_DIR/install-system-tray.sh" 2>/dev/null || true
+    chmod +x "$INSTALL_DIR/install-python-deps.sh" 2>/dev/null || true
+    
+    # ---------- المرحلة 2: تنزيل الأيقونات ----------
+    download_icons
+    log "تم تنزيل/إنشاء الأيقونات"
+    
+    # ---------- المرحلة 3: تثبيت اعتماديات Python ----------
+    install_python_deps
+    log "تم تثبيت اعتماديات Python"
+    
+    # ---------- المرحلة 4: إعداد System Tray ----------
+    setup_system_tray
+    log "تم إعداد System Tray"
+    
+    # ---------- المرحلة 5: إعداد الطرفية ----------
+    setup_terminal
+    log "تم إعداد الطرفية"
+    
+    # ---------- المرحلة 6: الإعدادات الأولية ----------
+    run_initial_setup
+    log "تم تنفيذ الإعدادات الأولية"
+    
+    # ---------- المرحلة 7: بدء الخدمات ----------
+    start_services
+    log "تم بدء الخدمات"
+    
+    # ---------- المرحلة 8: نسخ السجل إلى الموقع الدائم ----------
+    copy_log_to_permanent_location
+    
+    # ---------- المرحلة 9: التقرير النهائي ----------
     echo ""
     echo "════════════════════════════════════════════════════════"
     echo "🎉 تم التثبيت بنجاح!"
@@ -405,10 +530,10 @@ main() {
     echo "📁 $INSTALL_DIR/"
     echo "  📄 gt-salat-dikr.sh (البرنامج الرئيسي)"
     echo "  📄 gt-tray.py (أيقونة System Tray)"
-    echo "  📄 azkar.txt (قائمة الأذكار)"
     echo "  📄 uninstall.sh (إلغاء التثبيت)"
     echo "  📄 install-system-tray.sh (تثبيت System Tray)"
     echo "  📄 install-python-deps.sh (تثبيت اعتماديات Python)"
+    echo "  📄 azkar.txt (قائمة الأذكار)"
     echo "  📁 icons/ (مجلد الأيقونات)"
     echo "════════════════════════════════════════════════════════"
     echo ""
@@ -427,6 +552,7 @@ main() {
     echo "gtsalat --tray              تشغيل System Tray"
     echo "gtsalat --status            عرض حالة البرنامج"
     echo "gtsalat --show-timetable    عرض مواقيت الصلاة"
+    echo "gtsalat --update-timetables تحديث مواقيت الصلاة"
     echo "════════════════════════════════════════════════════════"
     echo ""
     echo "🗑️  إلغاء التثبيت:"
@@ -443,6 +569,9 @@ main() {
     echo "════════════════════════════════════════════════════════"
     
     log "اكتمل التثبيت بنجاح"
+    
+    # تنظيف السجل المؤقت
+    rm -f "$TEMP_LOG" 2>/dev/null || true
 }
 
 # تنفيذ التثبيت
