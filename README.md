@@ -83,7 +83,8 @@
 - **تفعيل جميع الإشعارات افتراضياً**
 
 
-<img width="1440" height="900" alt="image" src="https://github.com/user-attachments/assets/ac69954d-5904-4ab2-9dc0-9881660a40d0" />
+<img width="1440" height="900" alt="image" src="https://github.com/user-attachments/assets/2972d403-f7eb-4127-a65a-d4a684bb5d82" />
+
 
 ### ⚙️ إدارة ذكية للنظام
 - **اكتشاف تلقائي لنظام الخدمة** (systemd/sysvinit)
