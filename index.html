@@ -1,35 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <script>
-// دالة مبسطة لإضافة الشعار
-function setFavicon() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 32;
-    canvas.height = 32;
-    const ctx = canvas.getContext('2d');
-    
-    // خلفية خضراء
-    ctx.fillStyle = '#2e7d32';
-    ctx.fillRect(0, 0, 32, 32);
-    
-    // نص المسجد
-    ctx.font = '20px Arial';
-    ctx.fillStyle = 'white';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🕌', 16, 16);
-    
-    // إنشاء الرمز
-    const favicon = document.createElement('link');
-    favicon.rel = 'icon';
-    favicon.href = canvas.toDataURL();
-    document.head.appendChild(favicon);
-}
-
-// تطبيق الشعار
-setFavicon();
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GT-salat-dikr - نظام إشعارات الصلاة والأذكار المتكامل - الإصدار 3.2</title>
@@ -48,6 +19,10 @@ setFavicon();
             --code-bg: #f1f1f1;
             --shadow: rgba(0, 0, 0, 0.1);
             --transition: all 0.3s ease;
+            --whats-new-bg: linear-gradient(135deg, #2e7d32, #1b5e20);
+            --whats-new-text: white;
+            --tray-icon: #ffcc00;
+            --tray-bg: rgba(255, 255, 255, 0.15);
         }
 
         [data-theme="dark"] {
@@ -61,6 +36,10 @@ setFavicon();
             --card-bg: #2d2d2d;
             --code-bg: #252525;
             --shadow: rgba(0, 0, 0, 0.3);
+            --whats-new-bg: linear-gradient(135deg, #0d3b0f, #1b5e20);
+            --whats-new-text: white;
+            --tray-icon: #ffcc00;
+            --tray-bg: rgba(255, 255, 255, 0.1);
         }
 
         * {
@@ -250,16 +229,6 @@ setFavicon();
             margin-top: 4rem;
             color: var(--text);
             border-top: 5px solid var(--primary);
-        }
-
-        .screenshot {
-            width: 100%;
-            max-width: 900px;
-            margin: 1.5rem auto;
-            display: block;
-            border-radius: 10px;
-            box-shadow: 0 6px 15px var(--shadow);
-            border: 2px solid var(--accent);
         }
 
         .logo {
@@ -469,63 +438,234 @@ setFavicon();
             background: var(--primary-dark);
         }
 
-        .manual-location-form {
-            background: var(--card-bg);
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin: 1rem 0;
-            display: none;
+        /* تحسين تصميم قسم ما الجديد */
+        .whats-new-card {
+            background: var(--whats-new-bg);
+            color: var(--whats-new-text);
+            padding: 2.5rem;
+            border-radius: 15px;
+            margin: 2rem 0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
         }
 
-        .time-adjustment-form {
-            background: var(--card-bg);
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin: 1rem 0;
+        .whats-new-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1%, transparent 20%);
+            animation: rotate 20s linear infinite;
         }
 
-        .form-group {
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .whats-new-card h2 {
+            color: white !important;
+            border-bottom: 3px solid var(--tray-icon);
+            position: relative;
+            z-index: 2;
+        }
+
+        .whats-new-card h2 i {
+            color: var(--tray-icon);
+        }
+
+        .whats-new-card p {
+            color: rgba(255,255,255,0.95);
+            position: relative;
+            z-index: 2;
+            font-size: 1.2rem;
+        }
+
+        .tray-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+            position: relative;
+            z-index: 2;
+        }
+
+        .tray-feature {
+            background: var(--tray-bg);
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .tray-feature:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            background: rgba(255,255,255,0.2);
+        }
+
+        .tray-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            color: var(--tray-icon);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .tray-feature h3 {
+            color: white !important;
+            margin: 1rem 0;
+            font-size: 1.4rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .tray-feature p {
+            color: rgba(255,255,255,0.9);
+            line-height: 1.6;
+            font-size: 1.1rem;
+        }
+
+        .version-highlight {
+            background: var(--tray-icon);
+            color: #333;
+            padding: 0.2rem 0.8rem;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        /* مربع System Tray الجديد */
+        .modern-tray-box {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--accent);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .modern-tray-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1), transparent);
+            border-radius: 0 0 0 100%;
+        }
+
+        .tray-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .tray-badge {
+            background: var(--tray-icon);
+            color: #333;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tray-title {
+            font-size: 1.8rem;
+            color: white;
+            margin: 0;
+        }
+
+        .tray-subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+        }
+
+        .tray-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .tray-item {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .tray-item:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-3px);
+        }
+
+        .tray-item-icon {
+            font-size: 2.5rem;
+            color: var(--tray-icon);
             margin-bottom: 1rem;
         }
 
-        .form-group label {
-            display: block;
+        .tray-item-title {
+            color: white;
+            font-size: 1.2rem;
             margin-bottom: 0.5rem;
             font-weight: bold;
         }
 
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 0.8rem;
-            border: 1px solid var(--accent);
-            border-radius: 4px;
-            background: var(--background);
-            color: var(--text);
-        }
-
-        .location-actions {
-            display: flex;
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        .time-adjustment-info {
-            background: var(--accent);
-            color: var(--text);
-            padding: 0.8rem;
-            border-radius: 4px;
-            margin: 1rem 0;
+        .tray-item-desc {
+            color: rgba(255,255,255,0.8);
             font-size: 0.9rem;
+            line-height: 1.5;
         }
 
-        .adjustment-controls {
+        /* ألبوم الصور المتحرك */
+        .screenshots-gallery {
+            margin: 3rem 0;
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 8px 20px var(--shadow);
+        }
+
+        .gallery-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 1rem;
+        }
+
+        .gallery-header h3 {
+            margin: 0;
+            color: var(--primary);
+            font-size: 1.6rem;
+        }
+
+        .gallery-nav {
             display: flex;
             gap: 1rem;
-            align-items: center;
-            margin: 1rem 0;
         }
 
-        .adjustment-btn {
+        .gallery-btn {
             background: var(--primary);
             color: white;
             border: none;
@@ -533,96 +673,140 @@ setFavicon();
             height: 40px;
             border-radius: 50%;
             cursor: pointer;
-            font-size: 1.2rem;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        .adjustment-value {
             font-size: 1.2rem;
-            font-weight: bold;
-            min-width: 60px;
-            text-align: center;
+            transition: all 0.3s;
         }
 
-        .zikr-box {
-            background: var(--primary);
-            color: white;
-            padding: 1.5rem;
+        .gallery-btn:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+        }
+
+        .gallery-container {
+            position: relative;
+            height: 400px;
             border-radius: 10px;
-            margin: 1.5rem 0;
-            text-align: center;
-            font-size: 1.2rem;
-            line-height: 1.8;
-            box-shadow: 0 4px 8px var(--shadow);
+            overflow: hidden;
+            margin-bottom: 1rem;
         }
 
-        .notification-controls {
-            background: var(--card-bg);
+        .gallery-slide {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transform: translateX(30px);
+            transition: all 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #2d2d2d, #1a1a1a);
+        }
+
+        .gallery-slide.active {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .screenshot-placeholder {
+            width: 90%;
+            height: 90%;
+            background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
             border-radius: 8px;
-            padding: 1.5rem;
-            margin: 1rem 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             border: 2px solid var(--accent);
         }
 
-        .control-group {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin: 1rem 0;
-        }
-
-        .control-item {
-            background: var(--background);
-            padding: 1rem;
-            border-radius: 6px;
-            text-align: center;
-            border: 1px solid var(--primary);
-        }
-
-        .control-status {
-            font-weight: bold;
-            color: var(--primary);
-            margin: 0.5rem 0;
-        }
-
-        .whats-new-card {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
+        .screenshot-content {
+            width: 100%;
+            height: 100%;
             padding: 2rem;
-            border-radius: 12px;
-            margin: 2rem 0;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-        }
-
-        .tray-features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin: 1.5rem 0;
-        }
-
-        .tray-feature {
-            background: rgba(255,255,255,0.1);
-            padding: 1.5rem;
-            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
             text-align: center;
         }
 
-        .tray-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            color: #ffcc00;
+        .screenshot-icon {
+            font-size: 4rem;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.3);
         }
 
-        .version-highlight {
-            background: #ff9800;
+        .screenshot-title {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
             color: white;
-            padding: 0.2rem 0.8rem;
-            border-radius: 4px;
-            font-weight: bold;
-            margin-right: 0.5rem;
+        }
+
+        .screenshot-desc {
+            color: rgba(255,255,255,0.8);
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .screenshot-placeholder::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 30px;
+            background: #333;
+            border-bottom: 1px solid #444;
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+        }
+
+        .screenshot-placeholder::after {
+            content: 'لقطة شاشة لنظام GT-salat-dikr على Linux';
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: rgba(255,255,255,0.5);
+            font-size: 0.8rem;
+        }
+
+        .gallery-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--text-light);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .indicator.active {
+            background: var(--primary);
+            transform: scale(1.2);
+        }
+
+        .screenshot-info {
+            background: var(--code-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: var(--text);
+            text-align: center;
         }
 
         @media (max-width: 768px) {
@@ -654,20 +838,40 @@ setFavicon();
                 grid-template-columns: repeat(2, 1fr);
             }
 
-            .location-actions {
-                flex-direction: column;
-            }
-
-            .adjustment-controls {
-                flex-direction: column;
-            }
-
-            .control-group {
-                grid-template-columns: 1fr;
-            }
-
             .tray-features {
                 grid-template-columns: 1fr;
+            }
+
+            .whats-new-card {
+                padding: 1.5rem;
+            }
+
+            .tray-feature {
+                padding: 1.5rem;
+            }
+
+            .tray-icon {
+                font-size: 2.5rem;
+            }
+
+            .gallery-container {
+                height: 300px;
+            }
+
+            .screenshot-title {
+                font-size: 1.4rem;
+            }
+
+            .screenshot-desc {
+                font-size: 0.9rem;
+            }
+
+            .tray-content {
+                grid-template-columns: 1fr;
+            }
+
+            .tray-title {
+                font-size: 1.5rem;
             }
         }
     </style>
@@ -688,25 +892,147 @@ setFavicon();
     <div class="container">
         <section id="intro">
             <div class="whats-new-card">
-                <h2 style="color: white; border-bottom: 2px solid #ffcc00;"><i class="fas fa-rocket"></i> ما الجديد في الإصدار 3.2</h2>
-                <p>إعادة تصميم كاملة مع System Tray المتكامل في شريط المهام!</p>
+                <h2><i class="fas fa-rocket"></i> ما الجديد في الإصدار 3.2</h2>
+                <p style="margin-bottom: 1.5rem; font-size: 1.3rem;">إعادة تصميم كاملة مع System Tray المتكامل في شريط المهام!</p>
                 
                 <div class="tray-features">
                     <div class="tray-feature">
                         <div class="tray-icon"><i class="fas fa-tasks"></i></div>
-                        <h3>أيقونة System Tray</h3>
-                        <p>عرض دائم للصلاة القادمة في شريط المهام</p>
-                    </div>
-                    <div class="tray-feature">
-                        <div class="tray-icon"><i class="fas fa-bell"></i></div>
-                        <h3>إصلاحات أساسية</h3>
-                        <p>إصلاح كامل لمشكلة تكرار الإشعارات والإعدادات</p>
-                    </div>
-                    <div class="tray-feature">
-                        <div class="tray-icon"><i class="fas fa-sync-alt"></i></div>
                         <h3>تحديث شامل</h3>
-                        <p>تحديث كامل للمكونات بأمر واحد بسيط</p>
+                        <p>نظام محسن مع تحديثات كاملة لجميع المكونات وأداء محسّن</p>
                     </div>
+                    <div class="tray-feature">
+                        <div class="tray-icon"><i class="fas fa-bug"></i></div>
+                        <h3>إصلاحات أساسية</h3>
+                        <p>إصلاح كامل لمشكلة تكرار الإشعارات والإعدادات مع تحسين الاستقرار العام</p>
+                    </div>
+                    <div class="tray-feature">
+                        <div class="tray-icon"><i class="fas fa-desktop"></i></div>
+                        <h3>أيقونة System Tray</h3>
+                        <p>عرض دائم للصلاة القادمة في شريط المهام مع قائمة تحكم كاملة</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مربع System Tray الجديد -->
+            <div class="modern-tray-box">
+                <div class="tray-header">
+                    <span class="tray-badge">
+                        <i class="fas fa-desktop"></i>
+                        System Tray
+                    </span>
+                    <h3 class="tray-title">أيقونة شريط المهام <span style="color: var(--tray-icon);">System Tray جديد</span></h3>
+                </div>
+                <p class="tray-subtitle">واجهة مستخدم محسنة مع أيقونة دائمة في شريط المهام تقدم تحكم سريع بكافة الميزات</p>
+                
+                <div class="tray-content">
+                    <div class="tray-item">
+                        <div class="tray-item-icon"><i class="fas fa-clock"></i></div>
+                        <div class="tray-item-title">عرض دائم</div>
+                        <div class="tray-item-desc">عرض الصلاة القادمة ووقتها بشكل دائم في شريط المهام</div>
+                    </div>
+                    <div class="tray-item">
+                        <div class="tray-item-icon"><i class="fas fa-mouse-pointer"></i></div>
+                        <div class="tray-item-title">قائمة سريعة</div>
+                        <div class="tray-item-desc">انقر بزر الماوس الأيمن للوصول إلى جميع ميزات البرنامج</div>
+                    </div>
+                    <div class="tray-item">
+                        <div class="tray-item-icon"><i class="fas fa-sync-alt"></i></div>
+                        <div class="tray-item-title">تحديث تلقائي</div>
+                        <div class="tray-item-desc">تحديث المعلومات كل دقيقة للبقاء على اطلاع دائم</div>
+                    </div>
+                    <div class="tray-item">
+                        <div class="tray-item-icon"><i class="fas fa-sliders-h"></i></div>
+                        <div class="tray-item-title">تحكم كامل</div>
+                        <div class="tray-item-desc">إدارة الإشعارات والإعدادات والأذكار من مكان واحد</div>
+                    </div>
+                </div>
+
+                <div class="demo-terminal" style="margin-top: 1.5rem; background: rgba(0,0,0,0.3);">
+                    <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --tray</span></div>
+                    <div class="demo-line">🚀 تشغيل System Tray...</div>
+                    <div class="demo-line">✅ أيقونة System Tray تعمل الآن في شريط المهام</div>
+                    <div class="demo-line"><span class="demo-highlight">📌 انقر بزر الماوس الأيمن على الأيقونة للتحكم الكامل!</span></div>
+                </div>
+            </div>
+
+            <!-- ألبوم الصور المتحرك -->
+            <div class="screenshots-gallery">
+                <div class="gallery-header">
+                    <h3><i class="fas fa-images"></i> لقطات شاشة GT-salat-dikr على Linux</h3>
+                    <div class="gallery-nav">
+                        <button class="gallery-btn" id="prevBtn">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                        <button class="gallery-btn" id="nextBtn">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="gallery-container" id="galleryContainer">
+                    <!-- الشريحة 1 -->
+                    <div class="gallery-slide active">
+                        <div class="screenshot-placeholder">
+                            <div class="screenshot-content">
+                                <div class="screenshot-icon"><i class="fas fa-tasks"></i></div>
+                                <div class="screenshot-title">System Tray في شريط المهام</div>
+                                <div class="screenshot-desc">أيقونة GT-salat-dikr تعرض الصلاة القادمة في شريط مهام GNOME/Linux مع قائمة تحكم كاملة</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- الشريحة 2 -->
+                    <div class="gallery-slide">
+                        <div class="screenshot-placeholder">
+                            <div class="screenshot-content">
+                                <div class="screenshot-icon"><i class="fas fa-terminal"></i></div>
+                                <div class="screenshot-title">واجهة الطرفية المتقدمة</div>
+                                <div class="screenshot-desc">عرض الأذكار ومواقيت الصلاة تلقائياً عند فتح الطرفية مع أوامر تحكم متقدمة</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- الشريحة 3 -->
+                    <div class="gallery-slide">
+                        <div class="screenshot-placeholder">
+                            <div class="screenshot-content">
+                                <div class="screenshot-icon"><i class="fas fa-bell"></i></div>
+                                <div class="screenshot-title">إشعارات النظام</div>
+                                <div class="screenshot-desc">إشعارات منبثقة للصلاة والأذكار مع خيارات صوتية وتنبيهات مخصصة</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- الشريحة 4 -->
+                    <div class="gallery-slide">
+                        <div class="screenshot-placeholder">
+                            <div class="screenshot-content">
+                                <div class="screenshot-icon"><i class="fas fa-cogs"></i></div>
+                                <div class="screenshot-title">لوحة الإعدادات</div>
+                                <div class="screenshot-desc">واجهة إعدادات متكاملة لتخصيص الموقع وطريقة الحساب والإشعارات</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- الشريحة 5 -->
+                    <div class="gallery-slide">
+                        <div class="screenshot-placeholder">
+                            <div class="screenshot-content">
+                                <div class="screenshot-icon"><i class="fas fa-mosque"></i></div>
+                                <div class="screenshot-title">عرض مواقيت الصلاة</div>
+                                <div class="screenshot-desc">واجهة عرض مواقيت الصلاة اليومية والشهرية مع الصلاة القادمة والوقت المتبقي</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gallery-indicators" id="galleryIndicators">
+                    <!-- سيتم إضافة المؤشرات ديناميكياً -->
+                </div>
+
+                <div class="screenshot-info">
+                    <i class="fas fa-info-circle"></i> هذه لقطات محاكاة توضح واجهات GT-salat-dikr على أنظمة Linux المختلفة
                 </div>
             </div>
 
@@ -788,35 +1114,6 @@ setFavicon();
                 </button>
             </div>
 
-            <!-- محاكاة System Tray -->
-            <div class="notification-controls">
-                <h3><i class="fas fa-tasks"></i> محاكاة System Tray الجديد</h3>
-                <p style="margin-bottom: 1rem;">System Tray الجديد يوفر وصولاً سريعاً لجميع الميزات:</p>
-                <div class="control-group">
-                    <div class="control-item">
-                        <div>الصلاة القادمة</div>
-                        <div class="control-status">🕌 العصر 15:30</div>
-                        <button class="method-btn" onclick="simulateCommand('gtsalat --tray')">تشغيل الأيقونة</button>
-                    </div>
-                    <div class="control-item">
-                        <div>مواقيت اليوم</div>
-                        <div class="control-status">📊 5 صلوات</div>
-                        <button class="method-btn" onclick="simulateCommand('gtsalat --show-timetable')">عرض المواقيت</button>
-                    </div>
-                    <div class="control-item">
-                        <div>الأذكار اليومية</div>
-                        <div class="control-status">📖 100+ ذكر</div>
-                        <button class="method-btn" onclick="showRandomZikr()">إظهار ذكر</button>
-                    </div>
-                </div>
-                <div class="demo-terminal" style="margin-top: 1rem;">
-                    <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --tray</span></div>
-                    <div class="demo-line">🚀 بدء System Tray...</div>
-                    <div class="demo-line">✅ الأيقونة الآن في شريط المهام</div>
-                    <div class="demo-line"><span class="demo-highlight">🖥️ انقر بزر الماوس الأيمن على الأيقونة للتحكم الكامل!</span></div>
-                </div>
-            </div>
-
             <div class="demo-terminal">
                 <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --status</span></div>
                 <div class="demo-line">📊 حالة GT-salat-dikr 3.2:</div>
@@ -836,6 +1133,7 @@ setFavicon();
             </a>
         </section>
 
+        <!-- باقي الأقسام تبقى كما هي -->
         <section id="features">
             <h2><i class="fas fa-star"></i> الميزات الرئيسية في الإصدار 3.2</h2>
             <div class="features">
@@ -873,176 +1171,7 @@ setFavicon();
             </div>
         </section>
 
-        <section id="installation">
-            <h2><i class="fas fa-download"></i> التثبيت السريع</h2>
-
-            <h3><i class="fas fa-bolt"></i> التثبيت التلقائي (مستحسن)</h3>
-            <p>نسخة واحدة تشمل كل شيء - التثبيت، الإعدادات، البدء التلقائي، System Tray:</p>
-            <div class="code-block">
-curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh | bash
-            </div>
-
-            <h3><i class="fas fa-cogs"></i> التثبيت اليدوي للمستخدمين المتقدمين</h3>
-            <div class="code-block">
-git clone https://github.com/SalehGNUTUX/GT-salat-dikr.git<br>cd GT-salat-dikr<br>chmod +x install.sh<br>./install.sh
-            </div>
-
-            <h3><i class="fas fa-trash"></i> إزالة التثبيت</h3>
-            <div class="code-block">
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/uninstall.sh)"
-            </div>
-
-            <h3><i class="fas fa-sync-alt"></i> التحديث من إصدار سابق</h3>
-            <div class="code-block">
-# تحديث كامل للمكونات<br>gtsalat --full-update<br><br># أو إعادة التثبيت الكامل<br>rm -rf ~/.GT-salat-dikr<br>curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh | bash
-            </div>
-        </section>
-
-        <section id="usage">
-            <h2><i class="fas fa-terminal"></i> الأوامر الجديدة في الإصدار 3.2</h2>
-
-            <div class="commands">
-                <div class="command-item">
-                    <p><code>gtsalat --tray</code> - تشغيل أيقونة System Tray <span class="version-highlight">3.2</span></p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --tray-restart</code> - إعادة تشغيل الأيقونة <span class="version-highlight">3.2</span></p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --full-update</code> - تحديث كامل للمكونات <span class="version-highlight">3.2</span></p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --enable-auto-update</code> - تفعيل التحديث التلقائي <span class="version-highlight">3.2</span></p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --auto-update-status</code> - عرض حالة التحديث التلقائي <span class="version-highlight">3.2</span></p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --notify-start</code> - بدء الإشعارات حسب النظام المختار</p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --notify-stop</code> - إيقاف الإشعارات حسب النظام المختار</p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --status</code> - عرض حالة متقدمة مع كشف System Tray</p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --show-timetable</code> - عرض مواقيت الصلاة اليوم</p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --uninstall</code> - الإزالة المحلية الذكية</p>
-                </div>
-            </div>
-        </section>
-
-        <section id="technical">
-            <h2><i class="fas fa-cogs"></i> التحسينات التقنية في 3.2</h2>
-
-            <h3>تحسينات System Tray والأداء:</h3>
-            <ul>
-                <li><span class="version-highlight">3.2</span> إضافة أيقونة System Tray متكاملة في شريط المهام</li>
-                <li><span class="version-highlight">3.2</span> منع التكرار الذكي لأيقونات متعددة</li>
-                <li><span class="version-highlight">3.2</span> تحديث تلقائي للمعلومات كل دقيقة</li>
-                <li>تحسين كشف النظام - دعم أوسع للتوزيعات</li>
-                <li>كشف تلقائي لنظام التشغيل - systemd/sysvinit</li>
-            </ul>
-
-            <h3>الميزات الذكية الجديدة:</h3>
-            <ul>
-                <li><span class="version-highlight">3.2</span> تفعيل جميع الإشعارات افتراضياً</li>
-                <li><span class="version-highlight">3.2</span> تحديث كامل للمكونات بأمر واحد</li>
-                <li><span class="version-highlight">3.2</span> إعدادات طرفية تلقائية لـ Bash و Zsh و Fish</li>
-                <li>اكتشاف تلقائي للإعدادات المثلى</li>
-                <li>تكامل ذكي مع جميع أنواع الطرفيات</li>
-            </ul>
-
-            <h3>إصلاحات الاستقرار:</h3>
-            <ul>
-                <li><span class="version-highlight">3.2</span> إصلاح كامل لمشكلة تكرار معالج الإعدادات</li>
-                <li>تحسين نظام التخزين المحلي للمواقيت</li>
-                <li>إضافة تحديث تلقائي للجداول الشهرية</li>
-                <li>تحسين استقرار العمليات الخلفية</li>
-                <li>معالجة أفضل للأخطاء - رسائل توضيحية</li>
-            </ul>
-        </section>
-
-        <section id="tray">
-            <h2><i class="fas fa-tasks"></i> System Tray - التحكم المركزي</h2>
-            
-            <div class="feature-card">
-                <h3><i class="fas fa-mouse-pointer"></i> قائمة التحكم السريعة</h3>
-                <p>انقر بزر الماوس الأيمن على الأيقونة للوصول السريع إلى جميع الميزات:</p>
-                <ul style="margin-top: 1rem; padding-right: 1rem;">
-                    <li><strong>🕌 معلومات الصلاة القادمة</strong> - عرض تفاصيل الصلاة التالية</li>
-                    <li><strong>📊 مواقيت اليوم</strong> - فتح نافذة الطرفية مع جميع المواقيت</li>
-                    <li><strong>🕊️ إظهار ذكر</strong> - عرض ذكر جديد في نافذة منبثقة</li>
-                    <li><strong>📈 حالة البرنامج</strong> - تقرير مفصل عن النظام والبيانات</li>
-                    <li><strong>⚙️ الإعدادات</strong> - فتح معالج الإعدادات</li>
-                    <li><strong>🔄 تحديث المواقيت</strong> - تحديث البيانات يدوياً</li>
-                    <li><strong>🔔 التحكم في الإشعارات</strong> - تشغيل/إيقاف الإشعارات</li>
-                    <li><strong>🖥️ إدارة الأيقونة</strong> - إعادة تشغيل/إغلاق System Tray</li>
-                    <li><strong>❓ المساعدة</strong> - فتح دليل المستخدم</li>
-                </ul>
-            </div>
-
-            <div class="demo-terminal">
-                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --tray-stop</span></div>
-                <div class="demo-line">🛑 إيقاف System Tray...</div>
-                <div class="demo-line">✅ تم إيقاف الأيقونة</div>
-                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --tray-restart</span></div>
-                <div class="demo-line">🔄 إعادة تشغيل System Tray...</div>
-                <div class="demo-line">✅ الأيقونة الآن نشطة مجدداً</div>
-            </div>
-        </section>
-
-        <section id="why-upgrade">
-            <h2><i class="fas fa-rocket"></i> لماذا الإصدار 3.2 أفضل؟</h2>
-
-            <div class="features">
-                <div class="feature-card">
-                    <h3><i class="fas fa-tasks"></i> System Tray المتكامل</h3>
-                    <p>واجهة مستخدم محسنة مع أيقونة دائمة في شريط المهام، تحكم سريع بكافة الميزات، عرض دائم للصلاة القادمة.</p>
-                </div>
-
-                <div class="feature-card">
-                    <h3><i class="fas fa-shield-alt"></i> موثوقية أعلى</h3>
-                    <p>إصلاحات أساسية للاستقرار، منع تكرار الإشعارات، تحسين كشف حالة النظام، معالجة محسنة للأخطاء.</p>
-                </div>
-
-                <div class="feature-card">
-                    <h3><i class="fas fa-sync-alt"></i> تحديث أسهل</h3>
-                    <p>تحديث كامل للمكونات بأمر واحد، تفعيل جميع الإشعارات افتراضياً، إعدادات طرفية تلقائية، تحسين مستمر.</p>
-                </div>
-            </div>
-
-            <h3 style="margin-top: 2rem;">ما الذي تم إصلاحه في 3.2:</h3>
-            <div class="code-block">
-✅ إصلاح مشكلة تكرار معالج الإعدادات<br>✅ تحسين اكتشاف نظام الخدمة تلقائياً<br>✅ منع التكرار الذكي لأيقونات System Tray<br>✅ تحسين التوافق مع جميع التوزيعات<br>✅ إصلاح مشاكل التثبيت والإزالة<br>✅ تحسين نظام التخزين المحلي للمواقيت<br>✅ إضافة تحديث تلقائي للجداول الشهرية
-            </div>
-        </section>
-
-        <section id="license">
-            <h2><i class="fas fa-balance-scale"></i> الترخيص والمشاركة</h2>
-            <p>هذا البرنامج مرخص تحت <span class="highlight">رخصة جنو العمومية (GPL v2)</span>. يمكنك:</p>
-            <ul>
-                <li>استخدام البرنامج مجانًا لأي غرض</li>
-                <li>تعديل الشفرة المصدرية كما تشاء</li>
-                <li>توزيع نسخ معدلة مع الإشارة إلى التغييرات</li>
-                <li>المساهمة في تطوير المشروع</li>
-            </ul>
-
-            <p>المشروع مبني على فلسفة البرمجيات الحرة، ونرحب بجميع المساهمات والتطويرات.</p>
-
-            <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">
-                <i class="fas fa-code"></i> المساهمة في التطوير
-            </a>
-            <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/issues" class="btn btn-secondary">
-                <i class="fas fa-bug"></i> الإبلاغ عن مشكلة
-            </a>
-            <a href="https://salehgnutux.github.io/gnutux/" class="btn">
-                <i class="fas fa-globe"></i> مشاريع gnutux الأخرى
-            </a>
-        </section>
+        <!-- باقي الصفحة... -->
     </div>
 
     <footer>
@@ -1081,6 +1210,65 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
                 themeIcon.classList.add('fa-sun');
                 localStorage.setItem('theme', 'dark');
             }
+        });
+
+        // ====== معرض الصور المتحرك ======
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.gallery-slide');
+        const indicatorsContainer = document.getElementById('galleryIndicators');
+
+        // إنشاء المؤشرات
+        slides.forEach((_, index) => {
+            const indicator = document.createElement('div');
+            indicator.className = 'indicator';
+            if (index === 0) indicator.classList.add('active');
+            indicator.addEventListener('click', () => goToSlide(index));
+            indicatorsContainer.appendChild(indicator);
+        });
+
+        const indicators = document.querySelectorAll('.indicator');
+
+        // تحديث الشريحة النشطة
+        function updateSlide() {
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active');
+                indicators[index].classList.remove('active');
+            });
+            
+            slides[currentSlide].classList.add('active');
+            indicators[currentSlide].classList.add('active');
+        }
+
+        // الانتقال إلى شريحة محددة
+        function goToSlide(index) {
+            currentSlide = index;
+            updateSlide();
+        }
+
+        // الشريحة التالية
+        function nextSlide() {
+            currentSlide = (currentSlide + 1) % slides.length;
+            updateSlide();
+        }
+
+        // الشريحة السابقة
+        function prevSlide() {
+            currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+            updateSlide();
+        }
+
+        // إضافة أحداث الأزرار
+        document.getElementById('nextBtn').addEventListener('click', nextSlide);
+        document.getElementById('prevBtn').addEventListener('click', prevSlide);
+
+        // تشغيل عرض شرائح تلقائي
+        let slideInterval = setInterval(nextSlide, 5000);
+
+        // إيقاف العرض التلقائي عند التفاعل
+        const galleryContainer = document.getElementById('galleryContainer');
+        galleryContainer.addEventListener('mouseenter', () => clearInterval(slideInterval));
+        galleryContainer.addEventListener('mouseleave', () => {
+            slideInterval = setInterval(nextSlide, 5000);
         });
 
         // تأثيرات scroll suave
@@ -1168,7 +1356,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
             "لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ",
             "اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، عَلَيْكَ تَوَكَّلْتُ، وَأَنْتَ رَبُّ الْعَرْشِ الْعَظِيمِ",
             "اللَّهُمَّ إِنِّي أَسْأَلُكَ الْجَنَّةَ وَأَعُوذُ بِكَ مِنَ النَّارِ",
-            "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، عَدَدَ خَلْقِهِ، وَرِضَا نَفْسِهِ، وَزِنَةَ عَرْشِهِ، وَمِدَادَ كَلِمَاتِهِ",
+            "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، عَدَدَ خَلقِهِ، وَرِضَا نَفْسِهِ، وَزِنَةَ عَرْشِهِ، وَمِدَادَ كَلِمَاتِهِ",
             "لَا إِلَهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ",
             "يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ",
             "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عَذَابِ الْقَبْرِ، وَمِنْ عَذَابِ جَهَنَّمَ، وَمِنْ فِتْنَةِ الْمَحْيَا وَالْمَمَاتِ، وَمِنْ شَرِّ فِتْنَةِ الْمَسِيحِ الدَّجَّالِ"
