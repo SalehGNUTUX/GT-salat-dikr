@@ -32,8 +32,8 @@ setFavicon();
 </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GT-salat-dikr - نظام إشعارات الصلاة والأذكار المتكامل - الإصدار النهائي 2025</title>
-    <meta name="description" content="الإصدار النهائي المحسّن 2025 - نظام إشعارات ذكي ومستقر للصلاة والأذكار يعمل على جميع توزيعات لينكس">
+    <title>GT-salat-dikr - نظام إشعارات الصلاة والأذكار المتكامل - الإصدار 3.2</title>
+    <meta name="description" content="الإصدار 3.2 مع System Tray - نظام إشعارات ذكي ومستقر للصلاة والأذكار يعمل على جميع توزيعات لينكس">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -86,6 +86,7 @@ setFavicon();
             padding: 3rem 1rem;
             text-align: center;
             position: relative;
+            border-bottom: 5px solid #4caf50;
         }
 
         header h1 {
@@ -98,6 +99,25 @@ setFavicon();
             max-width: 900px;
             margin: 0 auto;
             opacity: 0.9;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: #ff9800;
+            color: white;
+            padding: 0.3rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-left: 1rem;
+            vertical-align: middle;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
 
         .theme-toggle {
@@ -229,6 +249,7 @@ setFavicon();
             padding: 3rem 1rem;
             margin-top: 4rem;
             color: var(--text);
+            border-top: 5px solid var(--primary);
         }
 
         .screenshot {
@@ -566,6 +587,44 @@ setFavicon();
             margin: 0.5rem 0;
         }
 
+        .whats-new-card {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin: 2rem 0;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .tray-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .tray-feature {
+            background: rgba(255,255,255,0.1);
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .tray-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #ffcc00;
+        }
+
+        .version-highlight {
+            background: #ff9800;
+            color: white;
+            padding: 0.2rem 0.8rem;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
         @media (max-width: 768px) {
             header h1 {
                 font-size: 2.2rem;
@@ -606,6 +665,10 @@ setFavicon();
             .control-group {
                 grid-template-columns: 1fr;
             }
+
+            .tray-features {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -617,32 +680,55 @@ setFavicon();
         <div class="logo">
             <i class="fas fa-mosque"></i>
         </div>
-        <h1>GT-salat-dikr 🕌 - الإصدار النهائي 2025</h1>
-        <p>نظام إشعارات الصلاة والأذكار الذكي - الإصدار الأكثر استقراراً وسلاسة!</p>
+        <h1>GT-salat-dikr 🕌 <span class="version-badge">الإصدار 3.2</span></h1>
+        <p>نظام إشعارات الصلاة والأذكار الذكي - مع System Tray المتكامل!</p>
         <p>مفتوح المصدر ⚡ مرخص تحت GPL 📜</p>
     </header>
 
     <div class="container">
         <section id="intro">
-            <h2><i class="fas fa-info-circle"></i> نظام متكامل محسّن لتذكير الصلاة والأذكار</h2>
-            <p>GT-salat-dikr الإصدار النهائي 2025 يمثل قفزة نوعية في الاستقرار والسهولة والذكاء. نظام متكامل يجمع بين دقة مواقيت الصلاة وقوة التذكير المستمر للأذكار مع تحكم أدق في الإشعارات.</p>
+            <div class="whats-new-card">
+                <h2 style="color: white; border-bottom: 2px solid #ffcc00;"><i class="fas fa-rocket"></i> ما الجديد في الإصدار 3.2</h2>
+                <p>إعادة تصميم كاملة مع System Tray المتكامل في شريط المهام!</p>
+                
+                <div class="tray-features">
+                    <div class="tray-feature">
+                        <div class="tray-icon"><i class="fas fa-tasks"></i></div>
+                        <h3>أيقونة System Tray</h3>
+                        <p>عرض دائم للصلاة القادمة في شريط المهام</p>
+                    </div>
+                    <div class="tray-feature">
+                        <div class="tray-icon"><i class="fas fa-bell"></i></div>
+                        <h3>إصلاحات أساسية</h3>
+                        <p>إصلاح كامل لمشكلة تكرار الإشعارات والإعدادات</p>
+                    </div>
+                    <div class="tray-feature">
+                        <div class="tray-icon"><i class="fas fa-sync-alt"></i></div>
+                        <h3>تحديث شامل</h3>
+                        <p>تحديث كامل للمكونات بأمر واحد بسيط</p>
+                    </div>
+                </div>
+            </div>
+
+            <h2><i class="fas fa-info-circle"></i> نظام متكامل لتذكير الصلاة والأذكار</h2>
+            <p>GT-salat-dikr الإصدار 3.2 يمثل قفزة نوعية في تجربة المستخدم مع إضافة System Tray المتكامل. نظام متكامل يجمع بين دقة مواقيت الصلاة وقوة التذكير المستمر للأذكار مع تحكم أدق في الإشعارات.</p>
 
             <div class="stats">
-                <div class="stat-item">
-                    <div class="stat-number">80+</div>
-                    <div>ذكر متنوع</div>
-                </div>
                 <div class="stat-item">
                     <div class="stat-number">22</div>
                     <div>طريقة حساب</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">100%</div>
-                    <div>استقرار محسّن</div>
+                    <div class="stat-number">100+</div>
+                    <div>ذكر متنوع</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">⚡</div>
-                    <div>تثبيت مبسط</div>
+                    <div class="stat-number">3+</div>
+                    <div>أشهر تخزين محلي</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">🖥️</div>
+                    <div>System Tray جديد</div>
                 </div>
             </div>
 
@@ -702,39 +788,44 @@ setFavicon();
                 </button>
             </div>
 
-            <!-- محاكاة تحكم الإشعارات الجديدة -->
+            <!-- محاكاة System Tray -->
             <div class="notification-controls">
-                <h3><i class="fas fa-bell"></i> محاكاة نظام التحكم الجديد في الإشعارات</h3>
+                <h3><i class="fas fa-tasks"></i> محاكاة System Tray الجديد</h3>
+                <p style="margin-bottom: 1rem;">System Tray الجديد يوفر وصولاً سريعاً لجميع الميزات:</p>
                 <div class="control-group">
                     <div class="control-item">
-                        <div>إشعارات الطرفية</div>
-                        <div class="control-status">✅ مفعل</div>
-                        <button class="method-btn" onclick="simulateCommand('gtsalat --disable-salat-terminal')">تعطيل الصلاة</button>
-                        <button class="method-btn" onclick="simulateCommand('gtsalat --disable-zikr-terminal')">تعطيل الأذكار</button>
+                        <div>الصلاة القادمة</div>
+                        <div class="control-status">🕌 العصر 15:30</div>
+                        <button class="method-btn" onclick="simulateCommand('gtsalat --tray')">تشغيل الأيقونة</button>
                     </div>
                     <div class="control-item">
-                        <div>إشعارات النظام</div>
-                        <div class="control-status">✅ مفعل</div>
-                        <button class="method-btn" onclick="simulateCommand('gtsalat --disable-salat-gui')">تعطيل الصلاة</button>
-                        <button class="method-btn" onclick="simulateCommand('gtsalat --disable-zikr-gui')">تعطيل الأذكار</button>
+                        <div>مواقيت اليوم</div>
+                        <div class="control-status">📊 5 صلوات</div>
+                        <button class="method-btn" onclick="simulateCommand('gtsalat --show-timetable')">عرض المواقيت</button>
                     </div>
                     <div class="control-item">
-                        <div>إدارة النظام</div>
-                        <div class="control-status">systemd 🟢</div>
-                        <button class="method-btn" onclick="simulateCommand('gtsalat --notify-start')">بدء الإشعارات</button>
-                        <button class="method-btn" onclick="simulateCommand('gtsalat --notify-stop')">إيقاف الإشعارات</button>
+                        <div>الأذكار اليومية</div>
+                        <div class="control-status">📖 100+ ذكر</div>
+                        <button class="method-btn" onclick="showRandomZikr()">إظهار ذكر</button>
                     </div>
+                </div>
+                <div class="demo-terminal" style="margin-top: 1rem;">
+                    <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --tray</span></div>
+                    <div class="demo-line">🚀 بدء System Tray...</div>
+                    <div class="demo-line">✅ الأيقونة الآن في شريط المهام</div>
+                    <div class="demo-line"><span class="demo-highlight">🖥️ انقر بزر الماوس الأيمن على الأيقونة للتحكم الكامل!</span></div>
                 </div>
             </div>
 
             <div class="demo-terminal">
                 <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --status</span></div>
-                <div class="demo-line">📊 حالة GT-salat-dikr:</div>
+                <div class="demo-line">📊 حالة GT-salat-dikr 3.2:</div>
                 <div class="demo-line">════════════════════════════════</div>
-                <div class="demo-line">✅ الإشعارات: تعمل (systemd - PID: 2543)</div>
+                <div class="demo-line">✅ System Tray: يعمل (PID: 2876)</div>
                 <div class="demo-line">📍 الموقع: الرياض, السعودية</div>
                 <div class="demo-line">🕌 الصلاة القادمة: العصر عند 15:30 (باقي 02:15)</div>
-                <div class="demo-line"><span class="demo-highlight">🎯 الإصدار النهائي المحسّن 2025 - مستقر وسلس!</span></div>
+                <div class="demo-line">🔄 التحديث التلقائي: مفعل</div>
+                <div class="demo-line"><span class="demo-highlight">🎯 الإصدار 3.2 مع System Tray المتكامل!</span></div>
             </div>
 
             <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">
@@ -746,36 +837,38 @@ setFavicon();
         </section>
 
         <section id="features">
-            <h2><i class="fas fa-star"></i> المستجدات والتحسينات</h2>
+            <h2><i class="fas fa-star"></i> الميزات الرئيسية في الإصدار 3.2</h2>
             <div class="features">
                 <div class="feature-card">
-                    <h3><i class="fas fa-sync-alt"></i> نظام تثبيت محسّن</h3>
-                    <p>تثبيت مبسط بدون أسئلة متكررة، اكتشاف تلقائي لنظام التشغيل، إعدادات تلقائية مثالية تناسب معظم المستخدمين.</p>
+                    <h3><i class="fas fa-tasks"></i> System Tray المتكامل</h3>
+                    <p>أيقونة دائمة في شريط المهام تعرض الصلاة القادمة مع قائمة تحكم كاملة بكافة ميزات البرنامج.</p>
+                    <code style="margin-top: 1rem; display: block;">gtsalat --tray</code>
                 </div>
 
                 <div class="feature-card">
                     <h3><i class="fas fa-bug"></i> إصلاحات استقرار رئيسية</h3>
-                    <p>إصلاح مشكلة التكرار العشوائي للإشعارات، تحسين كشف حالة الإشعارات في systemd، منع تشغيل الإشعارات أثناء الإعداد.</p>
+                    <p>إصلاح كامل لمشكلة تكرار معالج الإعدادات وتحسين اكتشاف نظام الخدمة تلقائياً.</p>
                 </div>
 
                 <div class="feature-card">
-                    <h3><i class="fas fa-sliders-h"></i> تحكم أدق في الإشعارات</h3>
-                    <p>فصل كامل بين إشعارات الطرفية والنظام، تفعيل/تعطيل انتقائي لكل نوع من الإشعارات، إعدادات مستقلة للصلاة والأذكار.</p>
+                    <h3><i class="fas fa-sync-alt"></i> تحديث كامل للمكونات</h3>
+                    <p>أمر واحد لتحديث جميع مكونات البرنامج، شامل الأذكار والمواقيت والإعدادات.</p>
+                    <code style="margin-top: 1rem; display: block;">gtsalat --full-update</code>
                 </div>
 
                 <div class="feature-card">
-                    <h3><i class="fas fa-brain"></i> ذكاء محسّن</h3>
-                    <p>اكتشاف تلقائي للإعدادات المثلى، تكامل ذكي مع بيئة المستخدم، توجيه تلقائي للخطوات الضرورية، تحسين مستمر للأداء.</p>
+                    <h3><i class="fas fa-plug"></i> عمل بدون إنترنت</h3>
+                    <p>تخزين محلي لمواقيت 3 أشهر مسبقاً يضمن عمل البرنامج حتى بدون اتصال بالإنترنت.</p>
                 </div>
 
                 <div class="feature-card">
-                    <h3><i class="fas fa-terminal"></i> أوامر تحكم جديدة</h3>
-                    <p>أوامر متقدمة للتحكم الدقيق في كل نوع إشعار، إدارة محسنة للعمليات، كشف دقيق لحالة النظام والإشعارات.</p>
+                    <h3><i class="fas fa-terminal"></i> إعدادات طرفية تلقائية</h3>
+                    <p>عرض الأذكار ومواقيت الصلاة تلقائياً عند فتح الطرفية لـ Bash و Zsh و Fish.</p>
                 </div>
 
                 <div class="feature-card">
-                    <h3><i class="fas fa-trash-alt"></i> إزالة ذكية</h3>
-                    <p>نظام إزالة محسّن مع إيقاف شامل للعمليات، تنظيف كامل للملفات، خيارات مرنة، وتنظيف إعدادات الطرفية.</p>
+                    <h3><i class="fas fa-bell"></i> جميع الإشعارات مفعلة</h3>
+                    <p>جميع أنواع الإشعارات مفعلة افتراضياً لتحسين تجربة المستخدم من أول استخدام.</p>
                 </div>
             </div>
         </section>
@@ -784,9 +877,9 @@ setFavicon();
             <h2><i class="fas fa-download"></i> التثبيت السريع</h2>
 
             <h3><i class="fas fa-bolt"></i> التثبيت التلقائي (مستحسن)</h3>
-            <p>نسخة واحدة تشمل كل شيء - التثبيت، الإعدادات، البدء التلقائي:</p>
+            <p>نسخة واحدة تشمل كل شيء - التثبيت، الإعدادات، البدء التلقائي، System Tray:</p>
             <div class="code-block">
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh)"
+curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh | bash
             </div>
 
             <h3><i class="fas fa-cogs"></i> التثبيت اليدوي للمستخدمين المتقدمين</h3>
@@ -798,32 +891,31 @@ git clone https://github.com/SalehGNUTUX/GT-salat-dikr.git<br>cd GT-salat-dikr<b
             <div class="code-block">
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/uninstall.sh)"
             </div>
+
+            <h3><i class="fas fa-sync-alt"></i> التحديث من إصدار سابق</h3>
+            <div class="code-block">
+# تحديث كامل للمكونات<br>gtsalat --full-update<br><br># أو إعادة التثبيت الكامل<br>rm -rf ~/.GT-salat-dikr<br>curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh | bash
+            </div>
         </section>
 
         <section id="usage">
-            <h2><i class="fas fa-terminal"></i> الأوامر الجديدة والمحسنة</h2>
+            <h2><i class="fas fa-terminal"></i> الأوامر الجديدة في الإصدار 3.2</h2>
 
             <div class="commands">
                 <div class="command-item">
-                    <p><code>gtsalat --enable-all-notify</code> - تفعيل جميع الإشعارات (طرفية + نظام)</p>
+                    <p><code>gtsalat --tray</code> - تشغيل أيقونة System Tray <span class="version-highlight">3.2</span></p>
                 </div>
                 <div class="command-item">
-                    <p><code>gtsalat --disable-all-notify</code> - تعطيل جميع الإشعارات</p>
+                    <p><code>gtsalat --tray-restart</code> - إعادة تشغيل الأيقونة <span class="version-highlight">3.2</span></p>
                 </div>
                 <div class="command-item">
-                    <p><code>gtsalat --enable-salat-terminal</code> - تفعيل إشعارات الصلاة في الطرفية</p>
+                    <p><code>gtsalat --full-update</code> - تحديث كامل للمكونات <span class="version-highlight">3.2</span></p>
                 </div>
                 <div class="command-item">
-                    <p><code>gtsalat --disable-salat-gui</code> - تعطيل إشعارات الصلاة في النظام</p>
+                    <p><code>gtsalat --enable-auto-update</code> - تفعيل التحديث التلقائي <span class="version-highlight">3.2</span></p>
                 </div>
                 <div class="command-item">
-                    <p><code>gtsalat --enable-zikr-terminal</code> - تفعيل إشعارات الأذكار في الطرفية</p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --disable-zikr-gui</code> - تعطيل إشعارات الأذكار في النظام</p>
-                </div>
-                <div class="command-item">
-                    <p><code>gtsalat --change-notify-system</code> - تغيير نظام الخدمة (systemd/sysvinit)</p>
+                    <p><code>gtsalat --auto-update-status</code> - عرض حالة التحديث التلقائي <span class="version-highlight">3.2</span></p>
                 </div>
                 <div class="command-item">
                     <p><code>gtsalat --notify-start</code> - بدء الإشعارات حسب النظام المختار</p>
@@ -832,7 +924,10 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
                     <p><code>gtsalat --notify-stop</code> - إيقاف الإشعارات حسب النظام المختار</p>
                 </div>
                 <div class="command-item">
-                    <p><code>gtsalat --status</code> - عرض حالة متقدمة مع كشف systemd</p>
+                    <p><code>gtsalat --status</code> - عرض حالة متقدمة مع كشف System Tray</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --show-timetable</code> - عرض مواقيت الصلاة اليوم</p>
                 </div>
                 <div class="command-item">
                     <p><code>gtsalat --uninstall</code> - الإزالة المحلية الذكية</p>
@@ -841,51 +936,94 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
         </section>
 
         <section id="technical">
-            <h2><i class="fas fa-cogs"></i> التحسينات التقنية</h2>
+            <h2><i class="fas fa-cogs"></i> التحسينات التقنية في 3.2</h2>
 
-            <h3>تحسينات الأداء والاستقرار:</h3>
+            <h3>تحسينات System Tray والأداء:</h3>
             <ul>
-                <li>منع تكرار الإشعارات - نظام توقيت محسّن</li>
-                <li>إدارة ذكية للعمليات - تجنب التضارب</li>
+                <li><span class="version-highlight">3.2</span> إضافة أيقونة System Tray متكاملة في شريط المهام</li>
+                <li><span class="version-highlight">3.2</span> منع التكرار الذكي لأيقونات متعددة</li>
+                <li><span class="version-highlight">3.2</span> تحديث تلقائي للمعلومات كل دقيقة</li>
                 <li>تحسين كشف النظام - دعم أوسع للتوزيعات</li>
-                <li>معالجة أفضل للأخطاء - رسائل توضيحية</li>
                 <li>كشف تلقائي لنظام التشغيل - systemd/sysvinit</li>
             </ul>
 
             <h3>الميزات الذكية الجديدة:</h3>
             <ul>
+                <li><span class="version-highlight">3.2</span> تفعيل جميع الإشعارات افتراضياً</li>
+                <li><span class="version-highlight">3.2</span> تحديث كامل للمكونات بأمر واحد</li>
+                <li><span class="version-highlight">3.2</span> إعدادات طرفية تلقائية لـ Bash و Zsh و Fish</li>
                 <li>اكتشاف تلقائي للإعدادات المثلى</li>
                 <li>تكامل ذكي مع جميع أنواع الطرفيات</li>
-                <li>بدء تلقائي عند فتح الطرفية</li>
-                <li>فصل كامل بين أنواع الإشعارات</li>
-                <li>تحكم دقيق في كل مكون على حدة</li>
+            </ul>
+
+            <h3>إصلاحات الاستقرار:</h3>
+            <ul>
+                <li><span class="version-highlight">3.2</span> إصلاح كامل لمشكلة تكرار معالج الإعدادات</li>
+                <li>تحسين نظام التخزين المحلي للمواقيت</li>
+                <li>إضافة تحديث تلقائي للجداول الشهرية</li>
+                <li>تحسين استقرار العمليات الخلفية</li>
+                <li>معالجة أفضل للأخطاء - رسائل توضيحية</li>
             </ul>
         </section>
 
-        <section id="why-new">
-            <h2><i class="fas fa-rocket"></i> لماذا الإصدار الجديد أفضل؟</h2>
+        <section id="tray">
+            <h2><i class="fas fa-tasks"></i> System Tray - التحكم المركزي</h2>
+            
+            <div class="feature-card">
+                <h3><i class="fas fa-mouse-pointer"></i> قائمة التحكم السريعة</h3>
+                <p>انقر بزر الماوس الأيمن على الأيقونة للوصول السريع إلى جميع الميزات:</p>
+                <ul style="margin-top: 1rem; padding-right: 1rem;">
+                    <li><strong>🕌 معلومات الصلاة القادمة</strong> - عرض تفاصيل الصلاة التالية</li>
+                    <li><strong>📊 مواقيت اليوم</strong> - فتح نافذة الطرفية مع جميع المواقيت</li>
+                    <li><strong>🕊️ إظهار ذكر</strong> - عرض ذكر جديد في نافذة منبثقة</li>
+                    <li><strong>📈 حالة البرنامج</strong> - تقرير مفصل عن النظام والبيانات</li>
+                    <li><strong>⚙️ الإعدادات</strong> - فتح معالج الإعدادات</li>
+                    <li><strong>🔄 تحديث المواقيت</strong> - تحديث البيانات يدوياً</li>
+                    <li><strong>🔔 التحكم في الإشعارات</strong> - تشغيل/إيقاف الإشعارات</li>
+                    <li><strong>🖥️ إدارة الأيقونة</strong> - إعادة تشغيل/إغلاق System Tray</li>
+                    <li><strong>❓ المساعدة</strong> - فتح دليل المستخدم</li>
+                </ul>
+            </div>
+
+            <div class="demo-terminal">
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --tray-stop</span></div>
+                <div class="demo-line">🛑 إيقاف System Tray...</div>
+                <div class="demo-line">✅ تم إيقاف الأيقونة</div>
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --tray-restart</span></div>
+                <div class="demo-line">🔄 إعادة تشغيل System Tray...</div>
+                <div class="demo-line">✅ الأيقونة الآن نشطة مجدداً</div>
+            </div>
+        </section>
+
+        <section id="why-upgrade">
+            <h2><i class="fas fa-rocket"></i> لماذا الإصدار 3.2 أفضل؟</h2>
 
             <div class="features">
                 <div class="feature-card">
-                    <h3><i class="fas fa-user-check"></i> تجربة مستخدم محسنة</h3>
-                    <p>تثبيت أبسط بدون تعقيدات، تحكم أدق في كل نوع إشعار، استقرار أفضل مع إصلاح المشاكل السابقة، تكامل أذكى مع النظام والطرفية.</p>
+                    <h3><i class="fas fa-tasks"></i> System Tray المتكامل</h3>
+                    <p>واجهة مستخدم محسنة مع أيقونة دائمة في شريط المهام، تحكم سريع بكافة الميزات، عرض دائم للصلاة القادمة.</p>
                 </div>
 
                 <div class="feature-card">
                     <h3><i class="fas fa-shield-alt"></i> موثوقية أعلى</h3>
-                    <p>كشف دقيق لحالة النظام والإشعارات، معالجة محسنة للأخطاء والاستثناءات، إدارة أفضل للعمليات والموارد، تنظيف شامل عند الإزالة.</p>
+                    <p>إصلاحات أساسية للاستقرار، منع تكرار الإشعارات، تحسين كشف حالة النظام، معالجة محسنة للأخطاء.</p>
                 </div>
 
                 <div class="feature-card">
-                    <h3><i class="fas fa-magic"></i> ذكاء محسّن</h3>
-                    <p>اكتشاف تلقائي للإعدادات المثلى، تكامل ذكي مع بيئة المستخدم، توجيه تلقائي للخطوات الضرورية، تحسين مستمر للأداء.</p>
+                    <h3><i class="fas fa-sync-alt"></i> تحديث أسهل</h3>
+                    <p>تحديث كامل للمكونات بأمر واحد، تفعيل جميع الإشعارات افتراضياً، إعدادات طرفية تلقائية، تحسين مستمر.</p>
                 </div>
+            </div>
+
+            <h3 style="margin-top: 2rem;">ما الذي تم إصلاحه في 3.2:</h3>
+            <div class="code-block">
+✅ إصلاح مشكلة تكرار معالج الإعدادات<br>✅ تحسين اكتشاف نظام الخدمة تلقائياً<br>✅ منع التكرار الذكي لأيقونات System Tray<br>✅ تحسين التوافق مع جميع التوزيعات<br>✅ إصلاح مشاكل التثبيت والإزالة<br>✅ تحسين نظام التخزين المحلي للمواقيت<br>✅ إضافة تحديث تلقائي للجداول الشهرية
             </div>
         </section>
 
         <section id="license">
             <h2><i class="fas fa-balance-scale"></i> الترخيص والمشاركة</h2>
-            <p>هذا البرنامج مرخص تحت <span class="highlight">رخصة جنو العمومية (GPL v3)</span>. يمكنك:</p>
+            <p>هذا البرنامج مرخص تحت <span class="highlight">رخصة جنو العمومية (GPL v2)</span>. يمكنك:</p>
             <ul>
                 <li>استخدام البرنامج مجانًا لأي غرض</li>
                 <li>تعديل الشفرة المصدرية كما تشاء</li>
@@ -901,14 +1039,18 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
             <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/issues" class="btn btn-secondary">
                 <i class="fas fa-bug"></i> الإبلاغ عن مشكلة
             </a>
+            <a href="https://salehgnutux.github.io/gnutux/" class="btn">
+                <i class="fas fa-globe"></i> مشاريع gnutux الأخرى
+            </a>
         </section>
     </div>
 
     <footer>
         <div class="container">
-            <p>GT-salat-dikr - نظام إشعارات الصلاة والأذكار المتكامل - الإصدار النهائي 2025</p>
-            <p>تم التطوير بواسطة <a href="https://github.com/SalehGNUTUX">SalehGNUTUX</a> - مرخص تحت <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/LICENSE">GPL v3</a></p>
-            <p>🌙 الإصدار الأكثر نضجاً واستقراراً لعام 2025</p>
+            <p>GT-salat-dikr - نظام إشعارات الصلاة والأذكار المتكامل - الإصدار 3.2</p>
+            <p>تم التطوير بواسطة <a href="https://github.com/SalehGNUTUX">SalehGNUTUX</a> - مرخص تحت <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/LICENSE">GPL v2</a></p>
+            <p>🖥️ الإصدار الأكثر نضجاً واستقراراً مع System Tray المتكامل</p>
+            <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.8;">جميع الميزات الجديدة في هذا الإصدار مدعومة بالكود المصدري المتاح على GitHub</p>
         </div>
     </footer>
 
@@ -960,7 +1102,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dik
 
         // محاكاة الأوامر
         function simulateCommand(command) {
-            alert(`محاكاة الأمر: ${command}\n\nفي النسخة الفعلية من البرنامج، هذا الأمر سيقوم بالتحكم في الإشعارات حسب الطلب.`);
+            alert(`محاكاة الأمر: ${command}\n\nفي الإصدار 3.2 من البرنامج، هذا الأمر سيقوم بالتحكم في System Tray أو الإشعارات حسب الطلب.`);
         }
 
         // ====== الدالة المحسنة لمواقيت الصلاة ======
