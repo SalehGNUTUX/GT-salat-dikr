@@ -10,7 +10,7 @@ import subprocess
 import threading
 import time
 import tempfile
-import re  # أضف هذا الاستيراد
+import re
 from pathlib import Path
 
 # إضافة المسار للوحدات
@@ -32,7 +32,7 @@ def remove_ansi_codes(text):
     """إزالة أكواد ANSI من النص"""
     if not text:
         return text
-    
+
     # نمط regex لإزالة أكواد ANSI
     ansi_escape = re.compile(r'''
         \x1B  # ESC
@@ -45,7 +45,7 @@ def remove_ansi_codes(text):
         [@-~]   # Final byte
         )
     ''', re.VERBOSE)
-    
+
     return ansi_escape.sub('', text)
 
 class PrayerTray:
@@ -54,6 +54,9 @@ class PrayerTray:
         self.install_dir = INSTALL_DIR
         self.main_script = os.path.join(self.install_dir, "gt-salat-dikr.sh")
         self.icon_dir = os.path.join(self.install_dir, "icons")
+        self.last_prayer_info = ""
+        self.next_prayer_cache = {"time": 0, "info": ""}
+        self.cache_timeout = 30  # تحديث الكاش كل 30 ثانية
 
     def run_cmd_direct(self, cmd):
         """تشغيل أمر مباشر وعرض النتيجة"""
@@ -124,9 +127,16 @@ read -p "اضغط Enter للإغلاق... "
             # محاولة مباشرة
             return self.run_cmd_direct(cmd)
 
-    def get_next_prayer_clean(self):
-        """الحصول على الصلاة القادمة بدون أكواد ANSI"""
+    def get_next_prayer_info(self):
+        """الحصول على معلومات الصلاة القادمة من البرنامج الرئيسي"""
+        current_time = time.time()
+
+        # استخدام الكاش إذا لم ينته وقتها
+        if current_time - self.next_prayer_cache["time"] < self.cache_timeout:
+            return self.next_prayer_cache["info"]
+
         try:
+            # تشغيل البرنامج بدون معلمات للحصول على الصلاة القادمة
             result = subprocess.run(
                 [self.main_script],
                 capture_output=True,
@@ -134,52 +144,109 @@ read -p "اضغط Enter للإغلاق... "
                 timeout=5,
                 cwd=self.install_dir
             )
-            
+
             if result.returncode == 0:
-                output = result.stdout
-                
-                # إزالة أكواد ANSI
-                clean_output = remove_ansi_codes(output)
-                
+                output = remove_ansi_codes(result.stdout)
+                lines = output.strip().split('\n')
+
                 # البحث عن سطر الصلاة القادمة
-                for line in clean_output.split('\n'):
+                for line in lines:
                     if 'الصلاة القادمة:' in line:
-                        # تنسيق النظيف: إزالة أي مسافات زائدة وتنسيق جميل
-                        line = line.strip()
-                        line = line.replace('الصلاة القادمة:', '🕌')
-                        return line
-                        
-                # إذا لم يجد السطر، إنشاء تنسيق جديد
-                return self.extract_prayer_info(clean_output)
-                
+                        prayer_info = line.strip()
+                        # تنظيف النص
+                        prayer_info = prayer_info.replace('الصلاة القادمة:', '🕌').strip()
+
+                        # تحديث الكاش
+                        self.next_prayer_cache = {
+                            "time": current_time,
+                            "info": prayer_info
+                        }
+
+                        return prayer_info
+
+                # إذا لم يجد، استخدام آخر سطر (غالباً يحتوي على المعلومات)
+                if lines:
+                    last_line = lines[-1].strip()
+                    if last_line:
+                        self.next_prayer_cache = {
+                            "time": current_time,
+                            "info": last_line
+                        }
+                        return last_line
+
+            # محاولة باستخدام --show-timetable
+            return self.get_next_prayer_from_timetable()
+
         except Exception as e:
-            print(f"⚠️  خطأ في الحصول على موعد الصلاة: {e}")
-        
-        return "🕌 الصلاة القادمة: جاري التحديث..."
+            print(f"⚠️  خطأ في الحصول على معلومات الصلاة: {e}")
 
-    def extract_prayer_info(self, output):
-        """استخراج معلومات الصلاة من النص النظيف"""
-        lines = output.strip().split('\n')
-        if len(lines) >= 2:
-            # آخر سطر عادة يحتوي على معلومات الصلاة
-            last_line = lines[-1].strip()
-            
-            # تحليل السطر
-            if 'الصلاة القادمة:' in last_line:
-                parts = last_line.split('الصلاة القادمة:')
-                if len(parts) == 2:
-                    time_part = parts[0].strip()
-                    prayer_part = parts[1].strip()
-                    return f"⏰ {time_part} 🕌 {prayer_part}"
-            
-            return last_line
-        
-        return "🕌 الصلاة القادمة: جاري التحديث..."
+        # استخدام الكاش القديم إذا فشلت المحاولة
+        return self.next_prayer_cache.get("info", "🕌 الصلاة القادمة: جاري التحديث...")
 
-    def get_next_prayer_tooltip(self):
-        """الحصول على نص للتلميح مع تنسيق أنظف"""
+    def get_next_prayer_from_timetable(self):
+        """الحصول على الصلاة القادمة من جدول المواقيت"""
         try:
-            # تشغيل الأمر الخاص بمعلومات الصلاة القادمة
+            # تشغيل أمر عرض المواقيت
+            result = subprocess.run(
+                [self.main_script, '--show-timetable'],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                cwd=self.install_dir
+            )
+
+            if result.returncode == 0:
+                output = remove_ansi_codes(result.stdout)
+                lines = output.strip().split('\n')
+
+                # البحث عن سطر الصلاة القادمة في الخرج الأساسي
+                prayer_info = self.extract_next_prayer_from_output(output)
+                if prayer_info:
+                    current_time = time.time()
+                    self.next_prayer_cache = {
+                        "time": current_time,
+                        "info": prayer_info
+                    }
+                    return prayer_info
+
+        except Exception as e:
+            print(f"⚠️  خطأ في جلب جدول المواقيت: {e}")
+
+        return "🕌 الصلاة القادمة: جاري التحديث..."
+
+    def extract_next_prayer_from_output(self, output):
+        """استخراج معلومات الصلاة القادمة من الناتج"""
+        lines = output.strip().split('\n')
+
+        # محاولة الحصول من سطر الصلاة القادمة
+        for line in lines:
+            if 'الصلاة القادمة:' in line:
+                # تنظيف النص
+                clean_line = line.strip()
+                clean_line = clean_line.replace('الصلاة القادمة:', '🕌')
+                clean_line = clean_line.replace('\x1b[1;34m', '').replace('\x1b[0m', '')
+                return clean_line
+
+        # إذا لم يجد، البحث في آخر سطرين
+        if len(lines) >= 2:
+            last_line = lines[-1].strip()
+            second_last = lines[-2].strip() if len(lines) >= 2 else ""
+
+            # دمج المعلومات إذا كانت مقسمة
+            if 'الصلاة القادمة:' in second_last or 'الصلاة القادمة:' in last_line:
+                info = f"🕌 {second_last} {last_line}"
+                info = info.replace('\x1b[1;34m', '').replace('\x1b[0m', '')
+                return info
+
+        return "🕌 الصلاة القادمة: جاري التحديث..."
+
+    def get_prayer_tooltip(self):
+        """الحصول على نص التلميح (Tooltip)"""
+        try:
+            # الحصول على معلومات الصلاة
+            prayer_info = self.get_next_prayer_info()
+
+            # جلب معلومات إضافية من --status
             result = subprocess.run(
                 [self.main_script, '--status'],
                 capture_output=True,
@@ -187,34 +254,23 @@ read -p "اضغط Enter للإغلاق... "
                 timeout=5,
                 cwd=self.install_dir
             )
-            
+
             if result.returncode == 0:
                 output = remove_ansi_codes(result.stdout)
-                
-                # البحث عن معلومات الصلاة القادمة في --status
-                lines = output.split('\n')
-                for i, line in enumerate(lines):
-                    if 'الصلاة القادمة:' in line:
-                        # محاولة الحصول على المعلومات من الأسطر التالية
-                        prayer_info = line.strip()
-                        
-                        # إزالة الكلمات الزائدة
-                        prayer_info = prayer_info.replace('الصلاة القادمة:', '')
-                        
-                        # البحث عن الوقت في السطر التالي
-                        if i+1 < len(lines):
-                            time_line = lines[i+1].strip()
-                            if 'الوقت:' in time_line:
-                                time_info = time_line.replace('الوقت:', '').strip()
-                                return f"🕌 الصلاة القادمة: {prayer_info.strip()} ⏰ {time_info}"
-                        
-                        return f"🕌 {prayer_info.strip()}"
-        
+
+                # استخراج الوقت المتبقي إن وجد
+                for line in output.split('\n'):
+                    if 'المتبقي:' in line:
+                        time_left = line.strip()
+                        time_left = time_left.replace('المتبقي:', '⏳')
+                        return f"GT-salat-dikr\n{prayer_info}\n{time_left}"
+
+            return f"GT-salat-dikr\n{prayer_info}"
+
         except Exception as e:
-            print(f"⚠️  خطأ في الحصول على معلومات الصلاة: {e}")
-        
-        # استدعاء الإصدار القديم كنسخة احتياطية
-        return self.get_next_prayer_clean()
+            print(f"⚠️  خطأ في الحصول على التلميح: {e}")
+
+        return "GT-salat-dikr\nتذكير الصلاة والأذكار"
 
     def load_icon(self):
         """تحميل الأيقونة"""
@@ -244,8 +300,13 @@ read -p "اضغط Enter للإغلاق... "
         return img
 
     def create_menu(self):
-        """إنشاء القائمة - إصدار مبسط"""
-        next_prayer = self.get_next_prayer_clean()
+        """إنشاء القائمة مع تحديث معلومات الصلاة"""
+        # الحصول على معلومات الصلاة الحالية
+        prayer_info = self.get_next_prayer_info()
+
+        # تحديث التلميح
+        if self.icon:
+            self.update_tooltip_now()
 
         menu_items = []
 
@@ -253,8 +314,8 @@ read -p "اضغط Enter للإغلاق... "
         menu_items.append(MenuItem("🕌 GT-salat-dikr", None, enabled=False))
         menu_items.append(MenuItem("══════════════════", None, enabled=False))
 
-        # الصلاة القادمة (نص نظيف بدون أكواد ANSI)
-        menu_items.append(MenuItem(f"{next_prayer}", None, enabled=False))
+        # الصلاة القادمة (محدثة)
+        menu_items.append(MenuItem(f"{prayer_info}", None, enabled=False))
         menu_items.append(MenuItem("", None, enabled=False))
 
         # الأوامر الأساسية
@@ -290,6 +351,7 @@ read -p "اضغط Enter للإغلاق... "
 
         # إدارة الأيقونة
         menu_items.append(MenuItem("🖥️  الأيقونة:", None, enabled=False))
+        menu_items.append(MenuItem("  🔄 إعادة تحميل", self.update_menu_now))
         menu_items.append(MenuItem("  🔄 إعادة تشغيل", lambda: self.restart()))
         menu_items.append(MenuItem("  ❌ إغلاق", lambda: self.icon.stop()))
 
@@ -300,6 +362,22 @@ read -p "اضغط Enter للإغلاق... "
 
         return Menu(*menu_items)
 
+    def update_menu_now(self):
+        """تحديث القائمة فوراً"""
+        print("🔄 تحديث قائمة System Tray...")
+        if self.icon:
+            self.icon.menu = self.create_menu()
+            self.icon.update_menu()
+
+    def update_tooltip_now(self):
+        """تحديث التلميح فوراً"""
+        try:
+            tooltip_text = self.get_prayer_tooltip()
+            self.icon.title = tooltip_text
+        except Exception as e:
+            print(f"⚠️  خطأ في تحديث التلميح: {e}")
+            self.icon.title = "GT-salat-dikr\nتذكير الصلاة والأذكار"
+
     def restart(self):
         """إعادة تشغيل الأيقونة"""
         print("🔄 إعادة تشغيل الأيقونة...")
@@ -308,18 +386,25 @@ read -p "اضغط Enter للإغلاق... "
         time.sleep(1)
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
-    def update_tooltip(self):
-        """تحديث التلميح"""
+    def update_tooltip_loop(self):
+        """حلقة تحديث التلميح بشكل دوري"""
         while True:
             if self.icon and hasattr(self.icon, 'visible') and self.icon.visible:
                 try:
-                    # استخدام الإصدار النظيف للتلميح
-                    prayer_tooltip = self.get_next_prayer_tooltip()
-                    self.icon.title = f"GT-salat-dikr\n{prayer_tooltip}"
+                    self.update_tooltip_now()
                 except Exception as e:
                     print(f"⚠️  خطأ في تحديث التلميح: {e}")
-                    self.icon.title = "GT-salat-dikr\n🕌 تذكير الصلاة والأذكار"
             time.sleep(30)  # تحديث كل 30 ثانية
+
+    def update_menu_loop(self):
+        """حلقة تحديث القائمة بشكل دوري"""
+        while True:
+            if self.icon and hasattr(self.icon, 'visible') and self.icon.visible:
+                try:
+                    self.update_menu_now()
+                except Exception as e:
+                    print(f"⚠️  خطأ في تحديث القائمة: {e}")
+            time.sleep(60)  # تحديث القائمة كل دقيقة
 
     def run(self):
         """تشغيل الأيقونة"""
@@ -335,8 +420,13 @@ read -p "اضغط Enter للإغلاق... "
             self.create_menu()
         )
 
-        updater = threading.Thread(target=self.update_tooltip, daemon=True)
-        updater.start()
+        # بدء خيط تحديث التلميح
+        tooltip_updater = threading.Thread(target=self.update_tooltip_loop, daemon=True)
+        tooltip_updater.start()
+
+        # بدء خيط تحديث القائمة
+        menu_updater = threading.Thread(target=self.update_menu_loop, daemon=True)
+        menu_updater.start()
 
         try:
             self.icon.run()
