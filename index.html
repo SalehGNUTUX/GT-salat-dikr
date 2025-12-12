@@ -56,6 +56,7 @@
             line-height: 1.6;
             padding: 0;
             margin: 0;
+            min-height: 100vh;
         }
 
         /* تذييل الصفحة */
@@ -636,7 +637,7 @@
             line-height: 1.5;
         }
 
-        /* ألبوم الصور المتحرك */
+        /* ألبوم الصور المتحرك - محدث */
         .screenshots-gallery {
             margin: 3rem 0;
             background: var(--card-bg);
@@ -687,10 +688,11 @@
 
         .gallery-container {
             position: relative;
-            height: 400px;
+            height: 500px;
             border-radius: 10px;
             overflow: hidden;
             margin-bottom: 1rem;
+            background: #1a1a1a;
         }
 
         .gallery-slide {
@@ -703,9 +705,9 @@
             transform: translateX(30px);
             transition: all 0.5s ease;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #2d2d2d, #1a1a1a);
         }
 
         .gallery-slide.active {
@@ -713,69 +715,36 @@
             transform: translateX(0);
         }
 
-        .screenshot-placeholder {
-            width: 90%;
-            height: 90%;
-            background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
+        .screenshot-img {
+            max-width: 90%;
+            max-height: 85%;
+            object-fit: contain;
             border-radius: 8px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             border: 2px solid var(--accent);
         }
 
-        .screenshot-content {
-            width: 100%;
-            height: 100%;
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
+        .screenshot-info {
+            margin-top: 1rem;
             text-align: center;
-        }
-
-        .screenshot-icon {
-            font-size: 4rem;
-            color: var(--accent);
-            margin-bottom: 1.5rem;
-            text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            color: var(--text);
+            background: var(--code-bg);
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            max-width: 90%;
         }
 
         .screenshot-title {
-            font-size: 1.8rem;
-            margin-bottom: 1rem;
-            color: white;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 0.3rem;
+            font-size: 1.1rem;
         }
 
         .screenshot-desc {
-            color: rgba(255,255,255,0.8);
-            max-width: 600px;
-            line-height: 1.6;
-        }
-
-        .screenshot-placeholder::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 100%;
-            height: 30px;
-            background: #333;
-            border-bottom: 1px solid #444;
-            display: flex;
-            align-items: center;
-            padding: 0 1rem;
-        }
-
-        .screenshot-placeholder::after {
-            content: 'لقطة شاشة لنظام GT-salat-dikr على Linux';
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            color: rgba(255,255,255,0.5);
-            font-size: 0.8rem;
+            color: var(--text-light);
+            font-size: 0.9rem;
         }
 
         .gallery-indicators {
@@ -799,14 +768,15 @@
             transform: scale(1.2);
         }
 
-        .screenshot-info {
-            background: var(--code-bg);
-            padding: 1rem;
-            border-radius: 8px;
+        .platform-info {
+            background: var(--accent);
+            color: var(--text);
+            padding: 0.8rem;
+            border-radius: 6px;
             margin-top: 1rem;
             font-size: 0.9rem;
-            color: var(--text);
             text-align: center;
+            font-weight: bold;
         }
 
         @media (max-width: 768px) {
@@ -855,15 +825,15 @@
             }
 
             .gallery-container {
-                height: 300px;
+                height: 400px;
             }
 
             .screenshot-title {
-                font-size: 1.4rem;
+                font-size: 1rem;
             }
 
             .screenshot-desc {
-                font-size: 0.9rem;
+                font-size: 0.8rem;
             }
 
             .tray-content {
@@ -872,6 +842,22 @@
 
             .tray-title {
                 font-size: 1.5rem;
+            }
+
+            .screenshot-img {
+                max-width: 95%;
+                max-height: 80%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .gallery-container {
+                height: 350px;
+            }
+            
+            .screenshot-img {
+                max-width: 98%;
+                max-height: 75%;
             }
         }
     </style>
@@ -956,10 +942,10 @@
                 </div>
             </div>
 
-            <!-- ألبوم الصور المتحرك -->
+            <!-- ألبوم الصور المتحرك مع الصور الحقيقية -->
             <div class="screenshots-gallery">
                 <div class="gallery-header">
-                    <h3><i class="fas fa-images"></i> لقطات شاشة GT-salat-dikr على Linux</h3>
+                    <h3><i class="fas fa-images"></i> لقطات شاشة GT-salat-dikr على KDE/Manjaro</h3>
                     <div class="gallery-nav">
                         <button class="gallery-btn" id="prevBtn">
                             <i class="fas fa-chevron-right"></i>
@@ -971,58 +957,63 @@
                 </div>
 
                 <div class="gallery-container" id="galleryContainer">
-                    <!-- الشريحة 1 -->
+                    <!-- الشريحة 1: إظهار ذكر -->
                     <div class="gallery-slide active">
-                        <div class="screenshot-placeholder">
-                            <div class="screenshot-content">
-                                <div class="screenshot-icon"><i class="fas fa-tasks"></i></div>
-                                <div class="screenshot-title">System Tray في شريط المهام</div>
-                                <div class="screenshot-desc">أيقونة GT-salat-dikr تعرض الصلاة القادمة في شريط مهام GNOME/Linux مع قائمة تحكم كاملة</div>
-                            </div>
+                        <img src="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/screeshot/Screenshot_20251211_175045.jpeg?raw=true" 
+                             alt="إظهار ذكر - GT-salat-dikr" class="screenshot-img">
+                        <div class="screenshot-info">
+                            <div class="screenshot-title">إظهار ذكر</div>
+                            <div class="screenshot-desc">واجهة عرض الأذكار اليومية مع خيارات التنقل والتحديث</div>
                         </div>
                     </div>
                     
-                    <!-- الشريحة 2 -->
+                    <!-- الشريحة 2: مواقيت الصلاة -->
                     <div class="gallery-slide">
-                        <div class="screenshot-placeholder">
-                            <div class="screenshot-content">
-                                <div class="screenshot-icon"><i class="fas fa-terminal"></i></div>
-                                <div class="screenshot-title">واجهة الطرفية المتقدمة</div>
-                                <div class="screenshot-desc">عرض الأذكار ومواقيت الصلاة تلقائياً عند فتح الطرفية مع أوامر تحكم متقدمة</div>
-                            </div>
+                        <img src="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/screeshot/Screenshot_20251211_175334.jpeg?raw=true" 
+                             alt="مواقيت الصلاة - GT-salat-dikr" class="screenshot-img">
+                        <div class="screenshot-info">
+                            <div class="screenshot-title">مواقيت الصلاة</div>
+                            <div class="screenshot-desc">عرض تفصيلي لمواقيت الصلاة اليومية مع الصلاة القادمة والوقت المتبقي</div>
                         </div>
                     </div>
                     
-                    <!-- الشريحة 3 -->
+                    <!-- الشريحة 3: حالة البرنامج -->
                     <div class="gallery-slide">
-                        <div class="screenshot-placeholder">
-                            <div class="screenshot-content">
-                                <div class="screenshot-icon"><i class="fas fa-bell"></i></div>
-                                <div class="screenshot-title">إشعارات النظام</div>
-                                <div class="screenshot-desc">إشعارات منبثقة للصلاة والأذكار مع خيارات صوتية وتنبيهات مخصصة</div>
-                            </div>
+                        <img src="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/screeshot/Screenshot_20251211_175409.jpeg?raw=true" 
+                             alt="حالة البرنامج - GT-salat-dikr" class="screenshot-img">
+                        <div class="screenshot-info">
+                            <div class="screenshot-title">حالة البرنامج</div>
+                            <div class="screenshot-desc">تقرير مفصل عن حالة النظام، الإشعارات، والبيانات المحفوظة</div>
                         </div>
                     </div>
                     
-                    <!-- الشريحة 4 -->
+                    <!-- الشريحة 4: الإعدادات -->
                     <div class="gallery-slide">
-                        <div class="screenshot-placeholder">
-                            <div class="screenshot-content">
-                                <div class="screenshot-icon"><i class="fas fa-cogs"></i></div>
-                                <div class="screenshot-title">لوحة الإعدادات</div>
-                                <div class="screenshot-desc">واجهة إعدادات متكاملة لتخصيص الموقع وطريقة الحساب والإشعارات</div>
-                            </div>
+                        <img src="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/screeshot/Screenshot_20251211_175654.jpeg?raw=true" 
+                             alt="الإعدادات - GT-salat-dikr" class="screenshot-img">
+                        <div class="screenshot-info">
+                            <div class="screenshot-title">الإعدادات</div>
+                            <div class="screenshot-desc">لوحة تحكم كاملة لتخصيص الموقع، طريقة الحساب، والإشعارات</div>
                         </div>
                     </div>
                     
-                    <!-- الشريحة 5 -->
+                    <!-- الشريحة 5: تحديث المواقيت -->
                     <div class="gallery-slide">
-                        <div class="screenshot-placeholder">
-                            <div class="screenshot-content">
-                                <div class="screenshot-icon"><i class="fas fa-mosque"></i></div>
-                                <div class="screenshot-title">عرض مواقيت الصلاة</div>
-                                <div class="screenshot-desc">واجهة عرض مواقيت الصلاة اليومية والشهرية مع الصلاة القادمة والوقت المتبقي</div>
-                            </div>
+                        <img src="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/screeshot/Screenshot_20251211_180712.jpeg?raw=true" 
+                             alt="تحديث المواقيت - GT-salat-dikr" class="screenshot-img">
+                        <div class="screenshot-info">
+                            <div class="screenshot-title">تحديث المواقيت</div>
+                            <div class="screenshot-desc">عملية تحديث مواقيت الصلاة مع عرض التقدم والنتائج</div>
+                        </div>
+                    </div>
+                    
+                    <!-- الشريحة 6: طريقة عرض الذكر عند فتح الطرفية -->
+                    <div class="gallery-slide">
+                        <img src="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/screeshot/Screenshot_20251211_182650.jpeg?raw=true" 
+                             alt="طريقة عرض الذكر عند فتح الطرفية - GT-salat-dikr" class="screenshot-img">
+                        <div class="screenshot-info">
+                            <div class="screenshot-title">عرض الذكر عند فتح الطرفية</div>
+                            <div class="screenshot-desc">عرض الأذكار تلقائياً عند فتح نافذة الطرفية (Terminal)</div>
                         </div>
                     </div>
                 </div>
@@ -1031,8 +1022,8 @@
                     <!-- سيتم إضافة المؤشرات ديناميكياً -->
                 </div>
 
-                <div class="screenshot-info">
-                    <i class="fas fa-info-circle"></i> هذه لقطات محاكاة توضح واجهات GT-salat-dikr على أنظمة Linux المختلفة
+                <div class="platform-info">
+                    <i class="fas fa-desktop"></i> لقطات من واجهة KDE على توزيعة Manjaro Linux
                 </div>
             </div>
 
@@ -1133,7 +1124,6 @@
             </a>
         </section>
 
-        <!-- باقي الأقسام تبقى كما هي -->
         <section id="features">
             <h2><i class="fas fa-star"></i> الميزات الرئيسية في الإصدار 3.2</h2>
             <div class="features">
@@ -1171,7 +1161,176 @@
             </div>
         </section>
 
-        <!-- باقي الصفحة... -->
+        <section id="installation">
+            <h2><i class="fas fa-download"></i> التثبيت السريع</h2>
+
+            <h3><i class="fas fa-bolt"></i> التثبيت التلقائي (مستحسن)</h3>
+            <p>نسخة واحدة تشمل كل شيء - التثبيت، الإعدادات، البدء التلقائي، System Tray:</p>
+            <div class="code-block">
+curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh | bash
+            </div>
+
+            <h3><i class="fas fa-cogs"></i> التثبيت اليدوي للمستخدمين المتقدمين</h3>
+            <div class="code-block">
+git clone https://github.com/SalehGNUTUX/GT-salat-dikr.git<br>cd GT-salat-dikr<br>chmod +x install.sh<br>./install.sh
+            </div>
+
+            <h3><i class="fas fa-trash"></i> إزالة التثبيت</h3>
+            <div class="code-block">
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/uninstall.sh)"
+            </div>
+
+            <h3><i class="fas fa-sync-alt"></i> التحديث من إصدار سابق</h3>
+            <div class="code-block">
+# تحديث كامل للمكونات<br>gtsalat --full-update<br><br># أو إعادة التثبيت الكامل<br>rm -rf ~/.GT-salat-dikr<br>curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh | bash
+            </div>
+        </section>
+
+        <section id="usage">
+            <h2><i class="fas fa-terminal"></i> الأوامر الجديدة في الإصدار 3.2</h2>
+
+            <div class="commands">
+                <div class="command-item">
+                    <p><code>gtsalat --tray</code> - تشغيل أيقونة System Tray <span class="version-highlight">3.2</span></p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --tray-restart</code> - إعادة تشغيل الأيقونة <span class="version-highlight">3.2</span></p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --full-update</code> - تحديث كامل للمكونات <span class="version-highlight">3.2</span></p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --enable-auto-update</code> - تفعيل التحديث التلقائي <span class="version-highlight">3.2</span></p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --auto-update-status</code> - عرض حالة التحديث التلقائي <span class="version-highlight">3.2</span></p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --notify-start</code> - بدء الإشعارات حسب النظام المختار</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --notify-stop</code> - إيقاف الإشعارات حسب النظام المختار</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --status</code> - عرض حالة متقدمة مع كشف System Tray</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --show-timetable</code> - عرض مواقيت الصلاة اليوم</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --uninstall</code> - الإزالة المحلية الذكية</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="technical">
+            <h2><i class="fas fa-cogs"></i> التحسينات التقنية في 3.2</h2>
+
+            <h3>تحسينات System Tray والأداء:</h3>
+            <ul>
+                <li><span class="version-highlight">3.2</span> إضافة أيقونة System Tray متكاملة في شريط المهام</li>
+                <li><span class="version-highlight">3.2</span> منع التكرار الذكي لأيقونات متعددة</li>
+                <li><span class="version-highlight">3.2</span> تحديث تلقائي للمعلومات كل دقيقة</li>
+                <li>تحسين كشف النظام - دعم أوسع للتوزيعات</li>
+                <li>كشف تلقائي لنظام التشغيل - systemd/sysvinit</li>
+            </ul>
+
+            <h3>الميزات الذكية الجديدة:</h3>
+            <ul>
+                <li><span class="version-highlight">3.2</span> تفعيل جميع الإشعارات افتراضياً</li>
+                <li><span class="version-highlight">3.2</span> تحديث كامل للمكونات بأمر واحد</li>
+                <li><span class="version-highlight">3.2</span> إعدادات طرفية تلقائية لـ Bash و Zsh و Fish</li>
+                <li>اكتشاف تلقائي للإعدادات المثلى</li>
+                <li>تكامل ذكي مع جميع أنواع الطرفيات</li>
+            </ul>
+
+            <h3>إصلاحات الاستقرار:</h3>
+            <ul>
+                <li><span class="version-highlight">3.2</span> إصلاح كامل لمشكلة تكرار معالج الإعدادات</li>
+                <li>تحسين نظام التخزين المحلي للمواقيت</li>
+                <li>إضافة تحديث تلقائي للجداول الشهرية</li>
+                <li>تحسين استقرار العمليات الخلفية</li>
+                <li>معالجة أفضل للأخطاء - رسائل توضيحية</li>
+            </ul>
+        </section>
+
+        <section id="tray">
+            <h2><i class="fas fa-tasks"></i> System Tray - التحكم المركزي</h2>
+            
+            <div class="feature-card">
+                <h3><i class="fas fa-mouse-pointer"></i> قائمة التحكم السريعة</h3>
+                <p>انقر بزر الماوس الأيمن على الأيقونة للوصول السريع إلى جميع الميزات:</p>
+                <ul style="margin-top: 1rem; padding-right: 1rem;">
+                    <li><strong>🕌 معلومات الصلاة القادمة</strong> - عرض تفاصيل الصلاة التالية</li>
+                    <li><strong>📊 مواقيت اليوم</strong> - فتح نافذة الطرفية مع جميع المواقيت</li>
+                    <li><strong>🕊️ إظهار ذكر</strong> - عرض ذكر جديد في نافذة منبثقة</li>
+                    <li><strong>📈 حالة البرنامج</strong> - تقرير مفصل عن النظام والبيانات</li>
+                    <li><strong>⚙️ الإعدادات</strong> - فتح معالج الإعدادات</li>
+                    <li><strong>🔄 تحديث المواقيت</strong> - تحديث البيانات يدوياً</li>
+                    <li><strong>🔔 التحكم في الإشعارات</strong> - تشغيل/إيقاف الإشعارات</li>
+                    <li><strong>🖥️ إدارة الأيقونة</strong> - إعادة تشغيل/إغلاق System Tray</li>
+                    <li><strong>❓ المساعدة</strong> - فتح دليل المستخدم</li>
+                </ul>
+            </div>
+
+            <div class="demo-terminal">
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --tray-stop</span></div>
+                <div class="demo-line">🛑 إيقاف System Tray...</div>
+                <div class="demo-line">✅ تم إيقاف الأيقونة</div>
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --tray-restart</span></div>
+                <div class="demo-line">🔄 إعادة تشغيل System Tray...</div>
+                <div class="demo-line">✅ الأيقونة الآن نشطة مجدداً</div>
+            </div>
+        </section>
+
+        <section id="why-upgrade">
+            <h2><i class="fas fa-rocket"></i> لماذا الإصدار 3.2 أفضل؟</h2>
+
+            <div class="features">
+                <div class="feature-card">
+                    <h3><i class="fas fa-tasks"></i> System Tray المتكامل</h3>
+                    <p>واجهة مستخدم محسنة مع أيقونة دائمة في شريط المهام، تحكم سريع بكافة الميزات، عرض دائم للصلاة القادمة.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3><i class="fas fa-shield-alt"></i> موثوقية أعلى</h3>
+                    <p>إصلاحات أساسية للاستقرار، منع تكرار الإشعارات، تحسين كشف حالة النظام، معالجة محسنة للأخطاء.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3><i class="fas fa-sync-alt"></i> تحديث أسهل</h3>
+                    <p>تحديث كامل للمكونات بأمر واحد، تفعيل جميع الإشعارات افتراضياً، إعدادات طرفية تلقائية، تحسين مستمر.</p>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 2rem;">ما الذي تم إصلاحه في 3.2:</h3>
+            <div class="code-block">
+✅ إصلاح مشكلة تكرار معالج الإعدادات<br>✅ تحسين اكتشاف نظام الخدمة تلقائياً<br>✅ منع التكرار الذكي لأيقونات System Tray<br>✅ تحسين التوافق مع جميع التوزيعات<br>✅ إصلاح مشاكل التثبيت والإزالة<br>✅ تحسين نظام التخزين المحلي للمواقيت<br>✅ إضافة تحديث تلقائي للجداول الشهرية
+            </div>
+        </section>
+
+        <section id="license">
+            <h2><i class="fas fa-balance-scale"></i> الترخيص والمشاركة</h2>
+            <p>هذا البرنامج مرخص تحت <span class="highlight">رخصة جنو العمومية (GPL v2)</span>. يمكنك:</p>
+            <ul>
+                <li>استخدام البرنامج مجانًا لأي غرض</li>
+                <li>تعديل الشفرة المصدرية كما تشاء</li>
+                <li>توزيع نسخ معدلة مع الإشارة إلى التغييرات</li>
+                <li>المساهمة في تطوير المشروع</li>
+            </ul>
+
+            <p>المشروع مبني على فلسفة البرمجيات الحرة، ونرحب بجميع المساهمات والتطويرات.</p>
+
+            <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">
+                <i class="fas fa-code"></i> المساهمة في التطوير
+            </a>
+            <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/issues" class="btn btn-secondary">
+                <i class="fas fa-bug"></i> الإبلاغ عن مشكلة
+            </a>
+            <a href="https://salehgnutux.github.io/gnutux/" class="btn">
+                <i class="fas fa-globe"></i> مشاريع gnutux الأخرى
+            </a>
+        </section>
     </div>
 
     <footer>
