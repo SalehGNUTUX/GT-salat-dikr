@@ -57,7 +57,7 @@ DEFAULT_SYSTEM_ZIKR_NOTIFY=1
 DEFAULT_AUTO_UPDATE_TIMETABLES=1  # مفعل افتراضياً
 
 # ------------- دوال مساعدة وعرض -------------
-log() { 
+log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $*"
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $*" >> "$NOTIFY_LOG" 2>/dev/null || true
 }
@@ -96,13 +96,13 @@ get_monthly_filename() {
 check_internet_connection() {
     local timeout=10
     local success=false
-    
+
     local test_urls=(
         "https://www.google.com"
         "https://www.cloudflare.com"
         "https://1.1.1.1"
     )
-    
+
     for url in "${test_urls[@]}"; do
         if command -v curl >/dev/null 2>&1; then
             if curl -fs --connect-timeout $timeout "$url" >/dev/null 2>&1; then
@@ -116,7 +116,7 @@ check_internet_connection() {
             fi
         fi
     done
-    
+
     if [ "$success" = true ]; then
         return 0
     else
@@ -146,7 +146,7 @@ fetch_monthly_timetable() {
     local month="$2"
     local filename
     filename=$(get_monthly_filename "$year" "$month")
-    
+
     if [ -f "$filename" ]; then
         local file_age=$(($(date +%s) - $(stat -c %Y "$filename" 2>/dev/null || echo 0)))
         if [ "$file_age" -lt 604800 ]; then
@@ -154,27 +154,27 @@ fetch_monthly_timetable() {
             return 0
         fi
     fi
-    
+
     if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
         log "لا يمكن جلب الجدول الشهري - curl أو jq غير متوفر."
         return 1
     fi
-    
+
     local url="https://api.aladhan.com/v1/calendar/${year}/${month}?latitude=${LAT}&longitude=${LON}&method=${METHOD_ID}"
     local resp
-    
+
     log "جلب جدول الصلاة لشهر $month-$year"
-    resp=$(curl -fsSL --connect-timeout 10 "$url" 2>/dev/null) || { 
+    resp=$(curl -fsSL --connect-timeout 10 "$url" 2>/dev/null) || {
         log "تعذر جلب جدول الصلاة لشهر $month-$year"
         return 1
     }
-    
+
     local valid_response=$(echo "$resp" | jq -r '.data | length' 2>/dev/null || echo "0")
     if [ "$valid_response" -eq 0 ]; then
         log "استجابة فارغة أو غير صالحة لشهر $month-$year"
         return 1
     fi
-    
+
     echo "$resp" > "$filename"
     log "تم حفظ جدول الصلاة لشهر $month-$year في $filename"
     return 0
@@ -183,28 +183,28 @@ fetch_monthly_timetable() {
 fetch_future_timetables() {
     local context="${1:-manual}"
     local months_ahead=3
-    
+
     create_monthly_timetable_dir
-    
+
     local current_year=$(date +%Y)
     local current_month=$(date +%m)
-    
+
     log "جلب جداول الصلاة ($context)..."
-    
+
     for ((i=0; i<=months_ahead; i++)); do
         local year=$((current_year + (current_month + i - 1) / 12))
         local month=$(((current_month + i - 1) % 12 + 1))
         local month_formatted=$(printf "%02d" "$month")
-        
+
         log "جلب جدول الصلاة لشهر $month_formatted-$year ($context)"
         fetch_monthly_timetable "$year" "$month_formatted" || {
             log "فشل في جلب جدول شهر $month_formatted-$year"
             continue
         }
-        
+
         sleep 1
     done
-    
+
     if [ "$context" = "manual" ]; then
         show_update_report
     fi
@@ -217,7 +217,7 @@ show_update_report() {
         file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
         if [ "$file_count" -gt 0 ]; then
             echo "✅ تم تخزين بيانات $file_count شهر"
-            
+
             echo "📁 الملفات المحفوظة:"
             for file in "$MONTHLY_TIMETABLE_DIR"/timetable_*.json; do
                 [ -e "$file" ] || continue
@@ -226,7 +226,7 @@ show_update_report() {
                 size=$(du -h "$file" 2>/dev/null | cut -f1 || echo "?KB")
                 echo "   📄 $year_month ($size)"
             done
-            
+
             echo ""
             echo "💾 يمكنك الآن استخدام البرنامج بدون اتصال بالإنترنت"
         else
@@ -242,20 +242,20 @@ find_prayer_time_in_cache() {
     local target_year=$(echo "$target_date" | cut -d'-' -f1)
     local target_month=$(echo "$target_date" | cut -d'-' -f2)
     local target_day=$(echo "$target_date" | cut -d'-' -f3)
-    
+
     local filename
     filename=$(get_monthly_filename "$target_year" "$target_month")
-    
+
     if [ ! -f "$filename" ]; then
         silent_log "الملف غير موجود للبحث: $filename"
         return 1
     fi
-    
+
     local target_date_formatted=$(printf "%02d-%02d-%04d" "$target_day" "$target_month" "$target_year")
-    
+
     local timings
     timings=$(jq -r ".data[] | select(.date.gregorian.date == \"$target_date_formatted\") | .timings" "$filename" 2>/dev/null)
-    
+
     if [ -n "$timings" ] && [ "$timings" != "null" ]; then
         silent_log "تم العثور على بيانات محفوظة لليوم: $target_date"
         echo "$timings"
@@ -268,7 +268,7 @@ find_prayer_time_in_cache() {
 
 fetch_timetable_enhanced() {
     local today=$(date +%Y-%m-%d)
-    
+
     local cached_timings
     if cached_timings=$(find_prayer_time_in_cache "$today"); then
         cat > "$TIMETABLE_FILE" <<EOF
@@ -286,7 +286,7 @@ EOF
         silent_log "تم استخدام البيانات من الذاكرة المؤقتة لليوم: $today"
         return 0
     fi
-    
+
     silent_log "لم توجد بيانات محفوظة، جلب من الإنترنت..."
     fetch_timetable
 }
@@ -315,27 +315,27 @@ EOF
             return 1
         fi
     fi
-    
+
     if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
         log "لا يمكن جلب المواقيت - curl أو jq غير متوفر."
         return 1
     fi
-    
+
     local today=$(date +%Y-%m-%d)
     local url="${ALADHAN_API_URL}?latitude=${LAT}&longitude=${LON}&method=${METHOD_ID}&date=${today}"
     local resp
-    
+
     log "جرب جدول المواقيت من الإنترنت..."
-    resp=$(curl -fsSL --connect-timeout 10 "$url" 2>/dev/null) || { 
+    resp=$(curl -fsSL --connect-timeout 10 "$url" 2>/dev/null) || {
         log "تعذر جلب مواقيت الصلاة من الإنترنت."
         return 1
     }
-    
+
     if ! echo "$resp" | jq -e '.data.timings' >/dev/null 2>&1; then
         log "استجابة غير صالحة من API"
         return 1
     fi
-    
+
     echo "$resp" > "$TIMETABLE_FILE"
     log "تم جلب جدول المواقيت من الإنترنت بنجاح"
     return 0
@@ -369,7 +369,7 @@ show_auto_update_status() {
             local last_update=$(cat "$LAST_AUTO_UPDATE_FILE")
             local last_date=$(date -d "@$last_update" "+%Y-%m-%d %H:%M" 2>/dev/null || echo "غير معروف")
             echo "   📅 آخر تحديث: $last_date"
-            
+
             local next_update=$((last_update + (AUTO_UPDATE_INTERVAL * 24 * 3600)))
             local next_date=$(date -d "@$next_update" "+%Y-%m-%d" 2>/dev/null || echo "غير معروف")
             echo "   ⏰ التحديث القادم: $next_date"
@@ -584,17 +584,27 @@ APPROACHING_PLAYER_EOF
 
 show_random_zekr() {
     [ ! -f "$AZKAR_FILE" ] && { echo ""; return 1; }
-    awk -v RS='%' '{gsub(/^[ \t\r\n]+|[ \t\r\n]+$/, "", $0); if(length($0)>0) print $0}' "$AZKAR_FILE" | shuf -n 1
+    local zekr=$(awk -v RS='%' '{gsub(/^[ \t\r\n]+|[ \t\r\n]+$/, "", $0); if(length($0)>0) print $0}' "$AZKAR_FILE" | shuf -n 1)
+
+    if [ -n "$zekr" ]; then
+        echo "════════════════════════════════════════════════════════════════════════════"
+        echo "🕌 GT-salat-dikr 🕋 ﷽"
+        echo "════════════════════════════════════════════════════════════════════════════"
+        echo "$zekr"
+        echo "════════════════════════════════════════════════════════════════════════════"
+    else
+        echo "لم يتم العثور على ذكر!"
+    fi
 }
 
 show_zekr_notify() {
-    local zekr=$(show_random_zekr)
+    local zekr=$(awk -v RS='%' '{gsub(/^[ \t\r\n]+|[ \t\r\n]+$/, "", $0); if(length($0)>0) print $0}' "$AZKAR_FILE" | shuf -n 1)
     [ -z "$zekr" ] && zekr="لم يتم العثور على ذكر!"
-    
+
     if [ "${TERMINAL_ZIKR_NOTIFY:-1}" = "1" ]; then
-        echo "🕊️ $zekr"
+        show_random_zekr
     fi
-    
+
     if [ "${SYSTEM_ZIKR_NOTIFY:-1}" = "1" ]; then
         notify-send "GT-salat-dikr" "$zekr" 2>/dev/null || true
     fi
@@ -602,14 +612,14 @@ show_zekr_notify() {
 
 play_adhan_gui() {
     local prayer_name="${1:-الصلاة}"
-    
+
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
     fi
-    
+
     local adhan_file="$ADHAN_FILE"
     local adhan_type="${ADHAN_TYPE:-full}"
-    
+
     if [ "$adhan_type" = "short" ] && [ -f "$SHORT_ADHAN_FILE" ]; then
         adhan_file="$SHORT_ADHAN_FILE"
         silent_log "استخدام الأذان القصير لصلاة: $prayer_name"
@@ -619,7 +629,7 @@ play_adhan_gui() {
     else
         silent_log "استخدام الأذان الكامل لصلاة: $prayer_name"
     fi
-    
+
     [ ! -f "$ADHAN_PLAYER_SCRIPT" ] && create_adhan_player
     "$ADHAN_PLAYER_SCRIPT" "$adhan_file" "$prayer_name" &
 }
@@ -681,7 +691,7 @@ choose_notify_system() {
     echo "اختر نظام الخدمة للإشعارات:"
     echo "  1) systemd (موصى به إذا كان متوفرًا)"
     echo "  2) sysvinit (تشغيل بالخلفية - لكل توزيعة)"
-    
+
     # استخدام النظام المكتشف كافتراضي
     local default_choice
     if [ "$DEFAULT_NOTIFY_SYSTEM" = "systemd" ]; then
@@ -689,7 +699,7 @@ choose_notify_system() {
     else
         default_choice=2
     fi
-    
+
     read -p "الاختيار [$default_choice]: " sys_choice
     sys_choice=${sys_choice:-$default_choice}
     if [ "$sys_choice" = "2" ]; then
@@ -703,7 +713,7 @@ choose_notify_settings() {
     echo ""
     echo "⚙️ إعدادات الإشعارات المتقدمة:"
     echo ""
-    
+
     # كل الإشعارات مفعلة افتراضياً
     echo "🕌 إشعارات الصلاة:"
     echo "  💻 الطرفية: مفعلة ✓ (افتراضي)"
@@ -711,7 +721,7 @@ choose_notify_settings() {
     TERMINAL_SALAT_NOTIFY=1
     SYSTEM_SALAT_NOTIFY=1
     ENABLE_SALAT_NOTIFY=1
-    
+
     echo ""
     echo "🕊️ إشعارات الأذكار:"
     echo "  💻 الطرفية: مفعلة ✓ (افتراضي)"
@@ -719,7 +729,7 @@ choose_notify_settings() {
     TERMINAL_ZIKR_NOTIFY=1
     SYSTEM_ZIKR_NOTIFY=1
     ENABLE_ZIKR_NOTIFY=1
-    
+
     echo ""
     echo "💡 يمكنك تغيير هذه الإعدادات لاحقاً باستخدام:"
     echo "   gtsalat --enable-salat-notify / --disable-salat-notify"
@@ -758,13 +768,13 @@ load_config() {
             echo "ملف الإعدادات فارغ" >&2
             return 1
         fi
-        
+
         # التحقق من أن الملف يحتوي على متغيرات أساسية
         if ! grep -q "LAT=" "$CONFIG_FILE" 2>/dev/null; then
             echo "ملف الإعدادات تالف" >&2
             return 1
         fi
-        
+
         source "$CONFIG_FILE"
         return 0
     else
@@ -774,9 +784,9 @@ load_config() {
 
 setup_wizard() {
     local is_first_install="${1:-0}"
-    
+
     echo "=== إعداد GT-salat-dikr ==="
-    
+
     # إذا لم يكن التثبيت الأول والإعدادات موجودة، اسأل المستخدم
     if [ "$is_first_install" != "1" ] && [ -f "$CONFIG_FILE" ]; then
         echo "⚠️  الإعدادات موجودة بالفعل."
@@ -787,13 +797,13 @@ setup_wizard() {
             return 0
         fi
     fi
-    
+
     # إذا كانت الإعدادات موجودة، استخدمها كقيم افتراضية
     if [ -f "$CONFIG_FILE" ]; then
         echo "📂 تحميل الإعدادات الحالية كقيم افتراضية..."
         source "$CONFIG_FILE" 2>/dev/null || true
     fi
-    
+
     if auto_detect_location; then
         echo "تم اكتشاف الموقع تلقائيًا: $CITY, $COUNTRY (LAT=$LAT LON=$LON)"
         read -p "هل تريد استخدامه؟ [Y/n]: " ans; ans=${ans:-Y}
@@ -824,11 +834,11 @@ setup_wizard() {
     else
         ADHAN_TYPE="full"
     fi
-    
+
     default_minutes=$(( ${ZIKR_NOTIFY_INTERVAL:-300} / 60 ))
     read -p "فاصل الأذكار بالدقائق (افتراضي $default_minutes): " z_minutes
     ZIKR_NOTIFY_INTERVAL=$((${z_minutes:-$default_minutes} * 60))
-    
+
     echo ""
     echo "💾 التخزين المحلي لمواقيت الصلاة:"
     read -p "هل تريد تخزين مواقيت الصلاة لعدة أشهر للعمل بدون إنترنت؟ [Y/n]: " storage_ans
@@ -837,12 +847,12 @@ setup_wizard() {
         echo "📥 جاري تحميل مواقيت الصلاة للأشهر القادمة..."
         fetch_future_timetables "wizard"
     fi
-    
+
     echo ""
     echo "🔄 التحديث التلقائي لمواقيت الصلاة:"
     echo "  ✅ مفعل افتراضياً كل أسبوع"
     AUTO_UPDATE_TIMETABLES=1
-    
+
     # اكتشاف نظام الخدمة تلقائياً
     if command -v systemctl >/dev/null 2>&1 && systemctl --user >/dev/null 2>&1; then
         NOTIFY_SYSTEM="systemd"
@@ -851,12 +861,12 @@ setup_wizard() {
         NOTIFY_SYSTEM="sysvinit"
         echo "🔧 نظام الخدمة: sysvinit (مكتشف تلقائياً)"
     fi
-    
+
     # كل الإشعارات مفعلة افتراضياً
     choose_notify_settings
-    
+
     save_config
-    
+
     echo ""
     echo "✅ تم حفظ الإعدادات!"
     echo "💡 يمكنك تعديلها لاحقاً باستخدام: gtsalat --settings"
@@ -899,11 +909,11 @@ get_next_prayer() {
 show_pre_prayer_notify() {
     get_next_prayer || return 1
     local minutes="${PRE_PRAYER_NOTIFY:-15}"
-    
+
     if [ "${TERMINAL_SALAT_NOTIFY:-1}" = "1" ]; then
         echo "⏰ تبقى ${minutes} دقيقة على صلاة ${PRAYER_NAME}"
     fi
-    
+
     if [ "${SYSTEM_SALAT_NOTIFY:-1}" = "1" ]; then
         play_approaching_notification "$PRAYER_NAME" "$minutes"
     fi
@@ -911,15 +921,15 @@ show_pre_prayer_notify() {
 
 show_prayer_notify() {
     get_next_prayer || return 1
-    
+
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
     fi
-    
+
     if [ "${TERMINAL_SALAT_NOTIFY:-1}" = "1" ]; then
         echo "🕌 حان الآن وقت صلاة ${PRAYER_NAME}"
     fi
-    
+
     if [ "${SYSTEM_SALAT_NOTIFY:-1}" = "1" ]; then
         play_adhan_gui "$PRAYER_NAME"
     fi
@@ -930,25 +940,25 @@ notify_loop() {
     local notify_flag_file="${SCRIPT_DIR}/.last-prayer-notified"
     local pre_notify_flag_file="${SCRIPT_DIR}/.last-preprayer-notified"
     local last_zikr_time=0
-    
+
     while true; do
         if [ -f "$CONFIG_FILE" ]; then
             source "$CONFIG_FILE"
         fi
-        
+
         if [ "${ENABLE_ZIKR_NOTIFY:-1}" = "1" ]; then
             local current_time=$(date +%s)
             local zikr_interval="${ZIKR_NOTIFY_INTERVAL:-$DEFAULT_ZIKR_INTERVAL}"
-            
+
             if [ $((current_time - last_zikr_time)) -ge $zikr_interval ]; then
                 show_zekr_notify || true
                 last_zikr_time=$current_time
             fi
         fi
-        
+
         if [ "${ENABLE_SALAT_NOTIFY:-1}" = "1" ] && get_next_prayer; then
             local pre_notify_seconds=$((${PRE_PRAYER_NOTIFY:-15} * 60))
-            
+
             if [ "$PRAYER_LEFT" -le "$pre_notify_seconds" ] && [ "$PRAYER_LEFT" -gt 0 ]; then
                 if [ ! -f "$pre_notify_flag_file" ] || [ "$(cat "$pre_notify_flag_file" 2>/dev/null)" != "$PRAYER_NAME" ]; then
                     show_pre_prayer_notify
@@ -956,7 +966,7 @@ notify_loop() {
                     rm -f "$notify_flag_file" 2>/dev/null
                 fi
             fi
-            
+
             if [ "$PRAYER_LEFT" -le 0 ]; then
                 if [ ! -f "$notify_flag_file" ] || [ "$(cat "$notify_flag_file" 2>/dev/null)" != "$PRAYER_NAME" ]; then
                     show_prayer_notify
@@ -966,21 +976,21 @@ notify_loop() {
                 fi
             fi
         fi
-        
+
         local sleep_for="${ZIKR_NOTIFY_INTERVAL:-$DEFAULT_ZIKR_INTERVAL}"
         if [ "${ENABLE_SALAT_NOTIFY:-1}" = "1" ] && get_next_prayer; then
             if [ "$PRAYER_LEFT" -gt 0 ] && [ "$PRAYER_LEFT" -lt "$sleep_for" ]; then
                 sleep_for=$((PRAYER_LEFT < 2 ? 2 : PRAYER_LEFT))
             fi
         fi
-        
+
         [ "$sleep_for" -gt 3600 ] && sleep_for=3600
-        
+
         sleep "$sleep_for"
     done
 }
 
-enable_salat_notify() { 
+enable_salat_notify() {
     ENABLE_SALAT_NOTIFY=1
     TERMINAL_SALAT_NOTIFY=1
     SYSTEM_SALAT_NOTIFY=1
@@ -988,7 +998,7 @@ enable_salat_notify() {
     echo "✅ تم تفعيل إشعارات الصلاة (طرفية + نظام)."
 }
 
-disable_salat_notify() { 
+disable_salat_notify() {
     ENABLE_SALAT_NOTIFY=0
     TERMINAL_SALAT_NOTIFY=0
     SYSTEM_SALAT_NOTIFY=0
@@ -996,7 +1006,7 @@ disable_salat_notify() {
     echo "✅ تم تعطيل إشعارات الصلاة (طرفية + نظام)."
 }
 
-enable_zikr_notify() { 
+enable_zikr_notify() {
     ENABLE_ZIKR_NOTIFY=1
     TERMINAL_ZIKR_NOTIFY=1
     SYSTEM_ZIKR_NOTIFY=1
@@ -1004,7 +1014,7 @@ enable_zikr_notify() {
     echo "✅ تم تفعيل إشعارات الذكر (طرفية + نظام)."
 }
 
-disable_zikr_notify() { 
+disable_zikr_notify() {
     ENABLE_ZIKR_NOTIFY=0
     TERMINAL_ZIKR_NOTIFY=0
     SYSTEM_ZIKR_NOTIFY=0
@@ -1012,7 +1022,7 @@ disable_zikr_notify() {
     echo "✅ تم تعطيل إشعارات الذكر (طرفية + نظام)."
 }
 
-enable_all_notify() { 
+enable_all_notify() {
     ENABLE_SALAT_NOTIFY=1
     ENABLE_ZIKR_NOTIFY=1
     TERMINAL_SALAT_NOTIFY=1
@@ -1023,7 +1033,7 @@ enable_all_notify() {
     echo "✅ تم تفعيل جميع الإشعارات (طرفية + نظام)."
 }
 
-disable_all_notify() { 
+disable_all_notify() {
     ENABLE_SALAT_NOTIFY=0
     ENABLE_ZIKR_NOTIFY=0
     TERMINAL_SALAT_NOTIFY=0
@@ -1187,39 +1197,39 @@ stop_notify_service() {
 # ---------- دالة التحديث الكامل ----------
 full_update() {
     echo "🔄 بدء التحديث الكامل لـ GT-salat-dikr..."
-    
+
     if ! check_internet_connection; then
         echo "❌ لا يوجد اتصال بالإنترنت"
         return 1
     fi
-    
+
     # حفظ الإعدادات الحالية
     local backup_file="/tmp/gt-salat-backup-$$.conf"
     if [ -f "$CONFIG_FILE" ]; then
         cp "$CONFIG_FILE" "$backup_file"
         echo "💾 تم حفظ نسخة احتياطية من الإعدادات"
     fi
-    
+
     # تحميل سكربت التحديث من المستودع
     echo "📥 جاري تحميل المثبت المحدث..."
     local update_script="/tmp/gt-salat-update-$$.sh"
-    
+
     if curl -fsSL "${REPO_BASE}/install.sh" -o "$update_script" 2>/dev/null; then
         chmod +x "$update_script"
         echo "✅ تم تحميل المثبت المحدث"
-        
+
         # استعادة الإعدادات
         if [ -f "$backup_file" ]; then
             echo "🔄 استعادة الإعدادات..."
             cp "$backup_file" "$CONFIG_FILE" 2>/dev/null || true
         fi
-        
+
         # تشغيل المثبت
         echo "🚀 تشغيل المثبت المحدث..."
         exec "$update_script"
     else
         echo "❌ فشل تحميل المثبت المحدث"
-        
+
         # استعادة الإعدادات
         if [ -f "$backup_file" ]; then
             cp "$backup_file" "$CONFIG_FILE" 2>/dev/null || true
@@ -1257,7 +1267,7 @@ start_system_tray() {
         else
             echo "❌ مكتبات Python غير مثبتة"
             echo "📦 جاري التثبيت التلقائي..."
-            
+
             if command -v apt >/dev/null 2>&1; then
                 sudo apt update && sudo apt install -y python3-pystray python3-pil && {
                     python3 "${SCRIPT_DIR}/gt-tray.py" &
@@ -1685,13 +1695,13 @@ EOF
         ;;
     '')
         {
+            # عرض الذكر بتنسيق جميل
             if [ "${ENABLE_ZIKR_NOTIFY:-1}" = "1" ]; then
-                zekr=$(show_random_zekr 2>/dev/null)
-                if [ -n "$zekr" ]; then
-                    echo "$zekr"
-                    echo ""
-                fi
+                show_random_zekr 2>/dev/null
+                echo ""
             fi
+
+            # عرض الصلاة القادمة
             if get_next_prayer 2>/dev/null; then
                 leftmin=$((PRAYER_LEFT/60))
                 lefth=$((leftmin/60))
@@ -1699,11 +1709,6 @@ EOF
                 printf "\e[1;34m🕌 الصلاة القادمة: %s عند %s (باقي %02d:%02d)\e[0m\n" "$PRAYER_NAME" "$PRAYER_TIME" "$lefth" "$leftm"
             fi
         } 2>/dev/null
-        ;;
-    *)
-        echo "❌ خيار غير معروف: $1"
-        echo "استخدم --help لعرض الخيارات"
-        exit 2
         ;;
 esac
 
