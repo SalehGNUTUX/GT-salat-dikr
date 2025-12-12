@@ -3,2728 +3,1789 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة المسلم - GT-muslimportal</title>
+    <title>GT-salat-dikr - نظام إشعارات الصلاة والأذكار المتكامل - الإصدار 3.2</title>
+    <meta name="description" content="الإصدار 3.2 مع System Tray - نظام إشعارات ذكي ومستقر للصلاة والأذكار يعمل على جميع توزيعات لينكس">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌙</text></svg>">
     <style>
-        /* جميع أنماط CSS تبقى كما هي بدون تغيير */
         :root {
-            --primary-color: #2d5a27;
-            --secondary-color: #1a2a6c;
-            --accent-color: #2b5876;
-            --text-color: #fff;
-            --card-bg: rgba(255, 255, 255, 0.1);
-            --header-bg: rgba(0, 0, 0, 0.85);
-            --footer-bg: rgba(0, 0, 0, 0.7);
-            --modal-bg: rgba(40, 40, 40, 0.95);
-            --success-color: #4caf50;
-            --error-color: #ff5252;
-            --prayer-color: #4fc3f7;
-            --weather-color: #ffb74d;
-            --azkar-color: #81c784;
+            --primary: #2e7d32;
+            --primary-dark: #1b5e20;
+            --secondary: #f5f5f5;
+            --text: #333;
+            --text-light: #666;
+            --accent: #8bc34a;
+            --background: #fff;
+            --card-bg: #f8f8f8;
+            --code-bg: #f1f1f1;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+            --whats-new-bg: linear-gradient(135deg, #2e7d32, #1b5e20);
+            --whats-new-text: white;
+            --tray-icon: #ffcc00;
+            --tray-bg: rgba(255, 255, 255, 0.15);
+        }
+
+        [data-theme="dark"] {
+            --primary: #4caf50;
+            --primary-dark: #3d8b40;
+            --secondary: #2a2a2a;
+            --text: #f0f0f0;
+            --text-light: #b0b0b0;
+            --accent: #689f38;
+            --background: #1e1e1e;
+            --card-bg: #2d2d2d;
+            --code-bg: #252525;
+            --shadow: rgba(0, 0, 0, 0.3);
+            --whats-new-bg: linear-gradient(135deg, #0d3b0f, #1b5e20);
+            --whats-new-text: white;
+            --tray-icon: #ffcc00;
+            --tray-bg: rgba(255, 255, 255, 0.1);
         }
 
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: var(--transition);
         }
 
         body {
-            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color), var(--accent-color));
-            color: var(--text-color);
-            min-height: 100vh;
+            background-color: var(--background);
+            color: var(--text);
+            line-height: 1.6;
             padding: 0;
-            display: flex;
-            flex-direction: column;
+            margin: 0;
+            min-height: 100vh;
         }
 
-        /* تصميم الرأس المحسن */
+        /* تذييل الصفحة */
         header {
-            position: fixed;
-            top: 0;
-            right: 0;
-            left: 0;
-            z-index: 1000;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 3rem 1rem;
             text-align: center;
-            padding: 15px 20px;
-            background: var(--header-bg);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            transition: transform 0.3s ease;
+            position: relative;
+            border-bottom: 5px solid #4caf50;
         }
 
-        header.hidden {
-            transform: translateY(-100%);
+        header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 0.5rem;
         }
 
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            max-width: 1200px;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
+        header p {
+            font-size: 1.3rem;
+            max-width: 900px;
+            margin: 0 auto;
+            opacity: 0.9;
         }
 
-        .date-time-container {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            font-size: 0.85rem;
-            flex: 1;
-            min-width: 200px;
-        }
-
-        .hijri-date, .gregorian-date {
-            margin-bottom: 3px;
-            line-height: 1.4;
-        }
-
-        .current-time {
+        .version-badge {
+            display: inline-block;
+            background: #ff9800;
+            color: white;
+            padding: 0.3rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-left: 1rem;
+            vertical-align: middle;
             font-weight: bold;
-            color: #a3d39d;
+            animation: pulse 2s infinite;
         }
 
-        .search-header {
-            display: flex;
-            width: 40%;
-            max-width: 350px;
-            min-width: 200px;
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
 
-        .search-header-input {
-            flex: 1;
-            padding: 8px 12px;
-            border: none;
-            border-radius: 50px 0 0 50px;
-            font-size: 0.85rem;
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-color);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-right: none;
-        }
-
-        .search-header-input:focus {
-            outline: none;
-            background: rgba(255, 255, 255, 0.15);
-        }
-
-        .search-header-btn {
-            padding: 8px 12px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 0 50px 50px 0;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .search-header-btn:hover {
-            background: #3a6b33;
-        }
-
-        /* زر إظهار/إخفاء الرأس */
-        .toggle-header-btn {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 1001;
-            background: var(--primary-color);
-            color: white;
+        .theme-toggle {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: rgba(255, 255, 255, 0.2);
             border: none;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 45px;
+            height: 45px;
+            color: white;
             cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-        }
-
-        .toggle-header-btn:hover {
-            background: #3a6b33;
-            transform: scale(1.1);
-        }
-
-        /* شريط التاريخ والوقت المدمج */
-        .compact-date-time {
-            display: none;
-            position: fixed;
-            top: 0;
-            right: 0;
-            left: 0;
-            z-index: 999;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 8px 15px;
-            text-align: center;
-            font-size: 0.8rem;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        /* تحسين شريط التاريخ المدمج للهواتف */
-        .compact-date-time .date-info {
             display: flex;
-            justify-content: space-around;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .compact-date-time .hijri-compact,
-        .compact-date-time .gregorian-compact {
-            font-size: 0.75rem;
-            line-height: 1.3;
-        }
-
-        footer {
-            position: relative;
-            text-align: center;
-            padding: 15px;
-            background: var(--footer-bg);
-            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 0.9rem;
-            line-height: 1.6;
-            margin-top: 30px;
-        }
-
-        .footer-links {
-            margin: 10px 0;
-            display: flex;
             justify-content: center;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        .footer-link {
-            color: #a3d39d;
-            text-decoration: none;
-            transition: color 0.3s ease;
-            font-size: 0.9rem;
-        }
-
-        .footer-link:hover {
-            color: #ffffff;
-            text-decoration: underline;
-        }
-
-        .developer {
-            margin-top: 10px;
-            font-size: 0.8rem;
-            color: #a3d39d;
+            font-size: 1.2rem;
         }
 
         .container {
             max-width: 1200px;
-            margin: 150px auto 30px auto;
-            padding: 20px;
-            width: 100%;
-            flex: 1;
+            margin: 0 auto;
+            padding: 2rem 1rem;
         }
 
-        h1 {
-            font-size: 1.8rem;
-            margin-bottom: 8px;
-            color: var(--text-color);
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        section {
+            margin-bottom: 4rem;
         }
 
-        .description {
-            font-size: 1rem;
-            margin-bottom: 15px;
-            color: #e0e0e0;
+        h2 {
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--accent);
+            font-size: 2rem;
         }
 
-        .search-container {
-            display: flex;
-            justify-content: center;
-            margin: 15px 0;
-        }
-
-        .search-box {
-            display: flex;
-            width: 100%;
-            max-width: 500px;
-        }
-
-        .search-input {
-            flex: 1;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 50px 0 0 50px;
-            font-size: 1rem;
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-color);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-right: none;
-        }
-
-        .search-input:focus {
-            outline: none;
-            background: rgba(255, 255, 255, 0.15);
-        }
-
-        .search-btn {
-            padding: 10px 18px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 0 50px 50px 0;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .search-btn:hover {
-            background: #3a6b33;
-        }
-
-        .services-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 25px;
-        }
-
-        .service-card {
-            background: var(--card-bg);
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-            transition: transform 0.3s ease;
-            border-left: 4px solid;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            display: flex;
-            flex-direction: column;
-            min-height: 400px;
-        }
-
-        .service-card:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.15);
-        }
-
-        .service-card.prayer-time {
-            border-color: var(--prayer-color);
-        }
-
-        .service-card.weather {
-            border-color: var(--weather-color);
-        }
-
-        .service-card.azkar {
-            border-color: var(--azkar-color);
-        }
-
-        .service-icon {
-            font-size: 2.5rem;
-            margin-bottom: 12px;
-        }
-
-        .service-card.prayer-time .service-icon {
-            color: var(--prayer-color);
-        }
-
-        .service-card.weather .service-icon {
-            color: var(--weather-color);
-        }
-
-        .service-card.azkar .service-icon {
-            color: var(--azkar-color);
-        }
-
-        .service-title {
+        h3 {
+            color: var(--primary);
+            margin: 1.5rem 0 1rem;
             font-size: 1.4rem;
-            margin-bottom: 12px;
-            color: var(--text-color);
         }
 
-        .service-content {
-            font-size: 1rem;
-            line-height: 1.6;
-            margin-bottom: 15px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .prayer-times {
+        .features {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            text-align: right;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
         }
 
-        .prayer-time-item {
-            padding: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            font-size: 0.9rem;
-        }
-
-        .current-prayer {
-            background: rgba(79, 195, 247, 0.2);
-            font-weight: bold;
-        }
-
-        .weather-info {
+        .feature-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 6px 12px var(--shadow);
+            transition: transform 0.3s ease;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            border-right: 4px solid var(--primary);
         }
 
-        .weather-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 0.9rem;
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 20px var(--shadow);
         }
 
-        .azkar-list {
+        .feature-card h3 {
+            color: var(--primary);
+            margin-bottom: 1rem;
             display: flex;
-            flex-direction: column;
+            align-items: center;
             gap: 12px;
-            overflow-y: auto;
-            max-height: 200px;
+            font-size: 1.3rem;
         }
 
-        .azkar-item {
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.05);
+        .feature-card h3 i {
+            font-size: 1.6rem;
+        }
+
+        .code-block {
+            background-color: var(--code-bg);
             border-radius: 8px;
-            text-align: right;
-            font-size: 0.9rem;
-        }
-
-        .service-actions {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin-top: 15px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            direction: ltr;
+            text-align: left;
+            font-family: 'Courier New', monospace;
+            color: var(--text);
+            border-right: 5px solid var(--primary);
+            font-size: 1rem;
+            line-height: 1.5;
         }
 
         .btn {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 50px;
-            cursor: pointer;
-            font-weight: bold;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            font-size: 0.85rem;
+            gap: 10px;
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
         }
 
         .btn:hover {
-            background: #3a6b33;
+            background-color: var(--primary-dark);
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
 
-        .btn i {
-            margin-left: 5px;
+        .btn-secondary {
+            background-color: var(--accent);
+            color: var(--text);
         }
 
-        .btn-sm {
-            padding: 7px 10px;
-            font-size: 0.8rem;
+        .btn-secondary:hover {
+            background-color: #7cb342;
         }
 
-        .btn-notification {
-            background: #1565c0;
+        footer {
+            background-color: var(--secondary);
+            text-align: center;
+            padding: 3rem 1rem;
+            margin-top: 4rem;
+            color: var(--text);
+            border-top: 5px solid var(--primary);
         }
 
-        .btn-settings {
-            background: #7b1fa2;
+        .logo {
+            font-size: 4rem;
+            color: white;
+            margin-bottom: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
+        .commands {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
         }
 
-        .modal-content {
-            background: var(--modal-bg);
-            padding: 20px;
-            border-radius: 15px;
-            width: 90%;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        .command-item {
+            background-color: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary);
+            transition: transform 0.2s;
         }
 
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            padding-bottom: 10px;
+        .command-item:hover {
+            transform: translateX(5px);
         }
 
-        .modal-title {
-            font-size: 1.3rem;
-            color: #a3d39d;
-        }
-
-        .close-modal {
-            background: none;
-            border: none;
-            color: var(--text-color);
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-
-        .form-group {
-            margin-bottom: 12px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
+        .command-item code {
             font-weight: bold;
-            font-size: 0.9rem;
+            color: var(--primary);
+            font-size: 1.1rem;
+            background: var(--code-bg);
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
         }
 
-        .form-control {
-            width: 100%;
-            padding: 8px 10px;
-            border-radius: 5px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-color);
-            font-size: 0.9rem;
+        .highlight {
+            background: linear-gradient(120deg, var(--accent) 0%, var(--accent) 100%);
+            background-repeat: no-repeat;
+            background-size: 100% 0.4em;
+            background-position: 0 88%;
+            font-weight: bold;
         }
 
-        .form-control:focus {
-            outline: none;
-            border-color: var(--primary-color);
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
         }
 
-        .notification-settings {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 12px;
+        .stat-item {
+            text-align: center;
+            padding: 1.5rem;
+            background: var(--card-bg);
             border-radius: 10px;
-            margin-top: 15px;
+            box-shadow: 0 4px 8px var(--shadow);
         }
 
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 45px;
-            height: 22px;
-            margin-left: 8px;
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
         }
 
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
+        .demo-terminal {
+            background: #1e1e1e;
+            color: #00ff00;
+            border-radius: 10px;
+            padding: 2rem;
+            margin: 2rem 0;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
         }
 
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 22px;
+        .demo-line {
+            margin-bottom: 0.5rem;
         }
 
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
+        .demo-prompt {
+            color: #ffff00;
         }
 
-        input:checked + .slider {
-            background-color: var(--primary-color);
+        .demo-output {
+            color: #00ffff;
         }
 
-        input:checked + .slider:before {
-            transform: translateX(23px);
+        .demo-highlight {
+            color: #ff6b6b;
+            font-weight: bold;
         }
 
-        .save-notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--success-color);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            display: none;
-            z-index: 1000;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        /* أنماط جديدة للعرض الحي */
+        .live-prayer-widget {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--primary);
+            text-align: center;
         }
 
-        .location-settings {
-            display: flex;
-            gap: 8px;
-            align-items: center;
+        .prayer-info {
+            font-size: 1.2rem;
+            margin: 1rem 0;
         }
 
-        .location-auto {
-            padding: 7px 10px;
-            background: #1565c0;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.85rem;
-        }
-
-        .source-settings {
-            margin-top: 15px;
-            padding-top: 12px;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .custom-azkar {
-            margin-top: 15px;
-        }
-
-        .custom-azkar-list {
-            max-height: 120px;
-            overflow-y: auto;
-            margin-top: 8px;
-            padding: 8px;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 5px;
-        }
-
-        .custom-azkar-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 0.85rem;
-        }
-
-        .remove-azkar {
-            color: var(--error-color);
-            cursor: pointer;
+        .next-prayer {
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 1.4rem;
+            margin: 1rem 0;
         }
 
         .location-info {
-            margin-bottom: 12px;
-            padding: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            text-align: center;
-            font-size: 0.9rem;
+            color: var(--text-light);
+            font-size: 1rem;
+            margin-bottom: 1rem;
         }
 
         .loading {
-            text-align: center;
-            padding: 15px;
-            color: #a3d39d;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex: 1;
+            color: var(--text-light);
+            font-style: italic;
         }
 
         .error {
-            text-align: center;
-            padding: 15px;
-            color: var(--error-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex: 1;
+            color: #ff6b6b;
+            font-weight: bold;
         }
 
         .refresh-btn {
-            margin-top: 10px;
-            padding: 5px 10px;
-            background: var(--primary-color);
-            color: white;
+            background: var(--accent);
+            color: var(--text);
             border: none;
+            padding: 0.8rem 1.5rem;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 0.8rem;
-        }
-
-        /* تخصيص شريط التمرير */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.5);
-        }
-
-        /* إضافة أنماط للإحداثيات */
-        .coordinates-display {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 10px;
-            font-size: 0.85rem;
-            text-align: center;
-        }
-
-        .coordinates-display div {
-            margin: 5px 0;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .coordinates-display span {
+            margin: 1rem 0;
             font-weight: bold;
-            color: #a3d39d;
+            font-size: 1rem;
         }
 
-        /* أنماط عناصر التحكم بالأذان */
-        #athan-controls {
-            animation: slideIn 0.3s ease-out;
+        .refresh-btn:hover {
+            background: #7cb342;
         }
 
-        @keyframes slideIn {
-            from {
-                transform: translateX(-100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+        .prayer-times-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
         }
 
-        #athan-controls button {
-            transition: all 0.3s ease;
+        .prayer-time-item {
+            background: var(--background);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid var(--accent);
         }
 
-        #athan-controls button:hover {
+        .prayer-time-item.next {
+            background: var(--primary);
+            color: white;
             transform: scale(1.05);
         }
 
-        @media (max-width: 992px) {
-            .header-top {
-                flex-direction: column;
-                gap: 12px;
-            }
+        .prayer-name {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
 
-            .search-header {
-                width: 100%;
-                max-width: 100%;
-            }
+        .prayer-time {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
 
-            .date-time-container {
-                align-items: center;
-                text-align: center;
-            }
+        .method-selector {
+            background: var(--background);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            text-align: right;
+        }
+
+        .method-info {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-top: 0.5rem;
+        }
+
+        .method-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .method-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        /* تحسين تصميم قسم ما الجديد */
+        .whats-new-card {
+            background: var(--whats-new-bg);
+            color: var(--whats-new-text);
+            padding: 2.5rem;
+            border-radius: 15px;
+            margin: 2rem 0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .whats-new-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1%, transparent 20%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .whats-new-card h2 {
+            color: white !important;
+            border-bottom: 3px solid var(--tray-icon);
+            position: relative;
+            z-index: 2;
+        }
+
+        .whats-new-card h2 i {
+            color: var(--tray-icon);
+        }
+
+        .whats-new-card p {
+            color: rgba(255,255,255,0.95);
+            position: relative;
+            z-index: 2;
+            font-size: 1.2rem;
+        }
+
+        .tray-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+            position: relative;
+            z-index: 2;
+        }
+
+        .tray-feature {
+            background: var(--tray-bg);
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .tray-feature:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            background: rgba(255,255,255,0.2);
+        }
+
+        .tray-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            color: var(--tray-icon);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .tray-feature h3 {
+            color: white !important;
+            margin: 1rem 0;
+            font-size: 1.4rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .tray-feature p {
+            color: rgba(255,255,255,0.9);
+            line-height: 1.6;
+            font-size: 1.1rem;
+        }
+
+        .version-highlight {
+            background: var(--tray-icon);
+            color: #333;
+            padding: 0.2rem 0.8rem;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        /* مربع System Tray الجديد */
+        .modern-tray-box {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--accent);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .modern-tray-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1), transparent);
+            border-radius: 0 0 0 100%;
+        }
+
+        .tray-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .tray-badge {
+            background: var(--tray-icon);
+            color: #333;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tray-title {
+            font-size: 1.8rem;
+            color: white;
+            margin: 0;
+        }
+
+        .tray-subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+        }
+
+        .tray-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .tray-item {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .tray-item:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-3px);
+        }
+
+        .tray-item-icon {
+            font-size: 2.5rem;
+            color: var(--tray-icon);
+            margin-bottom: 1rem;
+        }
+
+        .tray-item-title {
+            color: white;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .tray-item-desc {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* ألبوم الصور المتحرك - محدث */
+        .screenshots-gallery {
+            margin: 3rem 0;
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 8px 20px var(--shadow);
+        }
+
+        .gallery-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 1rem;
+        }
+
+        .gallery-header h3 {
+            margin: 0;
+            color: var(--primary);
+            font-size: 1.6rem;
+        }
+
+        .gallery-nav {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .gallery-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+        }
+
+        .gallery-btn:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+        }
+
+        .gallery-container {
+            position: relative;
+            height: 500px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+            background: #1a1a1a;
+        }
+
+        .gallery-slide {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transform: translateX(30px);
+            transition: all 0.5s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gallery-slide.active {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .screenshot-img {
+            max-width: 90%;
+            max-height: 85%;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 2px solid var(--accent);
+        }
+
+        .screenshot-info {
+            margin-top: 1rem;
+            text-align: center;
+            color: var(--text);
+            background: var(--code-bg);
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            max-width: 90%;
+        }
+
+        .screenshot-title {
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 0.3rem;
+            font-size: 1.1rem;
+        }
+
+        .screenshot-desc {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .gallery-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--text-light);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .indicator.active {
+            background: var(--primary);
+            transform: scale(1.2);
+        }
+
+        .platform-info {
+            background: var(--accent);
+            color: var(--text);
+            padding: 0.8rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            text-align: center;
+            font-weight: bold;
         }
 
         @media (max-width: 768px) {
-            header {
-                padding: 15px;
-                height: auto;
+            header h1 {
+                font-size: 2.2rem;
             }
 
-            .header-top {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .date-time-container {
-                order: 2;
-                width: 100%;
-                text-align: center;
-                margin-top: 10px;
-            }
-
-            .search-header {
-                order: 1;
-                width: 100%;
-                max-width: 100%;
-            }
-
-            h1 {
-                font-size: 1.5rem;
-                margin-top: 5px;
-                order: 3;
-                width: 100%;
-                margin-top: 10px;
-            }
-
-            .description {
-                font-size: 0.9rem;
-                order: 4;
-                width: 100%;
-            }
-
-            .container {
-                padding: 15px;
-                margin: 140px auto 20px auto;
-            }
-
-            .services-grid {
+            .features {
                 grid-template-columns: 1fr;
             }
 
-            .service-card {
-                padding: 15px;
-                min-height: 350px;
+            .commands {
+                grid-template-columns: 1fr;
             }
 
-            .search-box {
-                flex-direction: column;
+            .theme-toggle {
+                top: 0.5rem;
+                left: 0.5rem;
+                width: 40px;
+                height: 40px;
             }
 
-            .search-input {
-                border-radius: 50px;
-                margin-bottom: 8px;
-                border-right: 1px solid rgba(255, 255, 255, 0.2);
+            .btn {
+                padding: 0.8rem 1.5rem;
+                font-size: 1rem;
             }
 
-            .search-btn {
-                border-radius: 50px;
+            .prayer-times-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
 
-            .modal-content {
-                padding: 15px;
+            .tray-features {
+                grid-template-columns: 1fr;
             }
 
-            /* إظهار شريط التاريخ والوقت المدمج على الهواتف */
-            .compact-date-time {
-                display: block;
+            .whats-new-card {
+                padding: 1.5rem;
             }
 
-            /* تحسين شريط التاريخ على الهواتف */
-            .compact-date-time .date-info {
-                justify-content: center;
-                gap: 15px;
+            .tray-feature {
+                padding: 1.5rem;
             }
 
-            .compact-date-time .hijri-compact,
-            .compact-date-time .gregorian-compact {
-                font-size: 0.7rem;
+            .tray-icon {
+                font-size: 2.5rem;
+            }
+
+            .gallery-container {
+                height: 400px;
+            }
+
+            .screenshot-title {
+                font-size: 1rem;
+            }
+
+            .screenshot-desc {
+                font-size: 0.8rem;
+            }
+
+            .tray-content {
+                grid-template-columns: 1fr;
+            }
+
+            .tray-title {
+                font-size: 1.5rem;
+            }
+
+            .screenshot-img {
+                max-width: 95%;
+                max-height: 80%;
             }
         }
 
         @media (max-width: 480px) {
-            .prayer-times {
-                grid-template-columns: 1fr;
+            .gallery-container {
+                height: 350px;
             }
-
-            .service-actions {
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
-
-            header {
-                padding: 10px;
-            }
-
-            h1 {
-                font-size: 1.3rem;
-            }
-
-            .description {
-                font-size: 0.8rem;
-            }
-
-            .compact-date-time .date-info {
-                flex-direction: column;
-                gap: 5px;
-            }
-
-            .compact-date-time {
-                padding: 6px 10px;
-                font-size: 0.7rem;
-            }
-        }
-
-        /* تنسيق الأرقام العربية */
-        .arabic-digits {
-            font-family: Arial, sans-serif;
-        }
-
-        /* تحسينات للأجهزة المحمولة */
-        @media (max-width: 600px) {
-            .modal-content {
-                width: 95%;
-                max-height: 90vh;
-                margin: 5vh auto;
-            }
-
-            .search-header {
-                width: 60%;
-            }
-
-            .date-time-container {
-                font-size: 0.75rem;
-            }
-
-            .toggle-header-btn {
-                width: 35px;
-                height: 35px;
-                font-size: 0.9rem;
-            }
-        }
-
-        /* دعم الوضع المظلم на الأجهزة */
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --card-bg: rgba(255, 255, 255, 0.08);
-                --modal-bg: rgba(20, 20, 20, 0.95);
+            
+            .screenshot-img {
+                max-width: 98%;
+                max-height: 75%;
             }
         }
     </style>
 </head>
 <body>
-    <!-- زر تبديل الرأس -->
-    <button class="toggle-header-btn" id="toggle-header-btn">
-        <i class="fas fa-bars"></i>
-    </button>
-
-    <!-- شريط التاريخ والوقت المدمج -->
-    <div class="compact-date-time" id="compact-date-time">
-        <div class="date-info">
-            <span class="hijri-compact" id="compact-hijri-date">جاري التحميل...</span>
-            <span class="gregorian-compact" id="compact-gregorian-date">جاري التحميل...</span>
-            <span class="time-compact arabic-digits" id="compact-time">00:00:00</span>
+    <header>
+        <button class="theme-toggle" id="themeToggle">
+            <i class="fas fa-moon"></i>
+        </button>
+        <div class="logo">
+            <i class="fas fa-mosque"></i>
         </div>
-    </div>
-
-    <header id="main-header">
-        <div class="header-top">
-            <div class="date-time-container">
-                <div class="hijri-date" id="hijri-date">🗓 التاريخ الهجري: جاري التحميل...</div>
-                <div class="gregorian-date" id="gregorian-date">📅 التاريخ الميلادي: جاري التحميل...</div>
-                <div class="current-time arabic-digits" id="current-time">⏰ 00:00:00</div>
-            </div>
-            <div class="search-header">
-                <input type="text" class="search-header-input" placeholder="ابحث على الإنترنت...">
-                <button class="search-header-btn" id="web-search-btn"><i class="fas fa-search"></i></button>
-            </div>
-        </div>
-        <h1>بوابة المسلم - GT-muslimportal</h1>
-        <p class="description">خدمات أوقات الصلاة، الطقس، والأذكار اليومية</p>
+        <h1>GT-salat-dikr 🕌 <span class="version-badge">الإصدار 3.2</span></h1>
+        <p>نظام إشعارات الصلاة والأذكار الذكي - مع System Tray المتكامل!</p>
+        <p>مفتوح المصدر ⚡ مرخص تحت GPL 📜</p>
     </header>
 
     <div class="container">
-        <div class="search-container">
-            <div class="search-box">
-                <input type="text" class="search-input" placeholder="ابحث في الخدمات...">
-                <button class="search-btn"><i class="fas fa-search"></i> بحث</button>
-            </div>
-        </div>
-
-        <div class="services-grid">
-            <!-- بطاقة أوقات الصلاة -->
-            <div class="service-card prayer-time">
-                <div class="service-icon">
-                    <i class="fas fa-mosque"></i>
-                </div>
-                <h3 class="service-title">أوقات الصلاة</h3>
-                <div class="service-content">
-                    <div class="location-info" id="prayer-location">
-                        📍 الموقع: جاري التحميل...
+        <section id="intro">
+            <div class="whats-new-card">
+                <h2><i class="fas fa-rocket"></i> ما الجديد في الإصدار 3.2</h2>
+                <p style="margin-bottom: 1.5rem; font-size: 1.3rem;">إعادة تصميم كاملة مع System Tray المتكامل في شريط المهام!</p>
+                
+                <div class="tray-features">
+                    <div class="tray-feature">
+                        <div class="tray-icon"><i class="fas fa-tasks"></i></div>
+                        <h3>تحديث شامل</h3>
+                        <p>نظام محسن مع تحديثات كاملة لجميع المكونات وأداء محسّن</p>
                     </div>
-                    <div class="prayer-times" id="prayer-times">
-                        <div class="loading">
-                            <i class="fas fa-spinner fa-spin"></i> جاري تحميل أوقات الصلاة...
-                        </div>
+                    <div class="tray-feature">
+                        <div class="tray-icon"><i class="fas fa-bug"></i></div>
+                        <h3>إصلاحات أساسية</h3>
+                        <p>إصلاح كامل لمشكلة تكرار الإشعارات والإعدادات مع تحسين الاستقرار العام</p>
                     </div>
-                    <button class="refresh-btn" onclick="fetchPrayerTimes()">
-                        <i class="fas fa-sync-alt"></i> تحديث
-                    </button>
-                </div>
-                <div class="service-actions">
-                    <button class="btn btn-sm btn-notification" data-service="prayer">
-                        <i class="fas fa-bell"></i> الإخطارات
-                    </button>
-                    <button class="btn btn-sm btn-settings" data-service="prayer">
-                        <i class="fas fa-cog"></i> الإعدادات
-                    </button>
+                    <div class="tray-feature">
+                        <div class="tray-icon"><i class="fas fa-desktop"></i></div>
+                        <h3>أيقونة System Tray</h3>
+                        <p>عرض دائم للصلاة القادمة في شريط المهام مع قائمة تحكم كاملة</p>
+                    </div>
                 </div>
             </div>
 
-            <!-- بطاقة الطقس -->
-            <div class="service-card weather">
-                <div class="service-icon">
-                    <i class="fas fa-cloud-sun"></i>
+            <!-- مربع System Tray الجديد -->
+            <div class="modern-tray-box">
+                <div class="tray-header">
+                    <span class="tray-badge">
+                        <i class="fas fa-desktop"></i>
+                        System Tray
+                    </span>
+                    <h3 class="tray-title">أيقونة شريط المهام <span style="color: var(--tray-icon);">System Tray جديد</span></h3>
                 </div>
-                <h3 class="service-title">حالة الطقس</h3>
-                <div class="service-content">
-                    <div class="location-info" id="weather-location">
-                        📍 الموقع: جاري التحميل...
+                <p class="tray-subtitle">واجهة مستخدم محسنة مع أيقونة دائمة في شريط المهام تقدم تحكم سريع بكافة الميزات</p>
+                
+                <div class="tray-content">
+                    <div class="tray-item">
+                        <div class="tray-item-icon"><i class="fas fa-clock"></i></div>
+                        <div class="tray-item-title">عرض دائم</div>
+                        <div class="tray-item-desc">عرض الصلاة القادمة ووقتها بشكل دائم في شريط المهام</div>
                     </div>
-                    <div class="weather-info" id="weather-info">
-                        <div class="loading">
-                            <i class="fas fa-spinner fa-spin"></i> جاري تحميل بيانات الطقس...
-                        </div>
+                    <div class="tray-item">
+                        <div class="tray-item-icon"><i class="fas fa-mouse-pointer"></i></div>
+                        <div class="tray-item-title">قائمة سريعة</div>
+                        <div class="tray-item-desc">انقر بزر الماوس الأيمن للوصول إلى جميع ميزات البرنامج</div>
                     </div>
-                    <button class="refresh-btn" onclick="fetchWeather()">
-                        <i class="fas fa-sync-alt"></i> تحديث
-                    </button>
+                    <div class="tray-item">
+                        <div class="tray-item-icon"><i class="fas fa-sync-alt"></i></div>
+                        <div class="tray-item-title">تحديث تلقائي</div>
+                        <div class="tray-item-desc">تحديث المعلومات كل دقيقة للبقاء على اطلاع دائم</div>
+                    </div>
+                    <div class="tray-item">
+                        <div class="tray-item-icon"><i class="fas fa-sliders-h"></i></div>
+                        <div class="tray-item-title">تحكم كامل</div>
+                        <div class="tray-item-desc">إدارة الإشعارات والإعدادات والأذكار من مكان واحد</div>
+                    </div>
                 </div>
-                <div class="service-actions">
-                    <button class="btn btn-sm btn-notification" data-service="weather">
-                        <i class="fas fa-bell"></i> الإخطارات
-                    </button>
-                    <button class="btn btn-sm btn-settings" data-service="weather">
-                        <i class="fas fa-cog"></i> الإعدادات
-                    </button>
+
+                <div class="demo-terminal" style="margin-top: 1.5rem; background: rgba(0,0,0,0.3);">
+                    <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --tray</span></div>
+                    <div class="demo-line">🚀 تشغيل System Tray...</div>
+                    <div class="demo-line">✅ أيقونة System Tray تعمل الآن في شريط المهام</div>
+                    <div class="demo-line"><span class="demo-highlight">📌 انقر بزر الماوس الأيمن على الأيقونة للتحكم الكامل!</span></div>
                 </div>
             </div>
 
-            <!-- بطاقة الأذكار -->
-            <div class="service-card azkar">
-                <div class="service-icon">
-                    <i class="fas fa-praying-hands"></i>
+            <!-- ألبوم الصور المتحرك مع الصور الحقيقية -->
+            <div class="screenshots-gallery">
+                <div class="gallery-header">
+                    <h3><i class="fas fa-images"></i> لقطات شاشة GT-salat-dikr على KDE/Manjaro</h3>
+                    <div class="gallery-nav">
+                        <button class="gallery-btn" id="prevBtn">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                        <button class="gallery-btn" id="nextBtn">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                    </div>
                 </div>
-                <h3 class="service-title">أذكار اليوم</h3>
-                <div class="service-content">
-                    <div class="azkar-list" id="azkar-list">
-                        <div class="loading">
-                            <i class="fas fa-spinner fa-spin"></i> جاري تحميل الأذكار...
+
+                <div class="gallery-container" id="galleryContainer">
+                    <!-- الشريحة 1: إظهار ذكر -->
+                    <div class="gallery-slide active">
+                        <img src="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/screeshot/Screenshot_20251211_175045.jpeg?raw=true" 
+                             alt="إظهار ذكر - GT-salat-dikr" class="screenshot-img">
+                        <div class="screenshot-info">
+                            <div class="screenshot-title">إظهار ذكر</div>
+                            <div class="screenshot-desc">واجهة عرض الأذكار اليومية مع خيارات التنقل والتحديث</div>
                         </div>
                     </div>
-                    <button class="refresh-btn" onclick="fetchAzkar()">
-                        <i class="fas fa-sync-alt"></i> تحديث
-                    </button>
+                    
+                    <!-- الشريحة 2: مواقيت الصلاة -->
+                    <div class="gallery-slide">
+                        <img src="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/screeshot/Screenshot_20251211_175334.jpeg?raw=true" 
+                             alt="مواقيت الصلاة - GT-salat-dikr" class="screenshot-img">
+                        <div class="screenshot-info">
+                            <div class="screenshot-title">مواقيت الصلاة</div>
+                            <div class="screenshot-desc">عرض تفصيلي لمواقيت الصلاة اليومية مع الصلاة القادمة والوقت المتبقي</div>
+                        </div>
+                    </div>
+                    
+                    <!-- الشريحة 3: حالة البرنامج -->
+                    <div class="gallery-slide">
+                        <img src="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/screeshot/Screenshot_20251211_175409.jpeg?raw=true" 
+                             alt="حالة البرنامج - GT-salat-dikr" class="screenshot-img">
+                        <div class="screenshot-info">
+                            <div class="screenshot-title">حالة البرنامج</div>
+                            <div class="screenshot-desc">تقرير مفصل عن حالة النظام، الإشعارات، والبيانات المحفوظة</div>
+                        </div>
+                    </div>
+                    
+                    <!-- الشريحة 4: الإعدادات -->
+                    <div class="gallery-slide">
+                        <img src="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/screeshot/Screenshot_20251211_175654.jpeg?raw=true" 
+                             alt="الإعدادات - GT-salat-dikr" class="screenshot-img">
+                        <div class="screenshot-info">
+                            <div class="screenshot-title">الإعدادات</div>
+                            <div class="screenshot-desc">لوحة تحكم كاملة لتخصيص الموقع، طريقة الحساب، والإشعارات</div>
+                        </div>
+                    </div>
+                    
+                    <!-- الشريحة 5: تحديث المواقيت -->
+                    <div class="gallery-slide">
+                        <img src="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/screeshot/Screenshot_20251211_180712.jpeg?raw=true" 
+                             alt="تحديث المواقيت - GT-salat-dikr" class="screenshot-img">
+                        <div class="screenshot-info">
+                            <div class="screenshot-title">تحديث المواقيت</div>
+                            <div class="screenshot-desc">عملية تحديث مواقيت الصلاة مع عرض التقدم والنتائج</div>
+                        </div>
+                    </div>
+                    
+                    <!-- الشريحة 6: طريقة عرض الذكر عند فتح الطرفية -->
+                    <div class="gallery-slide">
+                        <img src="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/screeshot/Screenshot_20251211_182650.jpeg?raw=true" 
+                             alt="طريقة عرض الذكر عند فتح الطرفية - GT-salat-dikr" class="screenshot-img">
+                        <div class="screenshot-info">
+                            <div class="screenshot-title">عرض الذكر عند فتح الطرفية</div>
+                            <div class="screenshot-desc">عرض الأذكار تلقائياً عند فتح نافذة الطرفية (Terminal)</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="service-actions">
-                    <button class="btn btn-sm btn-notification" data-service="azkar">
-                        <i class="fas fa-bell"></i> الإخطارات
-                    </button>
-                    <button class="btn btn-sm btn-settings" data-service="azkar">
-                        <i class="fas fa-cog"></i> الإعدادات
-                    </button>
+
+                <div class="gallery-indicators" id="galleryIndicators">
+                    <!-- سيتم إضافة المؤشرات ديناميكياً -->
+                </div>
+
+                <div class="platform-info">
+                    <i class="fas fa-desktop"></i> لقطات من واجهة KDE على توزيعة Manjaro Linux
                 </div>
             </div>
-        </div>
+
+            <h2><i class="fas fa-info-circle"></i> نظام متكامل لتذكير الصلاة والأذكار</h2>
+            <p>GT-salat-dikr الإصدار 3.2 يمثل قفزة نوعية في تجربة المستخدم مع إضافة System Tray المتكامل. نظام متكامل يجمع بين دقة مواقيت الصلاة وقوة التذكير المستمر للأذكار مع تحكم أدق في الإشعارات.</p>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-number">22</div>
+                    <div>طريقة حساب</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">100+</div>
+                    <div>ذكر متنوع</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">3+</div>
+                    <div>أشهر تخزين محلي</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">🖥️</div>
+                    <div>System Tray جديد</div>
+                </div>
+            </div>
+
+            <!-- عرض الصلاة الحي -->
+            <div class="live-prayer-widget">
+                <h3><i class="fas fa-clock"></i> مواقيت الصلاة الحية</h3>
+                <div class="location-info" id="locationInfo">جاري اكتشاف موقعك...</div>
+                
+                <!-- إعدادات طريقة الحساب -->
+                <div class="method-selector">
+                    <div id="currentMethod">طريقة الحساب: جاري التحديد...</div>
+                    <div class="method-info" id="methodInfo">يتم اختيار طريقة الحساب المناسبة تلقائيًا حسب موقعك</div>
+                    <button class="method-btn" onclick="showMethodSelector()">تغيير طريقة الحساب</button>
+                    <button class="method-btn" onclick="toggleManualLocation()">تحديد الموقع يدويًا</button>
+                </div>
+
+                <!-- تحديد الموقع يدويًا -->
+                <div class="manual-location-form" id="manualLocationForm">
+                    <h4>تحديد الموقع يدويًا</h4>
+                    <div class="form-group">
+                        <label for="manualLat">خط العرض:</label>
+                        <input type="text" id="manualLat" placeholder="مثال: 24.7136">
+                    </div>
+                    <div class="form-group">
+                        <label for="manualLon">خط الطول:</label>
+                        <input type="text" id="manualLon" placeholder="مثال: 46.6753">
+                    </div>
+                    <div class="form-group">
+                        <label for="manualCity">المدينة:</label>
+                        <input type="text" id="manualCity" placeholder="مثال: الرياض">
+                    </div>
+                    <div class="form-group">
+                        <label for="manualCountry">الدولة:</label>
+                        <input type="text" id="manualCountry" placeholder="مثال: السعودية">
+                    </div>
+                    <div class="location-actions">
+                        <button class="method-btn" onclick="applyManualLocation()">تطبيق الموقع</button>
+                        <button class="method-btn" onclick="toggleManualLocation()">إلغاء</button>
+                    </div>
+                </div>
+                
+                <!-- عرض مواقيت الصلاة -->
+                <div id="prayerWidget">
+                    <div class="loading">جاري تحميل مواقيت الصلاة...</div>
+                </div>
+
+                <!-- صندوق الأذكار العشوائية -->
+                <div id="zikrContainer" style="display: none;">
+                    <div class="zikr-box">
+                        <i class="fas fa-book-quran"></i>
+                        <div id="randomZikr"></div>
+                    </div>
+                </div>
+                
+                <button class="refresh-btn" onclick="loadPrayerTimes()">
+                    <i class="fas fa-sync-alt"></i> تحديث المواقيت
+                </button>
+            </div>
+
+            <div class="demo-terminal">
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --status</span></div>
+                <div class="demo-line">📊 حالة GT-salat-dikr 3.2:</div>
+                <div class="demo-line">════════════════════════════════</div>
+                <div class="demo-line">✅ System Tray: يعمل (PID: 2876)</div>
+                <div class="demo-line">📍 الموقع: الرياض, السعودية</div>
+                <div class="demo-line">🕌 الصلاة القادمة: العصر عند 15:30 (باقي 02:15)</div>
+                <div class="demo-line">🔄 التحديث التلقائي: مفعل</div>
+                <div class="demo-line"><span class="demo-highlight">🎯 الإصدار 3.2 مع System Tray المتكامل!</span></div>
+            </div>
+
+            <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">
+                <i class="fab fa-github"></i> استعراض الكود المصدري
+            </a>
+            <a href="#installation" class="btn btn-secondary">
+                <i class="fas fa-download"></i> التثبيت الفوري
+            </a>
+        </section>
+
+        <section id="features">
+            <h2><i class="fas fa-star"></i> الميزات الرئيسية في الإصدار 3.2</h2>
+            <div class="features">
+                <div class="feature-card">
+                    <h3><i class="fas fa-tasks"></i> System Tray المتكامل</h3>
+                    <p>أيقونة دائمة في شريط المهام تعرض الصلاة القادمة مع قائمة تحكم كاملة بكافة ميزات البرنامج.</p>
+                    <code style="margin-top: 1rem; display: block;">gtsalat --tray</code>
+                </div>
+
+                <div class="feature-card">
+                    <h3><i class="fas fa-bug"></i> إصلاحات استقرار رئيسية</h3>
+                    <p>إصلاح كامل لمشكلة تكرار معالج الإعدادات وتحسين اكتشاف نظام الخدمة تلقائياً.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3><i class="fas fa-sync-alt"></i> تحديث كامل للمكونات</h3>
+                    <p>أمر واحد لتحديث جميع مكونات البرنامج، شامل الأذكار والمواقيت والإعدادات.</p>
+                    <code style="margin-top: 1rem; display: block;">gtsalat --full-update</code>
+                </div>
+
+                <div class="feature-card">
+                    <h3><i class="fas fa-plug"></i> عمل بدون إنترنت</h3>
+                    <p>تخزين محلي لمواقيت 3 أشهر مسبقاً يضمن عمل البرنامج حتى بدون اتصال بالإنترنت.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3><i class="fas fa-terminal"></i> إعدادات طرفية تلقائية</h3>
+                    <p>عرض الأذكار ومواقيت الصلاة تلقائياً عند فتح الطرفية لـ Bash و Zsh و Fish.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3><i class="fas fa-bell"></i> جميع الإشعارات مفعلة</h3>
+                    <p>جميع أنواع الإشعارات مفعلة افتراضياً لتحسين تجربة المستخدم من أول استخدام.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="installation">
+            <h2><i class="fas fa-download"></i> التثبيت السريع</h2>
+
+            <h3><i class="fas fa-bolt"></i> التثبيت التلقائي (مستحسن)</h3>
+            <p>نسخة واحدة تشمل كل شيء - التثبيت، الإعدادات، البدء التلقائي، System Tray:</p>
+            <div class="code-block">
+curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh | bash
+            </div>
+
+            <h3><i class="fas fa-cogs"></i> التثبيت اليدوي للمستخدمين المتقدمين</h3>
+            <div class="code-block">
+git clone https://github.com/SalehGNUTUX/GT-salat-dikr.git<br>cd GT-salat-dikr<br>chmod +x install.sh<br>./install.sh
+            </div>
+
+            <h3><i class="fas fa-trash"></i> إزالة التثبيت</h3>
+            <div class="code-block">
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/uninstall.sh)"
+            </div>
+
+            <h3><i class="fas fa-sync-alt"></i> التحديث من إصدار سابق</h3>
+            <div class="code-block">
+# تحديث كامل للمكونات<br>gtsalat --full-update<br><br># أو إعادة التثبيت الكامل<br>rm -rf ~/.GT-salat-dikr<br>curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh | bash
+            </div>
+        </section>
+
+        <section id="usage">
+            <h2><i class="fas fa-terminal"></i> الأوامر الجديدة في الإصدار 3.2</h2>
+
+            <div class="commands">
+                <div class="command-item">
+                    <p><code>gtsalat --tray</code> - تشغيل أيقونة System Tray <span class="version-highlight">3.2</span></p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --tray-restart</code> - إعادة تشغيل الأيقونة <span class="version-highlight">3.2</span></p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --full-update</code> - تحديث كامل للمكونات <span class="version-highlight">3.2</span></p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --enable-auto-update</code> - تفعيل التحديث التلقائي <span class="version-highlight">3.2</span></p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --auto-update-status</code> - عرض حالة التحديث التلقائي <span class="version-highlight">3.2</span></p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --notify-start</code> - بدء الإشعارات حسب النظام المختار</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --notify-stop</code> - إيقاف الإشعارات حسب النظام المختار</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --status</code> - عرض حالة متقدمة مع كشف System Tray</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --show-timetable</code> - عرض مواقيت الصلاة اليوم</p>
+                </div>
+                <div class="command-item">
+                    <p><code>gtsalat --uninstall</code> - الإزالة المحلية الذكية</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="technical">
+            <h2><i class="fas fa-cogs"></i> التحسينات التقنية في 3.2</h2>
+
+            <h3>تحسينات System Tray والأداء:</h3>
+            <ul>
+                <li><span class="version-highlight">3.2</span> إضافة أيقونة System Tray متكاملة في شريط المهام</li>
+                <li><span class="version-highlight">3.2</span> منع التكرار الذكي لأيقونات متعددة</li>
+                <li><span class="version-highlight">3.2</span> تحديث تلقائي للمعلومات كل دقيقة</li>
+                <li>تحسين كشف النظام - دعم أوسع للتوزيعات</li>
+                <li>كشف تلقائي لنظام التشغيل - systemd/sysvinit</li>
+            </ul>
+
+            <h3>الميزات الذكية الجديدة:</h3>
+            <ul>
+                <li><span class="version-highlight">3.2</span> تفعيل جميع الإشعارات افتراضياً</li>
+                <li><span class="version-highlight">3.2</span> تحديث كامل للمكونات بأمر واحد</li>
+                <li><span class="version-highlight">3.2</span> إعدادات طرفية تلقائية لـ Bash و Zsh و Fish</li>
+                <li>اكتشاف تلقائي للإعدادات المثلى</li>
+                <li>تكامل ذكي مع جميع أنواع الطرفيات</li>
+            </ul>
+
+            <h3>إصلاحات الاستقرار:</h3>
+            <ul>
+                <li><span class="version-highlight">3.2</span> إصلاح كامل لمشكلة تكرار معالج الإعدادات</li>
+                <li>تحسين نظام التخزين المحلي للمواقيت</li>
+                <li>إضافة تحديث تلقائي للجداول الشهرية</li>
+                <li>تحسين استقرار العمليات الخلفية</li>
+                <li>معالجة أفضل للأخطاء - رسائل توضيحية</li>
+            </ul>
+        </section>
+
+        <section id="tray">
+            <h2><i class="fas fa-tasks"></i> System Tray - التحكم المركزي</h2>
+            
+            <div class="feature-card">
+                <h3><i class="fas fa-mouse-pointer"></i> قائمة التحكم السريعة</h3>
+                <p>انقر بزر الماوس الأيمن على الأيقونة للوصول السريع إلى جميع الميزات:</p>
+                <ul style="margin-top: 1rem; padding-right: 1rem;">
+                    <li><strong>🕌 معلومات الصلاة القادمة</strong> - عرض تفاصيل الصلاة التالية</li>
+                    <li><strong>📊 مواقيت اليوم</strong> - فتح نافذة الطرفية مع جميع المواقيت</li>
+                    <li><strong>🕊️ إظهار ذكر</strong> - عرض ذكر جديد في نافذة منبثقة</li>
+                    <li><strong>📈 حالة البرنامج</strong> - تقرير مفصل عن النظام والبيانات</li>
+                    <li><strong>⚙️ الإعدادات</strong> - فتح معالج الإعدادات</li>
+                    <li><strong>🔄 تحديث المواقيت</strong> - تحديث البيانات يدوياً</li>
+                    <li><strong>🔔 التحكم في الإشعارات</strong> - تشغيل/إيقاف الإشعارات</li>
+                    <li><strong>🖥️ إدارة الأيقونة</strong> - إعادة تشغيل/إغلاق System Tray</li>
+                    <li><strong>❓ المساعدة</strong> - فتح دليل المستخدم</li>
+                </ul>
+            </div>
+
+            <div class="demo-terminal">
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --tray-stop</span></div>
+                <div class="demo-line">🛑 إيقاف System Tray...</div>
+                <div class="demo-line">✅ تم إيقاف الأيقونة</div>
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-output">gtsalat --tray-restart</span></div>
+                <div class="demo-line">🔄 إعادة تشغيل System Tray...</div>
+                <div class="demo-line">✅ الأيقونة الآن نشطة مجدداً</div>
+            </div>
+        </section>
+
+        <section id="why-upgrade">
+            <h2><i class="fas fa-rocket"></i> لماذا الإصدار 3.2 أفضل؟</h2>
+
+            <div class="features">
+                <div class="feature-card">
+                    <h3><i class="fas fa-tasks"></i> System Tray المتكامل</h3>
+                    <p>واجهة مستخدم محسنة مع أيقونة دائمة في شريط المهام، تحكم سريع بكافة الميزات، عرض دائم للصلاة القادمة.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3><i class="fas fa-shield-alt"></i> موثوقية أعلى</h3>
+                    <p>إصلاحات أساسية للاستقرار، منع تكرار الإشعارات، تحسين كشف حالة النظام، معالجة محسنة للأخطاء.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3><i class="fas fa-sync-alt"></i> تحديث أسهل</h3>
+                    <p>تحديث كامل للمكونات بأمر واحد، تفعيل جميع الإشعارات افتراضياً، إعدادات طرفية تلقائية، تحسين مستمر.</p>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 2rem;">ما الذي تم إصلاحه في 3.2:</h3>
+            <div class="code-block">
+✅ إصلاح مشكلة تكرار معالج الإعدادات<br>✅ تحسين اكتشاف نظام الخدمة تلقائياً<br>✅ منع التكرار الذكي لأيقونات System Tray<br>✅ تحسين التوافق مع جميع التوزيعات<br>✅ إصلاح مشاكل التثبيت والإزالة<br>✅ تحسين نظام التخزين المحلي للمواقيت<br>✅ إضافة تحديث تلقائي للجداول الشهرية
+            </div>
+        </section>
+
+        <section id="license">
+            <h2><i class="fas fa-balance-scale"></i> الترخيص والمشاركة</h2>
+            <p>هذا البرنامج مرخص تحت <span class="highlight">رخصة جنو العمومية (GPL v2)</span>. يمكنك:</p>
+            <ul>
+                <li>استخدام البرنامج مجانًا لأي غرض</li>
+                <li>تعديل الشفرة المصدرية كما تشاء</li>
+                <li>توزيع نسخ معدلة مع الإشارة إلى التغييرات</li>
+                <li>المساهمة في تطوير المشروع</li>
+            </ul>
+
+            <p>المشروع مبني على فلسفة البرمجيات الحرة، ونرحب بجميع المساهمات والتطويرات.</p>
+
+            <a href="https://github.com/SalehGNUTUX/GT-salat-dikr" class="btn">
+                <i class="fas fa-code"></i> المساهمة في التطوير
+            </a>
+            <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/issues" class="btn btn-secondary">
+                <i class="fas fa-bug"></i> الإبلاغ عن مشكلة
+            </a>
+            <a href="https://salehgnutux.github.io/gnutux/" class="btn">
+                <i class="fas fa-globe"></i> مشاريع gnutux الأخرى
+            </a>
+        </section>
     </div>
 
     <footer>
-        <p>جميع الحقوق محفوظة © 2025 | بوابة المسلم - GT-MUSLIMPORTAL</p>
-        <div class="footer-links">
-            <a href="https://github.com/SalehGNUTUX/GT_MUSLIMPORTAL" class="footer-link" target="_blank">
-                <i class="fab fa-github"></i> مستودع المشروع على GitHub
-            </a>
-            <a href="https://salehgnutux.github.io/gnutux/" class="footer-link" target="_blank">
-                <i class="fas fa-code"></i> مشاريع GNUTUX
-            </a>
+        <div class="container">
+            <p>GT-salat-dikr - نظام إشعارات الصلاة والأذكار المتكامل - الإصدار 3.2</p>
+            <p>تم التطوير بواسطة <a href="https://github.com/SalehGNUTUX">SalehGNUTUX</a> - مرخص تحت <a href="https://github.com/SalehGNUTUX/GT-salat-dikr/blob/main/LICENSE">GPL v2</a></p>
+            <p>🖥️ الإصدار الأكثر نضجاً واستقراراً مع System Tray المتكامل</p>
+            <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.8;">جميع الميزات الجديدة في هذا الإصدار مدعومة بالكود المصدري المتاح على GitHub</p>
         </div>
-        <p class="developer">تم التطوير بواسطة: GNUTUX (صالح بن إسماعيل)</p>
     </footer>
 
-    <!-- نافذة إعدادات الإخطارات -->
-    <div class="modal" id="notification-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title" id="notification-modal-title">إعدادات الإخطارات</h3>
-                <button class="close-modal">&times;</button>
-            </div>
-            <div class="form-group">
-                <label>
-                    تفعيل الإخطارات
-                    <label class="switch">
-                        <input type="checkbox" id="notifications-toggle" checked>
-                        <span class="slider"></span>
-                    </label>
-                </label>
-            </div>
-            <div class="notification-settings" id="notification-settings">
-                <!-- سيتم ملء هذا القسم ديناميكيًا حسب الخدمة -->
-            </div>
-            <button class="btn" id="save-notifications-btn">حفظ الإعدادات</button>
-        </div>
-    </div>
-
-    <!-- نافذة إعدادات الخدمات -->
-    <div class="modal" id="settings-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title" id="settings-modal-title">إعدادات الخدمة</h3>
-                <button class="close-modal">&times;</button>
-            </div>
-            <div id="settings-content">
-                <!-- سيتم ملء هذا القسم ديناميكيًا حسب الخدمة -->
-            </div>
-            <!-- إضافة قسم الإحداثيات -->
-            <div class="coordinates-container" id="coordinates-container" style="display: none;">
-                <h4>إحداثيات الموقع الحالي</h4>
-                <div class="coordinates-display">
-                    <div>خط العرض: <span id="latitude-value">0.0000</span></div>
-                    <div>خط الطول: <span id="longitude-value">0.0000</span></div>
-                </div>
-            </div>
-            <div class="source-settings">
-                <h4>إعدادات المصادر</h4>
-                <div class="form-group">
-                    <label for="prayer-source">مصدر أوقات الصلاة:</label>
-                    <select id="prayer-source" class="form-control">
-                        <option value="aladhan">AlAdhan.com</option>
-                        <option value="manual">يدوي</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="weather-source">مصدر الطقس:</label>
-                    <select id="weather-source" class="form-control">
-                        <option value="openweather">OpenWeatherMap</option>
-                        <option value="weatherapi">WeatherAPI.com</option>
-                        <option value="manual">يدوي</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="azkar-source">مصدر الأذكار:</label>
-                    <select id="azkar-source" class="form-control">
-                        <option value="azkar-ml">Azkar.ml</option>
-                        <option value="islamic-network">Islamic Network</option>
-                        <option value="manual">يدوي</option>
-                    </select>
-                </div>
-            </div>
-            <button class="btn" id="save-settings-btn">حفظ الإعدادات</button>
-        </div>
-    </div>
-
-    <div class="save-notification" id="save-notification">
-        تم حفظ التغييرات بنجاح!
-    </div>
-
     <script>
-        // 🔑 مفتاح API للطقس (استخدم هذا المفتاح المجاني)
-        const WEATHER_API_KEY = '3b5c64a834c84c0ca51144055242502'; // مفتاح WeatherAPI.com مجاني
-        // أو يمكنك الحصول على مفتاح مجاني من موقع weatherAPI.com
+        // تبديل الوضع المظلم
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = themeToggle.querySelector('i');
 
-        // دالة لضبط الهامش العلوي للمحتوى
-        function adjustContainerMargin() {
-            const header = document.querySelector('header');
-            const container = document.querySelector('.container');
-
-            if (header && container) {
-                const headerHeight = header.offsetHeight;
-                container.style.marginTop = headerHeight + 20 + 'px'; // 20px هامش إضافي
-            }
+        // التحقق من التفضيل المحفوظ
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
         }
 
-        // استدعاء الدالة عند تحميل الصفحة وتغيير حجمها
-        window.addEventListener('load', adjustContainerMargin);
-        window.addEventListener('resize', adjustContainerMargin);
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
 
-        // عناصر DOM
-        const notificationButtons = document.querySelectorAll('.btn-notification');
-        const settingsButtons = document.querySelectorAll('.btn-settings');
-        const notificationModal = document.getElementById('notification-modal');
-        const settingsModal = document.getElementById('settings-modal');
-        const closeModalButtons = document.querySelectorAll('.close-modal');
-        const saveNotificationsBtn = document.getElementById('save-notifications-btn');
-        const saveSettingsBtn = document.getElementById('save-settings-btn');
-        const notificationsToggle = document.getElementById('notifications-toggle');
-        const notificationSettings = document.getElementById('notification-settings');
-        const saveNotification = document.getElementById('save-notification');
-        const searchInput = document.querySelector('.search-input');
-        const searchHeaderInput = document.querySelector('.search-header-input');
-        const webSearchBtn = document.getElementById('web-search-btn');
-        const serviceCards = document.querySelectorAll('.service-card');
-        const hijriDateElement = document.getElementById('hijri-date');
-        const gregorianDateElement = document.getElementById('gregorian-date');
-        const currentTimeElement = document.getElementById('current-time');
-        const prayerLocationElement = document.getElementById('prayer-location');
-        const weatherLocationElement = document.getElementById('weather-location');
-        const toggleHeaderBtn = document.getElementById('toggle-header-btn');
-        const mainHeader = document.getElementById('main-header');
-        const compactDateTime = document.getElementById('compact-date-time');
-        const compactHijriDate = document.getElementById('compact-hijri-date');
-        const compactGregorianDate = document.getElementById('compact-gregorian-date');
-        const compactTime = document.getElementById('compact-time');
-        const coordinatesContainer = document.getElementById('coordinates-container');
-        const latitudeValue = document.getElementById('latitude-value');
-        const longitudeValue = document.getElementById('longitude-value');
-
-        // إعدادات التطبيق
-        const DEFAULT_CITY = "الرباط";
-        const DEFAULT_COUNTRY = "المغرب";
-        let DEFAULT_METHOD = 4; // Umm Al-Qura University
-        let currentService = "";
-        let lastScrollTop = 0;
-        let isHeaderHidden = false;
-
-        // قائمة الأذكار (بديلة في حال فشل جلبها من API)
-        const azkarList = [
-            // 🌅 أذكار الصباح
-            "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ (مرة واحدة)",
-            "اللَّهُمَّ مَا أَصْبَحَ بِي مِنْ نِعْمَةٍ أَوْ بِأَحَدٍ مِنْ خَلْقِكَ فَمِنْكَ وَحْدَكَ لَا شَرِيكَ لَكَ، فَلَكَ الْحَمْدُ وَلَكَ الشُّكْرُ (مرة واحدة)",
-            "حَسْبِيَ اللَّهُ لَا إِلَهَ إِلَّا هُوَ، عَلَيْهِ تَوَكَّلْتُ وَهُوَ رَبُّ الْعَرْشِ الْعَظِيمِ (7 مرات)",
-            "بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعََلِيمُ (3 مرات)",
-            "اللَّهُمَّ بِكَ أَصْبَحْنَا، وَبِكَ أَمْسَيْنَا، وَبِكَ نَحْيَا، وَبِكَ نَمُوتُ، وَإِلَيْكَ النُّشُورُ (مرة واحدة)",
-            "أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ (3 مرات)",
-            "اللَّهُمَّ إِنِّي أَصْبَحْتُ أُشْهِدُكَ، وَأُشْهِدُ حَمَلَةَ عَرْشِكَ، وَمَلَائِكَتَكَ، وَجَمِيعَ خَلْقِكَ، أَنَّكَ أَنْتَ اللَّهُ لَا إِلَهَ إِلَّا أَنْتَ وَحْدَكَ لَا شَرِيكَ لَكَ، وَأَنَّ مُحَمَّدًا عَبْدُكَ وَرَسُولُكَ (4 مرات)",
-            "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ (100 مرة)",
-            "لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ (100 مرة)",
-
-            // 🌆 أذكار المساء
-            "أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ (مرة واحدة)",
-            "اللَّهُمَّ مَا أَمْسَى بِي مِنْ نِعْمَةٍ أَوْ بِأَحَدٍ مِنْ خَلْقِكَ فَمِنْكَ وَحْدَكَ لَا شَرِيكَ لَكَ، فَلَكَ الْحَمْدُ وَلَكَ الشُّكْرُ (مرة واحدة)",
-            "اللَّهُمَّ بِكَ أَمْسَيْنَا، وَبِكَ أَصْبَحْنَا، وَبِكَ نَحْيَا، وَبِكَ نَمُوتُ، وَإِلَيْكَ الْمَصِيرُ (مرة واحدة)",
-
-            // 🙏 أذكار بعد الصلاة
-            "أَسْتَغْفِرُ اللَّهَ (3 مرات) وَاللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ، تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ",
-            "سُبْحَانَ اللَّهِ (33 مرة)، الْحَمْدُ لِلَّهِ (33 مرة)، اللَّهُ أَكْبَرُ (33 مرة)، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ (مرة واحدة)",
-
-            // 🌙 أذكار النوم
-            "بِاسْمِكَ رَبِّي وَضَعْتُ جَنْبِي، وَبِكَ أَرْفَعُهُ، فَإِنْ أَمْسَكْتَ نَفْسِي فَارْحَمْهَا، وَإِنْ أَرْسَلْتَهَا فَاحْفَظْهَا بِمَا تَحْفَظُ بِهِ عِبَادَكَ الصَّالِحِينَ",
-            "اللَّهُمَّ قِنِي عَذَابَكَ يَوْمَ تَبْعَثُ عِبَادَكَ",
-            "سُبْحَانَ اللَّهِ (33 مرة)، الْحَمْدُ لِلَّهِ (33 مرة)، اللَّهُ أَكْبَرُ (34 مرة)",
-
-            // 🚶‍♂️ أذكار دخول / خروج المنزل
-            "بِسْمِ اللَّهِ، تَوَكَّلْتُ عَلَى اللَّهِ، وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ",
-            "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ أَنْ أَضِلَّ، أَوْ أُضَلَّ، أَوْ أَزِلَّ، أَوْ أُزَلَّ، أَوْ أَظْلِمَ، أَوْ أُظْلَمَ، أَوْ أَجْهَلَ، أَوْ يُجْهَلَ عَلَيَّ",
-
-            // ✈️ أذكار السفر
-            "سُبْحَانَ الَّذِي سَخَّرَ لَنَا هَذَا وَمَا كُنَّا لَهُ مُقْرِنِينَ وَإِنَّا إِلَى رَبِّنَا لَمُنْقَلِبُونَ",
-            "اللَّهُمَّ إِنَّا نَسْأَلُكَ فِي سَفَرِنَا هَذَا الْبِرَّ وَالتَّقْوَى، وَمِنَ الْعَمَلِ مَا تَرْضَى...",
-
-            // 🤲 أدعية عامة
-            "رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةَ حَسَنَةً وَقِنَا عَذَابَ النَّارِ",
-            "رَبِّ اغْفِرْ لِي وَلِوَالِدَيَّ وَلِلْمُؤْمِنِينَ يَوْمَ يَقُومُ الْحِسَابُ",
-            "اللَّهُمَّ اغْفِرْ لِي خَطِيئَتِي وَجَهْلِي، وَإِسْرَافِي فِي أَمْرِي، وَمَا أَنْتَ أَعْلَمُ بِهِ مِنِّي",
-            "اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ",
-            "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ زَوَالِ نِعْمَتِكَ، وَتَحَوُّلِ عَافِيَتِكَ، وَفُجَاءَةِ نِقْمَتِكَ، وَجَمِيعِ سَخَطِكَ",
-            "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْبُخْلِ، وَأَعُوذُ بِكَ مِنَ الْجُبْنِ، وَأَعُوذُ بِكَ أَنْ أُرَدَّ إِلَى أَرْذَلِ الْعُمُرِ، وَأَعُوذُ بِكَ مِنْ فِتْنَةِ الدُّنْيَا وَعَذَابِ الْقَبْرِ"
-        ];
-
-        // متغيرات عامة للأذونات والموقع
-        let userLocation = null;
-        let permissionsStatus = {
-            geolocation: false,
-            notifications: true // تم تفعيل الإشعارات افتراضياً
-        };
-
-        // دالة لتشغيل الأذان الصوتي
-        function playAthanSound(soundType = 'default') {
-            const soundUrls = {
-                'default': 'https://www.islamweb.net/athan/athan1.mp3',
-                'makkah': 'https://www.islamweb.net/athan/athan2.mp3', 
-                'madina': 'https://www.islamweb.net/athan/athan3.mp3',
-                'al-aqsa': 'https://www.islamweb.net/athan/athan4.mp3'
-            };
-
-            try {
-                const audio = new Audio(soundUrls[soundType]);
-                audio.volume = 0.7;
-                audio.preload = 'auto';
-                
-                audio.play().catch(error => {
-                    console.log('❌ تعذر تشغيل الأذان الصوتي:', error);
-                    playFallbackAthan();
-                });
-                
-                showAudioControls(audio, soundType);
-            } catch (error) {
-                console.log('❌ خطأ في تشغيل الأذان:', error);
-            }
-        }
-
-        // بديل صوتي إذا فشل تحميل الملف
-        function playFallbackAthan() {
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-                oscillator.frequency.setValueAtTime(880, audioContext.currentTime + 1);
-                oscillator.frequency.setValueAtTime(440, audioContext.currentTime + 2);
-                
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 3);
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 3);
-                
-                console.log('🔊 تشغيل نغمة الأذان البديلة');
-            } catch (error) {
-                console.log('❌ تعذر تشغيل البديل الصوتي:', error);
-            }
-        }
-
-        // عرض عناصر التحكم بالصوت
-        function showAudioControls(audio, soundType) {
-            const existingControls = document.getElementById('athan-controls');
-            if (existingControls) existingControls.remove();
-            
-            const controls = document.createElement('div');
-            controls.id = 'athan-controls';
-            controls.style.cssText = `
-                position: fixed;
-                bottom: 20px;
-                left: 20px;
-                background: var(--modal-bg);
-                padding: 15px;
-                border-radius: 10px;
-                border: 2px solid var(--primary-color);
-                z-index: 10000;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-                min-width: 200px;
-            `;
-            
-            controls.innerHTML = `
-                <div style="text-align: center; margin-bottom: 10px;">
-                    <strong>🕌 الأذان</strong>
-                    <br>
-                    <small>${getAthanName(soundType)}</small>
-                </div>
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button id="pause-athan" style="padding: 5px 10px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer;">إيقاف</button>
-                    <button id="resume-athan" style="padding: 5px 10px; background: #4caf50; color: white; border: none; border-radius: 5px; cursor: pointer;">استئناف</button>
-                    <button id="close-athan" style="padding: 5px 10px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer;">إغلاق</button>
-                </div>
-                <div style="margin-top: 10px;">
-                    <input type="range" id="volume-control" min="0" max="1" step="0.1" value="0.7" style="width: 100%;">
-                    <div style="text-align: center; font-size: 0.8em;">الصوت</div>
-                </div>
-            `;
-            
-            document.body.appendChild(controls);
-            
-            document.getElementById('pause-athan').addEventListener('click', () => audio.pause());
-            document.getElementById('resume-athan').addEventListener('click', () => audio.play().catch(console.error));
-            document.getElementById('close-athan').addEventListener('click', () => {
-                audio.pause();
-                controls.remove();
-            });
-            
-            document.getElementById('volume-control').addEventListener('input', (e) => {
-                audio.volume = e.target.value;
-            });
-            
-            audio.addEventListener('ended', () => {
-                setTimeout(() => controls.remove(), 3000);
-            });
-        }
-
-        // الحصول على اسم نوع الأذان
-        function getAthanName(type) {
-            const names = {
-                'default': 'أذان تقليدي',
-                'makkah': 'أذان مكة',
-                'madina': 'أذان المدينة', 
-                'al-aqsa': 'أذان الأقصى'
-            };
-            return names[type] || 'أذان';
-        }
-
-        // دالة جديدة لتفعيل جميع الإشعارات تلقائياً
-        function enableAllNotifications() {
-            // إعدادات الصلاة - تفعيل جميع الإشعارات
-            const prayerSettings = JSON.parse(localStorage.getItem('prayer_settings') || '{}');
-            prayerSettings.prayerTimeNotification = true;
-            prayerSettings.prayerBeforeNotification = true;
-            prayerSettings.prayerCustomTime = 10;
-            prayerSettings.timeFormat = '12';
-            prayerSettings.athanSound = 'default';
-            localStorage.setItem('prayer_settings', JSON.stringify(prayerSettings));
-
-            // إعدادات الطقس - تفعيل الإشعارات
-            const weatherSettings = JSON.parse(localStorage.getItem('weather_settings') || '{}');
-            weatherSettings.weatherNotification = true;
-            weatherSettings.weatherInterval = 60;
-            localStorage.setItem('weather_settings', JSON.stringify(weatherSettings));
-
-            // إعدادات الأذكار - تفعيل جميع الإشعارات
-            const azkarSettings = JSON.parse(localStorage.getItem('azkar_settings') || '{}');
-            azkarSettings.azkarNotification = true;
-            azkarSettings.azkarInterval = 30;
-            azkarSettings.azkarRandom = true;
-            localStorage.setItem('azkar_settings', JSON.stringify(azkarSettings));
-
-            console.log('✅ تم تفعيل جميع الإشعارات تلقائياً');
-        }
-
-        // طلب أذونات الموقع والإشعارات تلقائياً
-        async function requestPermissions() {
-            try {
-                // تفعيل الإشعارات افتراضياً
-                permissionsStatus.notifications = true;
-                enableAllNotifications();
-                
-                if ('geolocation' in navigator) {
-                    const savedPermissions = JSON.parse(localStorage.getItem('app_permissions') || '{}');
-
-                    if (!savedPermissions.geolocation_asked) {
-                        navigator.geolocation.getCurrentPosition(
-                            (position) => {
-                                userLocation = {
-                                    latitude: position.coords.latitude,
-                                    longitude: position.coords.longitude
-                                };
-                                permissionsStatus.geolocation = true;
-
-                                const permissions = JSON.parse(localStorage.getItem('app_permissions') || '{}');
-                                permissions.geolocation = true;
-                                permissions.geolocation_asked = true;
-                                permissions.location_data = userLocation;
-                                localStorage.setItem('app_permissions', JSON.stringify(permissions));
-
-                                console.log('✅ تم الحصول على إذن الموقع الجغرافي');
-                                updateCoordinatesDisplay();
-
-                                fetchPrayerTimes();
-                                fetchWeatherWithLocation();
-                            },
-                            (error) => {
-                                console.log('❌ تم رفض إذن الموقع الجغرافي:', error.message);
-
-                                const permissions = JSON.parse(localStorage.getItem('app_permissions') || '{}');
-                                permissions.geolocation = false;
-                                permissions.geolocation_asked = true;
-                                localStorage.setItem('app_permissions', JSON.stringify(permissions));
-
-                                fetchPrayerTimes();
-                                fetchWeather();
-                            },
-                            {
-                                enableHighAccuracy: true,
-                                timeout: 10000,
-                                maximumAge: 300000
-                            }
-                        );
-                    } else if (savedPermissions.geolocation && savedPermissions.location_data) {
-                        userLocation = savedPermissions.location_data;
-                        permissionsStatus.geolocation = true;
-                        updateCoordinatesDisplay();
-                        fetchPrayerTimes();
-                        fetchWeatherWithLocation();
-                    } else {
-                        fetchPrayerTimes();
-                        fetchWeather();
-                    }
-                }
-
-            } catch (error) {
-                console.error('خطأ في طلب الأذونات:', error);
-            }
-        }
-
-        // تحديث عرض الإحداثيات
-        function updateCoordinatesDisplay() {
-            if (userLocation) {
-                latitudeValue.textContent = userLocation.latitude.toFixed(6);
-                longitudeValue.textContent = userLocation.longitude.toFixed(6);
-                coordinatesContainer.style.display = 'block';
+            if (currentTheme === 'dark') {
+                document.documentElement.removeAttribute('data-theme');
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+                localStorage.setItem('theme', 'light');
             } else {
-                coordinatesContainer.style.display = 'none';
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+                localStorage.setItem('theme', 'dark');
             }
-        }
-
-        // إشعار ترحيبي
-        function showWelcomeNotification() {
-            if (permissionsStatus.notifications && Notification.permission === 'granted') {
-                const notification = new Notification('🌙 بوابة المسلم', {
-                    body: 'مرحباً بك! تم تفعيل جميع الإشعارات افتراضياً.',
-                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🌙</text></svg>',
-                    tag: 'welcome',
-                    requireInteraction: false
-                });
-
-                notification.onclick = function() {
-                    window.focus();
-                    notification.close();
-                };
-
-                setTimeout(() => notification.close(), 5000);
-            }
-        }
-
-        // إرسال إشعار عام
-        function sendNotification(title, body, icon = '🌙', tag = 'general') {
-            if (permissionsStatus.notifications && Notification.permission === 'granted') {
-                const notification = new Notification(title, {
-                    body: body,
-                    icon: `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>${icon}</text></svg>`,
-                    tag: tag,
-                    requireInteraction: false
-                });
-
-                notification.onclick = function() {
-                    window.focus();
-                    notification.close();
-                };
-
-                setTimeout(() => notification.close(), 8000);
-                return notification;
-            }
-            return null;
-        }
-
-        // تهيئة التطبيق
-        function initApp() {
-            // طلب الأذونات أولاً
-            requestPermissions();
-
-            // تحميل الإعدادات من localStorage
-            loadSettings();
-
-            // تحديث الوقت والتاريخ
-            updateDateTime();
-            setInterval(updateDateTime, 1000);
-
-            // جلب البيانات من المصادر
-            fetchHijriDate();
-            fetchPrayerTimes();
-            fetchWeather();
-            fetchAzkar();
-
-            // إضافة event listeners
-            setupEventListeners();
-
-            // ضبط الهامش العلوي للمحتوى
-            adjustContainerMargin();
-
-            // إضافة مستمع لحدث التمرير
-            window.addEventListener('scroll', handleScroll);
-            
-            // تحميل الأذكار المخصصة
-            loadCustomAzkar();
-            
-            console.log('✅ تم تهيئة التطبيق بنجاح مع تفعيل جميع الإشعارات');
-        }
-
-        // التعامل مع حدث التمرير
-        function handleScroll() {
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-            if (scrollTop > lastScrollTop && scrollTop > 100) {
-                if (!isHeaderHidden) {
-                    mainHeader.classList.add('hidden');
-                    isHeaderHidden = true;
-                }
-            } else {
-                if (isHeaderHidden) {
-                    mainHeader.classList.remove('hidden');
-                    isHeaderHidden = false;
-                }
-            }
-
-            lastScrollTop = scrollTop;
-        }
-
-        // إعداد مستمعي الأحداث
-        function setupEventListeners() {
-            notificationButtons.forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const service = e.currentTarget.dataset.service;
-                    showNotificationModal(service);
-                });
-            });
-
-            settingsButtons.forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const service = e.currentTarget.dataset.service;
-                    showSettingsModal(service);
-                });
-            });
-
-            closeModalButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    notificationModal.style.display = 'none';
-                    settingsModal.style.display = 'none';
-                });
-            });
-
-            saveNotificationsBtn.addEventListener('click', saveNotificationSettings);
-            saveSettingsBtn.addEventListener('click', saveServiceSettings);
-
-            searchInput.addEventListener('input', filterServices);
-
-            webSearchBtn.addEventListener('click', performWebSearch);
-            searchHeaderInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') performWebSearch();
-            });
-
-            document.addEventListener('click', (e) => {
-                if (e.target === notificationModal) notificationModal.style.display = 'none';
-                if (e.target === settingsModal) settingsModal.style.display = 'none';
-            });
-
-            toggleHeaderBtn.addEventListener('click', () => {
-                mainHeader.classList.toggle('hidden');
-                isHeaderHidden = mainHeader.classList.contains('hidden');
-            });
-
-            document.addEventListener('click', function(e) {
-                if (e.target.id === 'prayer-location-auto' || e.target.closest('#prayer-location-auto')) {
-                    getLocationForPrayer();
-                }
-                if (e.target.id === 'weather-location-auto' || e.target.closest('#weather-location-auto')) {
-                    getLocationForWeather();
-                }
-            });
-        }
-
-        // الحصول على الموقع للصلاة
-        function getLocationForPrayer() {
-            if ('geolocation' in navigator) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        userLocation = {
-                            latitude: position.coords.latitude,
-                            longitude: position.coords.longitude
-                        };
-
-                        const permissions = JSON.parse(localStorage.getItem('app_permissions') || '{}');
-                        permissions.geolocation = true;
-                        permissions.location_data = userLocation;
-                        localStorage.setItem('app_permissions', JSON.stringify(permissions));
-
-                        if (document.getElementById('prayer-location')) {
-                            document.getElementById('prayer-location').value = "موقعك الحالي";
-                        }
-
-                        updateCoordinatesDisplay();
-                        fetchPrayerTimes();
-                        alert('✅ تم تحديد موقعك بنجاح!');
-                    },
-                    (error) => {
-                        console.error('Error getting location:', error);
-                        alert('❌ تعذر الحصول على موقعك. تأكد من تفعيل خدمة الموقع.');
-                    }
-                );
-            } else {
-                alert('❌ المتصفح لا يدعم خدمة الموقع.');
-            }
-        }
-
-        // الحصول على الموقع للطقس
-        function getLocationForWeather() {
-            if ('geolocation' in navigator) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        userLocation = {
-                            latitude: position.coords.latitude,
-                            longitude: position.coords.longitude
-                        };
-
-                        const permissions = JSON.parse(localStorage.getItem('app_permissions') || '{}');
-                        permissions.geolocation = true;
-                        permissions.location_data = userLocation;
-                        localStorage.setItem('app_permissions', JSON.stringify(permissions));
-
-                        if (document.getElementById('weather-location')) {
-                            document.getElementById('weather-location').value = "موقعك الحالي";
-                        }
-
-                        updateCoordinatesDisplay();
-                        fetchWeatherWithLocation();
-                        alert('✅ تم تحديد موقعك بنجاح!');
-                    },
-                    (error) => {
-                        console.error('Error getting location:', error);
-                        alert('❌ تعذر الحصول على موقعك. تأكد من تفعيل خدمة الموقع.');
-                    }
-                );
-            } else {
-                alert('❌ المتصفح لا يدعم خدمة الموقع.');
-            }
-        }
-
-        // تحويل الأرقام المشرقية إلى عربية
-        function convertToArabicDigits(str) {
-            if (!str) return "";
-            const arabicToEnglishMap = {
-                '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
-                '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
-            };
-
-            return str.replace(/[٠-٩]/g, digit => arabicToEnglishMap[digit] || digit);
-        }
-
-        // تحديث الوقت والتاريخ
-        function updateDateTime() {
-            const now = new Date();
-
-            // الوقت الحالي
-            const timeString = now.toLocaleTimeString('ar-SA', {
-                hour12: true,
-                hour: 'numeric',
-                minute: 'numeric',
-                second: 'numeric'
-            });
-
-            const arabicTime = convertToArabicDigits(timeString);
-            currentTimeElement.textContent = `⏰ ${arabicTime}`;
-
-            // تحديث الوقت في الشريط المدمج
-            if (compactTime) {
-                compactTime.textContent = arabicTime;
-            }
-
-            // تحديث التاريخ الميلادي في الشريط المدمج
-            if (compactGregorianDate && window.lastGregorianDate) {
-                const shortGregorianDate = window.lastGregorianDate.split('،')[0]; // أخذ الجزء الأول فقط
-                compactGregorianDate.textContent = shortGregorianDate;
-            }
-
-            // تحديث التاريخ الهجري في الشريط المدمج
-            if (compactHijriDate && window.lastHijriDate) {
-                const shortHijriDate = window.lastHijriDate.split('<br>')[0].replace('🗓 التاريخ الهجري: ', '');
-                compactHijriDate.textContent = shortHijriDate;
-            }
-        }
-
-        // جلب التاريخ الهجري
-        function fetchHijriDate() {
-            const currentDate = new Date();
-            const formattedDate = `${currentDate.getDate()}-${currentDate.getMonth() + 1}-${currentDate.getFullYear()}`;
-
-            fetch(`https://api.aladhan.com/v1/gToH/${formattedDate}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.code === 200) {
-                        const hijri = data.data.hijri;
-                        const formattedHijriDate = `${hijri.day} ${hijri.month.ar} ${hijri.year} هـ`;
-                        const arabicHijriDate = convertToArabicDigits(formattedHijriDate);
-                        hijriDateElement.innerHTML = `🗓 التاريخ الهجري: ${arabicHijriDate}<br>🌙 ${hijri.weekday.ar}`;
-                        
-                        // حفظ التاريخ الهجري للشريط المدمج
-                        window.lastHijriDate = hijriDateElement.innerHTML;
-
-                        // تحديث التاريخ الميلادي
-                        const gregorianDate = currentDate.toLocaleDateString('ar-MA', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            weekday: 'long'
-                        });
-                        const arabicGregorianDate = convertToArabicDigits(gregorianDate);
-                        gregorianDateElement.innerHTML = `📅 التاريخ الميلادي: ${arabicGregorianDate}`;
-                        window.lastGregorianDate = arabicGregorianDate;
-                    } else {
-                        setDefaultDates();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching hijri date:', error);
-                    setDefaultDates();
-                });
-
-            function setDefaultDates() {
-                const today = new Date();
-                const hijriDate = today.toLocaleDateString('ar-MA', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-                hijriDateElement.innerHTML = `🗓 التاريخ الهجري: ${convertToArabicDigits(hijriDate)}`;
-                window.lastHijriDate = hijriDateElement.innerHTML;
-
-                const gregorianDate = today.toLocaleDateString('ar-MA', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    weekday: 'long'
-                });
-                const arabicGregorianDate = convertToArabicDigits(gregorianDate);
-                gregorianDateElement.innerHTML = `📅 التاريخ الميلادي: ${arabicGregorianDate}`;
-                window.lastGregorianDate = arabicGregorianDate;
-            }
-        }
-
-        // جلب أوقات الصلاة من API
-        function fetchPrayerTimes() {
-            const savedPrayerSettings = JSON.parse(localStorage.getItem('prayer_settings') || '{}');
-            const method = savedPrayerSettings.method || DEFAULT_METHOD;
-
-            const currentDate = new Date();
-            const formattedDate = `${currentDate.getDate()}-${currentDate.getMonth() + 1}-${currentDate.getFullYear()}`;
-
-            document.getElementById('prayer-times').innerHTML = `
-                <div class="loading">
-                    <i class="fas fa-spinner fa-spin"></i> جاري تحميل أوقات الصلاة...
-                </div>
-            `;
-
-            let apiUrl;
-            let locationText = `${DEFAULT_CITY}, ${DEFAULT_COUNTRY}`;
-
-            if (userLocation && permissionsStatus.geolocation) {
-                apiUrl = `https://api.aladhan.com/v1/timings/${formattedDate}?latitude=${userLocation.latitude}&longitude=${userLocation.longitude}&method=${method}`;
-                locationText = "موقعك الحالي";
-            } else {
-                const location = savedPrayerSettings.location || DEFAULT_CITY;
-                const country = DEFAULT_COUNTRY;
-                apiUrl = `https://api.aladhan.com/v1/timingsByCity/${formattedDate}?city=${encodeURIComponent(location)}&country=${encodeURIComponent(country)}&method=${method}`;
-                locationText = `${location}, ${country}`;
-            }
-
-            fetch(apiUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.code === 200) {
-                        const timings = data.data.timings;
-                        const meta = data.data.meta;
-                        updatePrayerTimes(timings, meta, locationText);
-                        setupPrayerNotifications(timings);
-                    } else {
-                        showPrayerTimesError();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching prayer times:', error);
-                    showPrayerTimesError();
-                });
-        }
-
-        function showPrayerTimesError() {
-            document.getElementById('prayer-times').innerHTML = `
-                <div class="error">
-                    ❌ فشل في تحميل أوقات الصلاة
-                </div>
-            `;
-        }
-
-        // تحديث عرض أوقات الصلاة
-        function updatePrayerTimes(timings, meta, locationText = `${DEFAULT_CITY}, ${DEFAULT_COUNTRY}`) {
-            const prayerTimesElement = document.getElementById('prayer-times');
-            prayerLocationElement.innerHTML = `📍 الموقع: ${locationText}`;
-            prayerTimesElement.innerHTML = '';
-
-            const savedPrayerSettings = JSON.parse(localStorage.getItem('prayer_settings') || '{}');
-            const timeFormat = savedPrayerSettings.timeFormat || '12';
-
-            const prayers = [
-                { name: '🌅 الفجر', time: timings.Fajr, key: 'Fajr' },
-                { name: '🌞 الشروق', time: timings.Sunrise, key: 'Sunrise' },
-                { name: '☀️ الظهر', time: timings.Dhuhr, key: 'Dhuhr' },
-                { name: '🌇 العصر', time: timings.Asr, key: 'Asr' },
-                { name: '🌆 المغرب', time: timings.Maghrib, key: 'Maghrib' },
-                { name: '🌙 العشاء', time: timings.Isha, key: 'Isha' }
-            ];
-
-            prayers.forEach(prayer => {
-                const timeItem = document.createElement('div');
-                timeItem.className = 'prayer-time-item';
-                timeItem.id = `prayer-${prayer.key}`;
-
-                const [hours, minutes] = prayer.time.split(':');
-                let timeString;
-
-                if (timeFormat === '24') {
-                    timeString = `${hours}:${minutes}`;
-                } else {
-                    const hour = parseInt(hours);
-                    const period = hour >= 12 ? 'م' : 'ص';
-                    const formattedHour = hour % 12 || 12;
-                    timeString = `${formattedHour}:${minutes} ${period}`;
-                }
-
-                const arabicTime = convertToArabicDigits(timeString);
-                timeItem.textContent = `${prayer.name}: ${arabicTime}`;
-                prayerTimesElement.appendChild(timeItem);
-            });
-
-            highlightCurrentPrayer(timings);
-        }
-
-        // تحديد الصلاة الحالية
-        function highlightCurrentPrayer(timings) {
-            const now = new Date();
-            const currentTime = now.getHours() * 60 + now.getMinutes();
-
-            const prayerTimes = [
-                { key: 'Fajr', time: convertTimeToMinutes(timings.Fajr) },
-                { key: 'Dhuhr', time: convertTimeToMinutes(timings.Dhuhr) },
-                { key: 'Asr', time: convertTimeToMinutes(timings.Asr) },
-                { key: 'Maghrib', time: convertTimeToMinutes(timings.Maghrib) },
-                { key: 'Isha', time: convertTimeToMinutes(timings.Isha) }
-            ];
-
-            let currentPrayer = null;
-
-            for (let i = 0; i < prayerTimes.length; i++) {
-                if (currentTime < prayerTimes[i].time) {
-                    if (i > 0) {
-                        currentPrayer = prayerTimes[i - 1].key;
-                    }
-                    break;
-                }
-            }
-
-            if (!currentPrayer) currentPrayer = 'Isha';
-
-            document.querySelectorAll('.prayer-time-item').forEach(item => {
-                item.classList.remove('current-prayer');
-            });
-
-            if (currentPrayer) {
-                const currentPrayerElement = document.getElementById(`prayer-${currentPrayer}`);
-                if (currentPrayerElement) {
-                    currentPrayerElement.classList.add('current-prayer');
-                }
-            }
-        }
-
-        // تحويل الوقت إلى دقائق
-        function convertTimeToMinutes(time) {
-            const [hours, minutes] = time.split(':').map(Number);
-            return hours * 60 + minutes;
-        }
-
-        // إعداد إشعارات أوقات الصلاة
-        function setupPrayerNotifications(timings) {
-            if (!permissionsStatus.notifications) return;
-
-            const savedSettings = JSON.parse(localStorage.getItem('prayer_settings') || '{}');
-            if (!savedSettings.prayerTimeNotification) return;
-
-            clearPrayerNotifications();
-
-            const prayers = [
-                { name: 'الفجر', time: timings.Fajr, icon: '🌅' },
-                { name: 'الظهر', time: timings.Dhuhr, icon: '☀️' },
-                { name: 'العصر', time: timings.Asr, icon: '🌇' },
-                { name: 'المغرب', time: timings.Maghrib, icon: '🌆' },
-                { name: 'العشاء', time: timings.Isha, icon: '🌙' }
-            ];
-
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-            prayers.forEach(prayer => {
-                const [hours, minutes] = prayer.time.split(':').map(Number);
-                const prayerTime = new Date(today);
-                prayerTime.setHours(hours, minutes, 0, 0);
-
-                if (prayerTime > now) {
-                    const timeUntilPrayer = prayerTime.getTime() - now.getTime();
-
-                    const timeout = setTimeout(() => {
-                        sendNotification(
-                            `${prayer.icon} حان وقت ${prayer.name}`,
-                            `الوقت الآن ${prayer.time} - حان وقت صلاة ${prayer.name}`,
-                            prayer.icon,
-                            `prayer-${prayer.name}`
-                        );
-                        
-                        if (savedSettings.athanSound) {
-                            console.log(`🔊 تشغيل الأذان الصوتي لصلاة ${prayer.name}`);
-                            playAthanSound(savedSettings.athanSound);
-                        }
-                    }, timeUntilPrayer);
-
-                    if (!window.prayerTimeouts) window.prayerTimeouts = [];
-                    window.prayerTimeouts.push(timeout);
-                }
-
-                if (savedSettings.prayerBeforeNotification) {
-                    const tenMinutesBefore = new Date(prayerTime.getTime() - 10 * 60 * 1000);
-
-                    if (tenMinutesBefore > now) {
-                        const timeUntilReminder = tenMinutesBefore.getTime() - now.getTime();
-
-                        const timeout = setTimeout(() => {
-                            sendNotification(
-                                `⏰ تذكير صلاة ${prayer.name}`,
-                                `باقي 10 دقائق على صلاة ${prayer.name} (${prayer.time})`,
-                                '⏰',
-                                `reminder-${prayer.name}`
-                            );
-                        }, timeUntilReminder);
-
-                        if (!window.prayerTimeouts) window.prayerTimeouts = [];
-                        window.prayerTimeouts.push(timeout);
-                    }
-                }
-            });
-
-            console.log('✅ تم إعداد إشعارات أوقات الصلاة');
-        }
-
-        // مسح إشعارات أوقات الصلاة السابقة
-        function clearPrayerNotifications() {
-            if (window.prayerTimeouts) {
-                window.prayerTimeouts.forEach(timeout => clearTimeout(timeout));
-                window.prayerTimeouts = [];
-            }
-        }
-
-        // 🔥 دالة محسنة لجلب بيانات الطقس الحقيقية
-        function fetchWeather() {
-            document.getElementById('weather-info').innerHTML = `
-                <div class="loading">
-                    <i class="fas fa-spinner fa-spin"></i> جاري تحميل بيانات الطقس...
-                </div>
-            `;
-
-            // استخدام موقع الحالي إذا كان متاحاً
-            if (userLocation && permissionsStatus.geolocation) {
-                fetchWeatherWithLocation();
-                return;
-            }
-
-            // استخدام موقع افتراضي (الرباط)
-            const city = DEFAULT_CITY;
-            const country = DEFAULT_COUNTRY.toLowerCase();
-            
-            // استخدام WeatherAPI.com المجاني
-            const apiUrl = `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${city}&aqi=no&lang=ar`;
-            
-            fetch(apiUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error('Weather API failed');
-                    return response.json();
-                })
-                .then(data => {
-                    updateWeather(data, `${city}, ${DEFAULT_COUNTRY}`);
-                })
-                .catch(error => {
-                    console.error('Error fetching weather:', error);
-                    // محاولة مصدر بديل
-                    fetchWeatherFallback(city);
-                });
-        }
-
-        // 🔥 دالة محسنة لجلب الطقس بالموقع الحقيقي
-        function fetchWeatherWithLocation() {
-            if (!userLocation) {
-                fetchWeather();
-                return;
-            }
-
-            document.getElementById('weather-info').innerHTML = `
-                <div class="loading">
-                    <i class="fas fa-spinner fa-spin"></i> جاري تحميل بيانات الطقس لموقعك...
-                </div>
-            `;
-
-            const { latitude, longitude } = userLocation;
-            
-            // استخدام WeatherAPI.com مع الإحداثيات
-            const apiUrl = `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${latitude},${longitude}&aqi=no&lang=ar`;
-            
-            fetch(apiUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error('Weather API failed');
-                    return response.json();
-                })
-                .then(data => {
-                    const locationName = data.location ? `${data.location.name}, ${data.location.country}` : "موقعك الحالي";
-                    updateWeather(data, locationName);
-                    
-                    // إرسال إشعار إذا كان مفعلاً
-                    const savedSettings = JSON.parse(localStorage.getItem('weather_settings') || '{}');
-                    if (savedSettings.weatherNotification && permissionsStatus.notifications) {
-                        sendNotification(
-                            '🌤️ حالة الطقس',
-                            `درجة الحرارة: ${data.current.temp_c}°م - ${data.current.condition.text}`,
-                            '🌤️',
-                            'weather'
-                        );
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching weather with location:', error);
-                    fetchWeatherFallback("موقعك الحالي");
-                });
-        }
-
-        // 🔥 دالة احتياطية للطقس
-        function fetchWeatherFallback(locationName) {
-            // بيانات طقس واقعية محاكاة
-            const weatherConditions = [
-                { condition: "مشمس", temp: 25, humidity: 45, wind: 15, icon: "☀️" },
-                { condition: "غائم جزئياً", temp: 22, humidity: 60, wind: 12, icon: "⛅" },
-                { condition: "غائم", temp: 20, humidity: 70, wind: 10, icon: "☁️" },
-                { condition: "ممطر خفيف", temp: 18, humidity: 85, wind: 8, icon: "🌦️" }
-            ];
-            
-            const randomWeather = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
-            
-            const weatherData = {
-                current: {
-                    temp_c: randomWeather.temp + Math.floor(Math.random() * 5) - 2, // تغيير طفيف في الحرارة
-                    condition: { text: randomWeather.condition },
-                    humidity: randomWeather.humidity + Math.floor(Math.random() * 10) - 5,
-                    wind_kph: randomWeather.wind + Math.floor(Math.random() * 5) - 2
-                }
-            };
-            
-            updateWeather(weatherData, locationName);
-            
-            console.log(`🌤️ استخدام بيانات طقس احتياطية لـ ${locationName}`);
-        }
-
-        // 🔥 تحديث دالة عرض الطقس
-        function updateWeather(weatherData, locationName = `${DEFAULT_CITY}, ${DEFAULT_COUNTRY}`) {
-            const weatherInfoElement = document.getElementById('weather-info');
-            weatherLocationElement.innerHTML = `📍 الموقع: ${locationName}`;
-
-            if (weatherData && weatherData.current) {
-                const temp = convertToArabicDigits(Math.round(weatherData.current.temp_c).toString());
-                const humidity = convertToArabicDigits(weatherData.current.humidity.toString());
-                const windSpeed = convertToArabicDigits(Math.round(weatherData.current.wind_kph).toString());
-                const condition = weatherData.current.condition?.text || "مشمس";
-
-                weatherInfoElement.innerHTML = `
-                    <div class="weather-item">
-                        <span>الحالة:</span>
-                        <span>${condition}</span>
-                    </div>
-                    <div class="weather-item">
-                        <span>درجة الحرارة:</span>
-                        <span>${temp}°م</span>
-                    </div>
-                    <div class="weather-item">
-                        <span>الرطوبة:</span>
-                        <span>${humidity}%</span>
-                    </div>
-                    <div class="weather-item">
-                        <span>الرياح:</span>
-                        <span>${windSpeed} كم/س</span>
-                    </div>
-                `;
-                
-                // إضافة رمز حالة الطقس
-                const conditionIcon = getWeatherIcon(condition);
-                if (conditionIcon) {
-                    weatherInfoElement.innerHTML = `
-                        <div class="weather-item" style="text-align: center; font-size: 2rem; margin-bottom: 10px;">
-                            ${conditionIcon}
-                        </div>
-                        ${weatherInfoElement.innerHTML}
-                    `;
-                }
-            } else {
-                weatherInfoElement.innerHTML = `
-                    <div class="error">
-                        ❌ تعذر تحميل بيانات الطقس
-                    </div>
-                `;
-            }
-        }
-
-        // 🔥 دالة للحصول على رمز حالة الطقس
-        function getWeatherIcon(condition) {
-            const conditionMap = {
-                'مشمس': '☀️',
-                'صافي': '☀️',
-                'غائم جزئياً': '⛅',
-                'غائم': '☁️',
-                'ممطر': '🌧️',
-                'ممطر خفيف': '🌦️',
-                'عاصف': '💨',
-                'ثلجي': '❄️',
-                'ضباب': '🌫️',
-                'عاصفة رعدية': '⛈️'
-            };
-            
-            for (const [key, icon] of Object.entries(conditionMap)) {
-                if (condition.includes(key)) {
-                    return icon;
-                }
-            }
-            
-            return '🌤️'; // رمز افتراضي
-        }
-
-        // إضافة الأذكار المخصصة
-        function addCustomAzkar() {
-            const newAzkarInput = document.getElementById('new-azkar');
-            const newAzkar = newAzkarInput.value.trim();
-
-            if (newAzkar) {
-                const customAzkar = JSON.parse(localStorage.getItem('custom_azkar') || '[]');
-                customAzkar.push(newAzkar);
-                localStorage.setItem('custom_azkar', JSON.stringify(customAzkar));
-                loadCustomAzkar();
-                newAzkarInput.value = '';
-                alert('✅ تم إضافة الذكر بنجاح!');
-            } else {
-                alert('❌ الرجاء كتابة ذكر قبل الإضافة');
-            }
-        }
-
-        // تحميل الأذكار المخصصة
-        function loadCustomAzkar() {
-            const customAzkarList = document.getElementById('custom-azkar-list');
-            const customAzkar = JSON.parse(localStorage.getItem('custom_azkar') || '[]');
-            
-            customAzkarList.innerHTML = '';
-            
-            if (customAzkar.length === 0) {
-                customAzkarList.innerHTML = '<div style="text-align: center; padding: 10px; color: #ccc;">لا توجد أذكار مضافة</div>';
-                return;
-            }
-            
-            customAzkar.forEach((azkar, index) => {
-                const azkarItem = document.createElement('div');
-                azkarItem.className = 'custom-azkar-item';
-                azkarItem.innerHTML = `
-                    <span>${azkar.substring(0, 50)}${azkar.length > 50 ? '...' : ''}</span>
-                    <button class="remove-azkar" data-index="${index}"><i class="fas fa-trash"></i></button>
-                `;
-                customAzkarList.appendChild(azkarItem);
+        });
+
+        // ====== معرض الصور المتحرك ======
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.gallery-slide');
+        const indicatorsContainer = document.getElementById('galleryIndicators');
+
+        // إنشاء المؤشرات
+        slides.forEach((_, index) => {
+            const indicator = document.createElement('div');
+            indicator.className = 'indicator';
+            if (index === 0) indicator.classList.add('active');
+            indicator.addEventListener('click', () => goToSlide(index));
+            indicatorsContainer.appendChild(indicator);
+        });
+
+        const indicators = document.querySelectorAll('.indicator');
+
+        // تحديث الشريحة النشطة
+        function updateSlide() {
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active');
+                indicators[index].classList.remove('active');
             });
             
-            document.querySelectorAll('.remove-azkar').forEach(button => {
-                button.addEventListener('click', function() {
-                    const index = parseInt(this.getAttribute('data-index'));
-                    removeCustomAzkar(index);
-                });
-            });
+            slides[currentSlide].classList.add('active');
+            indicators[currentSlide].classList.add('active');
         }
 
-        // حذف الأذكار المخصصة
-        function removeCustomAzkar(index) {
-            const customAzkar = JSON.parse(localStorage.getItem('custom_azkar') || '[]');
-            
-            if (index >= 0 && index < customAzkar.length) {
-                customAzkar.splice(index, 1);
-                localStorage.setItem('custom_azkar', JSON.stringify(customAzkar));
-                loadCustomAzkar();
-            }
+        // الانتقال إلى شريحة محددة
+        function goToSlide(index) {
+            currentSlide = index;
+            updateSlide();
         }
 
-        // جلب الأذكار
-        function fetchAzkar() {
-            document.getElementById('azkar-list').innerHTML = `
-                <div class="loading">
-                    <i class="fas fa-spinner fa-spin"></i> جاري تحميل الأذكار...
-                </div>
-            `;
-
-            const customAzkar = JSON.parse(localStorage.getItem('custom_azkar') || '[]');
-            const allAzkar = [...azkarList, ...customAzkar];
-
-            Promise.any([
-                fetch('https://azkar.ml/zekr?m=true&json=true')
-                    .then(response => {
-                        if (!response.ok) throw new Error('Azkar.ml failed');
-                        return response.json();
-                    }),
-                new Promise((resolve) => {
-                    setTimeout(() => {
-                        resolve({
-                            content: allAzkar[Math.floor(Math.random() * allAzkar.length)]
-                        });
-                    }, 1000);
-                })
-            ])
-            .then(data => {
-                updateAzkar(data.content);
-                setupAzkarNotifications();
-            })
-            .catch(error => {
-                console.error('Error fetching azkar:', error);
-                const randomAzkar = allAzkar[Math.floor(Math.random() * allAzkar.length)];
-                updateAzkar(randomAzkar);
-                setupAzkarNotifications();
-            });
+        // الشريحة التالية
+        function nextSlide() {
+            currentSlide = (currentSlide + 1) % slides.length;
+            updateSlide();
         }
 
-        // تحديث عرض الأذكار
-        function updateAzkar(azkarContent) {
-            const azkarListElement = document.getElementById('azkar-list');
-            azkarListElement.innerHTML = '';
-
-            const azkarItem = document.createElement('div');
-            azkarItem.className = 'azkar-item';
-            azkarItem.innerHTML = `<p>${azkarContent}</p>`;
-            azkarListElement.appendChild(azkarItem);
-
-            const shuffledAzkar = [...azkarList].sort(() => 0.5 - Math.random());
-            const selectedAzkar = shuffledAzkar.slice(0, 2);
-
-            selectedAzkar.forEach(zekr => {
-                if (zekr !== azkarContent) {
-                    const azkarItem = document.createElement('div');
-                    azkarItem.className = 'azkar-item';
-                    azkarItem.innerHTML = `<p>${zekr}</p>`;
-                    azkarListElement.appendChild(azkarItem);
-                }
-            });
+        // الشريحة السابقة
+        function prevSlide() {
+            currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+            updateSlide();
         }
 
-        // إعداد إشعارات الأذكار
-        function setupAzkarNotifications() {
-            if (!permissionsStatus.notifications) return;
+        // إضافة أحداث الأزرار
+        document.getElementById('nextBtn').addEventListener('click', nextSlide);
+        document.getElementById('prevBtn').addEventListener('click', prevSlide);
 
-            const savedSettings = JSON.parse(localStorage.getItem('azkar_settings') || '{}');
-            if (!savedSettings.azkarNotification) return;
+        // تشغيل عرض شرائح تلقائي
+        let slideInterval = setInterval(nextSlide, 5000);
 
-            clearAzkarNotifications();
+        // إيقاف العرض التلقائي عند التفاعل
+        const galleryContainer = document.getElementById('galleryContainer');
+        galleryContainer.addEventListener('mouseenter', () => clearInterval(slideInterval));
+        galleryContainer.addEventListener('mouseleave', () => {
+            slideInterval = setInterval(nextSlide, 5000);
+        });
 
-            const azkarTimes = [
-                { hour: 6, minute: 0, type: 'morning', title: '🌅 أذكار الصباح' },
-                { hour: 9, minute: 0, type: 'morning2', title: '☀️ تذكير الصباح' },
-                { hour: 12, minute: 0, type: 'noon', title: '🕌 ذكر الظهيرة' },
-                { hour: 15, minute: 0, type: 'afternoon', title: '🌇 ذكر العصر' },
-                { hour: 18, minute: 0, type: 'evening', title: '🌆 أذكار المساء' },
-                { hour: 21, minute: 0, type: 'night', title: '🌙 أذكار الليل' }
-            ];
+        // تأثيرات scroll suave
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
 
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const targetId = this.getAttribute('href');
+                if (targetId === '#') return;
 
-            azkarTimes.forEach(azkarTime => {
-                const azkarDateTime = new Date(today);
-                azkarDateTime.setHours(azkarTime.hour, azkarTime.minute, 0, 0);
-
-                if (azkarDateTime > now) {
-                    const timeUntilAzkar = azkarDateTime.getTime() - now.getTime();
-
-                    const timeout = setTimeout(() => {
-                        const randomAzkar = azkarList[Math.floor(Math.random() * azkarList.length)];
-                        const shortAzkar = randomAzkar.length > 100 ? 
-                            randomAzkar.substring(0, 100) + '...' : randomAzkar;
-
-                        sendNotification(
-                            azkarTime.title,
-                            shortAzkar,
-                            '📿',
-                            `azkar-${azkarTime.type}`
-                        );
-                        
-                        setTimeout(setupAzkarNotifications, 24 * 60 * 60 * 1000);
-                    }, timeUntilAzkar);
-
-                    if (!window.azkarTimeouts) window.azkarTimeouts = [];
-                    window.azkarTimeouts.push(timeout);
-                } else {
-                    const tomorrow = new Date(today);
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    tomorrow.setHours(azkarTime.hour, azkarTime.minute, 0, 0);
-                    
-                    const timeUntilTomorrow = tomorrow.getTime() - now.getTime();
-                    
-                    const timeout = setTimeout(() => {
-                        const randomAzkar = azkarList[Math.floor(Math.random() * azkarList.length)];
-                        const shortAzkar = randomAzkar.length > 100 ? 
-                            randomAzkar.substring(0, 100) + '...' : randomAzkar;
-
-                        sendNotification(
-                            azkarTime.title,
-                            shortAzkar,
-                            '📿',
-                            `azkar-${azkarTime.type}`
-                        );
-                        
-                        setTimeout(setupAzkarNotifications, 24 * 60 * 60 * 1000);
-                    }, timeUntilTomorrow);
-
-                    if (!window.azkarTimeouts) window.azkarTimeouts = [];
-                    window.azkarTimeouts.push(timeout);
-                }
-            });
-
-            if (savedSettings.azkarRandom) {
-                const randomAzkarInterval = setInterval(() => {
-                    const randomAzkar = azkarList[Math.floor(Math.random() * azkarList.length)];
-                    const shortAzkar = randomAzkar.length > 80 ? 
-                        randomAzkar.substring(0, 80) + '...' : randomAzkar;
-
-                    sendNotification(
-                        '📿 ذكر من الأذكار',
-                        shortAzkar,
-                        '📿',
-                        'random-azkar'
-                    );
-                }, 60 * 60 * 1000);
-
-                if (!window.azkarIntervals) window.azkarIntervals = [];
-                window.azkarIntervals.push(randomAzkarInterval);
-            }
-        }
-
-        // مسح إشعارات الأذكار السابقة
-        function clearAzkarNotifications() {
-            if (window.azkarTimeouts) {
-                window.azkarTimeouts.forEach(timeout => clearTimeout(timeout));
-                window.azkarTimeouts = [];
-            }
-
-            if (window.azkarIntervals) {
-                window.azkarIntervals.forEach(interval => clearInterval(interval));
-                window.azkarIntervals = [];
-            }
-        }
-
-        // تصفية الخدمات عند البحث
-        function filterServices() {
-            const searchTerm = searchInput.value.toLowerCase();
-
-            serviceCards.forEach(card => {
-                const title = card.querySelector('.service-title').textContent.toLowerCase();
-                const content = card.querySelector('.service-content').textContent.toLowerCase();
-
-                if (title.includes(searchTerm) || content.includes(searchTerm)) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        }
-
-        // عرض نافذة إعدادات الإخطارات
-        function showNotificationModal(service) {
-            currentService = service;
-            const modalTitle = document.getElementById('notification-modal-title');
-            let title = '';
-            let settingsHTML = '';
-
-            const savedSettings = JSON.parse(localStorage.getItem(`${service}_settings`) || '{}');
-
-            switch(service) {
-                case 'prayer':
-                    title = 'إخطارات أوقات الصلاة';
-                    settingsHTML = `
-                        <div class="form-group">
-                            <label>الإخطار عند وقت الصلاة</label>
-                            <label class="switch">
-                                <input type="checkbox" id="prayer-time-notification" ${true ? 'checked' : ''}>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>الإخطار قبل الصلاة بـ 10 دقائق</label>
-                            <label class="switch">
-                                <input type="checkbox" id="prayer-before-notification" ${true ? 'checked' : ''}>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>تحديد الوقت يدوياً (دقائق قبل الصلاة)</label>
-                            <input type="number" class="form-control" id="prayer-custom-time" value="10" min="1" max="60">
-                        </div>
-                        <div class="form-group">
-                            <label>طريقة عرض الوقت</label>
-                            <select class="form-control" id="time-format">
-                                <option value="12" selected>12 ساعة (ص/م)</option>
-                                <option value="24">24 ساعة</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>تنبيه صوتي للأذان</label>
-                            <select class="form-control" id="athan-sound">
-                                <option value="default" selected>أذان تقليدي</option>
-                                <option value="makkah">أذان مكة</option>
-                                <option value="madina">أذان المدينة</option>
-                                <option value="al-aqsa">أذان الأقصى</option>
-                            </select>
-                        </div>
-                    `;
-                    break;
-                case 'weather':
-                    title = 'إخطارات الطقس';
-                    settingsHTML = `
-                        <div class="form-group">
-                            <label>تفعيل إخطارات الطقس</label>
-                            <label class="switch">
-                                <input type="checkbox" id="weather-notification" ${true ? 'checked' : ''}>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>فاصل التحديث (بالدقائق)</label>
-                            <input type="number" class="form-control" id="weather-interval" value="60" min="15" max="1440">
-                        </div>
-                    `;
-                    break;
-                case 'azkar':
-                    title = 'إخطارات الأذكار';
-                    settingsHTML = `
-                        <div class="form-group">
-                            <label>تفعيل إخطارات الأذكار</label>
-                            <label class="switch">
-                                <input type="checkbox" id="azkar-notification" ${true ? 'checked' : ''}>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>فاصل التذكير (بالدقائق)</label>
-                            <input type="number" class="form-control" id="azkar-interval" value="30" min="5" max='240'>
-                        </div>
-                        <div class="form-group">
-                            <label>عرض أذكار عشوائية</label>
-                            <label class="switch">
-                                <input type="checkbox" id="azkar-random" ${true ? 'checked' : ''}>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                    `;
-                    break;
-            }
-
-            modalTitle.textContent = title;
-            notificationSettings.innerHTML = settingsHTML;
-            notificationModal.style.display = 'flex';
-        }
-
-        // عرض نافذة إعدادات الخدمات
-        function showSettingsModal(service) {
-            currentService = service;
-            const modalTitle = document.getElementById('settings-modal-title');
-            let title = '';
-            let settingsHTML = '';
-
-            const savedSettings = JSON.parse(localStorage.getItem(`${service}_settings`) || '{}');
-
-            switch(service) {
-                case 'prayer':
-                    title = 'إعدادات أوقات الصلاة';
-                    settingsHTML = `
-                        <div class="form-group">
-                            <label>الموقع الجغرافي</label>
-                            <div class="location-settings">
-                                <input type="text" class="form-control" id="prayer-location" placeholder="اسم المدينة" value="${savedSettings.location || DEFAULT_CITY}">
-                                <button class="location-auto" id="prayer-location-auto"><i class="fas fa-location-arrow"></i> التحديد التلقائي</button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>طريقة الحساب</label>
-                            <select class="form-control" id="prayer-method">
-                                <option value="1" ${savedSettings.method == 1 ? 'selected' : ''}>جامعة العلوم الإسلامية (كراتشي)</option>
-                                <option value="2" ${savedSettings.method == 2 ? 'selected' : ''}>الهيئة العامة للمساحة المصرية</option>
-                                <option value="3" ${savedSettings.method == 3 ? 'selected' : ''}>رابطة العالم الإسلامي</option>
-                                <option value="4" ${savedSettings.method == 4 || !savedSettings.method ? 'selected' : ''}>أم القرى (مكة المكرمة)</option>
-                                <option value="5" ${savedSettings.method == 5 ? 'selected' : ''}>الإمارات العربية المتحدة</option>
-                                <option value="6" ${savedSettings.method == 6 ? 'selected' : ''}>الجزائر، المغرب، تونس</option>
-                                <option value="26" ${savedSettings.method == 26 ? 'selected' : ''}>المغرب</option>
-                            </select>
-                        </div>
-                    `;
-                    break;
-                case 'weather':
-                    title = 'إعدادات الطقس';
-                    settingsHTML = `
-                        <div class="form-group">
-                            <label>الموقع الجغرافي</label>
-                            <div class="location-settings">
-                                <input type="text" class="form-control" id="weather-location" placeholder="اسم المدينة" value="${savedSettings.location || DEFAULT_CITY}">
-                                <button class="location-auto" id="weather-location-auto"><i class="fas fa-location-arrow"></i> التحديد التلقائي</button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>وحدات القياس</label>
-                            <select class="form-control" id="weather-units">
-                                <option value="metric" ${savedSettings.units === 'metric' || !savedSettings.units ? 'selected' : ''}>مئوية (°م)</option>
-                                <option value="imperial" ${savedSettings.units === 'imperial' ? 'selected' : ''}>فهرنهايت (°ف)</option>
-                            </select>
-                        </div>
-                    `;
-                    break;
-                case 'azkar':
-                    title = 'إعدادات الأذكار';
-                    settingsHTML = `
-                        <div class="form-group">
-                            <label>إضافة ذكر جديد</label>
-                            <textarea class="form-control" id="new-azkar" placeholder="اكتب الذكر هنا..."></textarea>
-                            <button class="btn btn-sm" id="add-azkar-btn" style="margin-top: 10px;"><i class="fas fa-plus"></i> إضافة</button>
-                        </div>
-                        <div class="custom-azkar">
-                            <h4>الأذكار المضافة يدوياً</div>
-                            <div class="custom-azkar-list" id="custom-azkar-list">
-                                <!-- سيتم ملؤها ديناميكياً -->
-                            </div>
-                        </div>
-                    `;
-                    break;
-            }
-
-            modalTitle.textContent = title;
-            document.getElementById('settings-content').innerHTML = settingsHTML;
-            settingsModal.style.display = 'flex';
-
-            if (service === 'azkar') {
-                document.getElementById('add-azkar-btn').addEventListener('click', addCustomAzkar);
-                loadCustomAzkar();
-            }
-
-            updateCoordinatesDisplay();
-        }
-
-        // حفظ إعدادات الإخطارات
-        function saveNotificationSettings() {
-            const settings = {};
-
-            switch(currentService) {
-                case 'prayer':
-                    settings.prayerTimeNotification = true;
-                    settings.prayerBeforeNotification = true;
-                    settings.prayerCustomTime = 10;
-                    settings.timeFormat = '12';
-                    settings.athanSound = 'default';
-                    break;
-                case 'weather':
-                    settings.weatherNotification = true;
-                    settings.weatherInterval = 60;
-                    break;
-                case 'azkar':
-                    settings.azkarNotification = true;
-                    settings.azkarInterval = 30;
-                    settings.azkarRandom = true;
-                    break;
-            }
-
-            localStorage.setItem(`${currentService}_settings`, JSON.stringify(settings));
-            showSaveNotification();
-            setTimeout(() => notificationModal.style.display = 'none', 1000);
-        }
-
-        // حفظ إعدادات الخدمات
-        function saveServiceSettings() {
-            if (currentService === 'prayer') {
-                const locationInput = document.getElementById('prayer-location');
-                const methodSelect = document.getElementById('prayer-method');
-
-                const savedPrayerSettings = {
-                    location: locationInput ? locationInput.value : DEFAULT_CITY,
-                    method: methodSelect ? methodSelect.value : DEFAULT_METHOD,
-                    timeFormat: '12',
-                    athanSound: 'default',
-                    prayerTimeNotification: true,
-                    prayerBeforeNotification: true,
-                    prayerCustomTime: 10
-                };
-
-                localStorage.setItem('prayer_settings', JSON.stringify(savedPrayerSettings));
-                fetchPrayerTimes();
-            }
-
-            if (currentService === 'weather') {
-                const locationInput = document.getElementById('weather-location');
-                const unitsSelect = document.getElementById('weather-units');
-
-                const savedWeatherSettings = {
-                    location: locationInput ? locationInput.value : DEFAULT_CITY,
-                    units: unitsSelect ? unitsSelect.value : 'metric',
-                    weatherNotification: true,
-                    weatherInterval: 60
-                };
-
-                localStorage.setItem('weather_settings', JSON.stringify(savedWeatherSettings));
-
-                if (userLocation && permissionsStatus.geolocation) {
-                    fetchWeatherWithLocation();
-                } else {
-                    fetchWeather();
-                }
-            }
-
-            if (currentService === 'azkar') {
-                const savedAzkarSettings = {
-                    azkarNotification: true,
-                    azkarInterval: 30,
-                    azkarRandom: true
-                };
-
-                localStorage.setItem('azkar_settings', JSON.stringify(savedAzkarSettings));
-                fetchAzkar();
-            }
-
-            showSaveNotification();
-            setTimeout(() => settingsModal.style.display = 'none', 1000);
-        }
-
-        // عرض إشعار الحفظ
-        function showSaveNotification() {
-            saveNotification.style.display = 'block';
-            setTimeout(() => {
-                saveNotification.style.display = 'none';
-            }, 3000);
-        }
-
-        // تحميل الإعدادات من localStorage
-        function loadSettings() {
-            const savedPrayerSettings = JSON.parse(localStorage.getItem('prayer_settings') || '{}');
-            if (savedPrayerSettings.method) {
-                DEFAULT_METHOD = parseInt(savedPrayerSettings.method);
-            }
-
-            // 🔥 تفعيل جميع الإشعارات افتراضياً عند التحميل الأول
-            if (!localStorage.getItem('notifications_initialized')) {
-                enableAllNotifications();
-                localStorage.setItem('notifications_initialized', 'true');
-            }
-
-            console.log('✅ تم تحميل الإعدادات من localStorage');
-        }
-
-        // البحث على الإنترنت باستخدام Brave Search
-        function performWebSearch() {
-            const searchTerm = searchHeaderInput.value.trim();
-            if (searchTerm) {
-                window.open(`https://search.brave.com/search?q=${encodeURIComponent(searchTerm)}`, '_blank');
-            }
-        }
-
-        // تهيئة التطبيق عند تحميل الصفحة
-        window.addEventListener('DOMContentLoaded', function() {
-            initApp();
-            
-            // 🔥 تفعيل الإشعارات فور تحميل الصفحة
-            setTimeout(() => {
-                if ('Notification' in window && Notification.permission === 'default') {
-                    Notification.requestPermission().then(permission => {
-                        if (permission === 'granted') {
-                            showWelcomeNotification();
-                        }
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth'
                     });
                 }
-            }, 2000);
+            });
         });
+
+        // محاكاة الأوامر
+        function simulateCommand(command) {
+            alert(`محاكاة الأمر: ${command}\n\nفي الإصدار 3.2 من البرنامج، هذا الأمر سيقوم بالتحكم في System Tray أو الإشعارات حسب الطلب.`);
+        }
+
+        // ====== الدالة المحسنة لمواقيت الصلاة ======
+        
+        // متغيرات عامة
+        let userLocation = null;
+        let prayerData = null;
+        let selectedMethod = 'auto';
+
+        // خريطة طرق الحساب حسب الدولة
+        const methodsByCountry = {
+            'SA': 4,  // السعودية - جامعة أم القرى
+            'EG': 5,  // مصر - الهيئة المصرية
+            'AE': 16, // الإمارات - دبي
+            'KW': 9,  // الكويت
+            'QA': 10, // قطر
+            'PK': 1,  // باكستان - كراتشي
+            'TR': 14, // تركيا
+            'FR': 12, // فرنسا
+            'US': 2,  // أمريكا - ISNA
+            'CA': 2,  // كندا - ISNA
+            'MA': 6,  // المغرب - وزارة الأوقاف المغربية
+            'DZ': 1,  // الجزائر
+            'TN': 1,  // تونس
+            'default': 1 // الافتراضي - رابطة العالم الإسلامي
+        };
+
+        // جميع طرق الحساب المتاحة
+        const methodNames = {
+            1: 'رابطة العالم الإسلامي',
+            2: 'الجمعية الإسلامية لأمريكا الشمالية (ISNA)',
+            3: 'جامعة العلوم الإسلامية، كراتشي',
+            4: 'جامعة أم القرى، مكة',
+            5: 'الهيئة المصرية العامة للمساحة',
+            6: 'وزارة الأوقاف والشؤون الإسلامية - المغرب',
+            7: 'معهد الجيوفيزياء، جامعة طهران',
+            8: 'اللجنة الإسلامية للتقويم',
+            9: 'وزارة الأوقاف والشؤون الإسلامية - الكويت',
+            10: 'قطر',
+            11: 'مؤسسة سنغافورة للأوقاف الإسلامية',
+            12: 'اتحاد المنظمات الإسلامية في فرنسا',
+            13: 'اللجنة الدينية التركية',
+            14: 'رئاسة الشؤون الدينية التركية',
+            15: 'اللجنة الدينية الروسية',
+            16: 'دبي',
+            17: 'الجمعية الإسلامية في جزر المالديف',
+            18: 'جامعة العلوم الإسلامية، كراتشي (بدون تعديل)',
+            19: 'اللجنة الدينية الألبانية',
+            20: 'اللجنة الدينية الألمانية',
+            21: 'اللجنة الدينية البوسنية',
+            22: 'اللجنة الدينية النمساوية'
+        };
+
+        // قاعدة بيانات الأذكار
+        const azkar = [
+            "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ",
+            "لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ",
+            "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ",
+            "أسْتَغْفِرُ اللَّهِ الْعَظِيمَ الَّذِي لَا إِلَهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ وَأَتُوبُ إِلَيْهِ",
+            "حَسْبِيَ اللَّهُ لَا إِلَهَ إِلَّا هُوَ عَلَيْهِ تَوَكَّلْتُ وَهُوَ رَبُّ الْعَرْشِ الْعَظِيمِ",
+            "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ، وَالْعَجْزِ وَالْكَسَلِ، وَالْجُبْنِ وَالْبُخْلِ، وَضَلَعِ الدَّيْنِ وَغَلَبَةِ الرِّجَالِ",
+            "سُبْحَانَ اللَّهِ، وَالْحَمْدُ لِلَّهِ، وَلَا إِلَهَ إِلَّا اللَّهُ، وَاللَّهُ أَكْبَرُ",
+            "لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ",
+            "اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، عَلَيْكَ تَوَكَّلْتُ، وَأَنْتَ رَبُّ الْعَرْشِ الْعَظِيمِ",
+            "اللَّهُمَّ إِنِّي أَسْأَلُكَ الْجَنَّةَ وَأَعُوذُ بِكَ مِنَ النَّارِ",
+            "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، عَدَدَ خَلقِهِ، وَرِضَا نَفْسِهِ، وَزِنَةَ عَرْشِهِ، وَمِدَادَ كَلِمَاتِهِ",
+            "لَا إِلَهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ",
+            "يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ",
+            "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عَذَابِ الْقَبْرِ، وَمِنْ عَذَابِ جَهَنَّمَ، وَمِنْ فِتْنَةِ الْمَحْيَا وَالْمَمَاتِ، وَمِنْ شَرِّ فِتْنَةِ الْمَسِيحِ الدَّجَّالِ"
+        ];
+
+        // تحميل مواقيت الصلاة
+        async function loadPrayerTimes() {
+            if (!userLocation) {
+                await getUserLocation();
+            }
+            await fetchPrayerTimes();
+            showRandomZikr();
+        }
+
+        // الحصول على موقع المستخدم
+        async function getUserLocation() {
+            return new Promise((resolve, reject) => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        async position => {
+                            userLocation = {
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude
+                            };
+                            await getCityInfo();
+                            resolve();
+                        },
+                        error => {
+                            console.error('خطأ في تحديد الموقع:', error);
+                            document.getElementById('locationInfo').textContent = 
+                                'تعذر تحديد الموقع تلقائياً';
+                            // استخدام موقع افتراضي
+                            userLocation = { latitude: 24.7136, longitude: 46.6753 };
+                            resolve();
+                        }
+                    );
+                } else {
+                    document.getElementById('locationInfo').textContent = 
+                        'المتصفح لا يدعم تحديد الموقع';
+                    userLocation = { latitude: 24.7136, longitude: 46.6753 };
+                    resolve();
+                }
+            });
+        }
+
+        // الحصول على معلومات المدينة والدولة
+        async function getCityInfo() {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?lat=${userLocation.latitude}&lon=${userLocation.longitude}&format=json&accept-language=ar`
+                );
+                const data = await response.json();
+                
+                const city = data.address.city || data.address.town || data.address.village || 'غير معروف';
+                const country = data.address.country || 'غير معروف';
+                const countryCode = data.address.country_code ? data.address.country_code.toUpperCase() : null;
+                
+                userLocation.city = city;
+                userLocation.country = country;
+                userLocation.countryCode = countryCode;
+                
+                document.getElementById('locationInfo').textContent = `📍 ${city}, ${country}`;
+            } catch (error) {
+                console.error('خطأ في الحصول على معلومات المدينة:', error);
+                document.getElementById('locationInfo').textContent = 
+                    `📍 ${userLocation.latitude.toFixed(4)}, ${userLocation.longitude.toFixed(4)}`;
+            }
+        }
+
+        // تحديد طريقة الحساب المناسبة
+        function getCalculationMethod() {
+            if (selectedMethod !== 'auto') {
+                return parseInt(selectedMethod);
+            }
+            
+            if (userLocation && userLocation.countryCode) {
+                return methodsByCountry[userLocation.countryCode] || methodsByCountry['default'];
+            }
+            
+            return methodsByCountry['default'];
+        }
+
+        // جلب مواقيت الصلاة من API
+        async function fetchPrayerTimes() {
+            if (!userLocation) return;
+            
+            const method = getCalculationMethod();
+            const today = new Date();
+            const timestamp = Math.floor(today.getTime() / 1000);
+            
+            try {
+                const response = await fetch(
+                    `https://api.aladhan.com/v1/timings/${timestamp}?latitude=${userLocation.latitude}&longitude=${userLocation.longitude}&method=${method}`
+                );
+                
+                prayerData = await response.json();
+                
+                if (prayerData.code === 200) {
+                    displayPrayerTimes();
+                    updateMethodInfo(method);
+                }
+            } catch (error) {
+                console.error('خطأ في جلب مواقيت الصلاة:', error);
+                document.getElementById('prayerWidget').innerHTML = 
+                    '<div class="loading">حدث خطأ في تحميل المواقيت</div>';
+            }
+        }
+
+        // عرض مواقيت الصلاة بشكل المربعات
+        function displayPrayerTimes() {
+            const timings = prayerData.data.timings;
+            
+            // الصلوات (بدون الشروق)
+            const prayers = [
+                { name: 'الفجر', time: timings.Fajr, key: 'fajr' },
+                { name: 'الظهر', time: timings.Dhuhr, key: 'dhuhr' },
+                { name: 'العصر', time: timings.Asr, key: 'asr' },
+                { name: 'المغرب', time: timings.Maghrib, key: 'maghrib' },
+                { name: 'العشاء', time: timings.Isha, key: 'isha' }
+            ];
+            
+            // تحديد الصلاة التالية
+            const now = new Date();
+            const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            let nextPrayerKey = '';
+            
+            for (const prayer of prayers) {
+                if (currentTime < prayer.time) {
+                    nextPrayerKey = prayer.key;
+                    break;
+                }
+            }
+            
+            // إذا لم توجد صلاة قادمة اليوم، نستخدم الفجر في اليوم التالي
+            if (!nextPrayerKey) {
+                nextPrayerKey = 'fajr';
+            }
+            
+            let html = `
+                <div class="next-prayer">
+                    الصلاة القادمة: ${prayers.find(p => p.key === nextPrayerKey).name} 
+                    عند ${prayers.find(p => p.key === nextPrayerKey).time}
+                </div>
+                <div class="prayer-times-grid">
+            `;
+            
+            prayers.forEach(prayer => {
+                const isNext = prayer.key === nextPrayerKey;
+                html += `
+                    <div class="prayer-time-item ${isNext ? 'next' : ''}">
+                        <div class="prayer-name">${prayer.name}</div>
+                        <div class="prayer-time">${prayer.time}</div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            document.getElementById('prayerWidget').innerHTML = html;
+        }
+
+        // عرض ذكر عشوائي
+        function showRandomZikr() {
+            const randomIndex = Math.floor(Math.random() * azkar.length);
+            const randomZikr = azkar[randomIndex];
+            
+            document.getElementById('randomZikr').textContent = randomZikr;
+            document.getElementById('zikrContainer').style.display = 'block';
+        }
+
+        // تحديث معلومات طريقة الحساب
+        function updateMethodInfo(method) {
+            const methodName = methodNames[method] || 'غير معروف';
+            document.getElementById('currentMethod').textContent = 
+                `طريقة الحساب: ${methodName}`;
+            document.getElementById('methodInfo').textContent = 
+                `يتم حساب المواقيت باستخدام طريقة ${methodName}`;
+        }
+
+        // عرض قائمة اختيار طريقة الحساب
+        function showMethodSelector() {
+            const methods = Object.entries(methodNames)
+                .map(([id, name]) => `<option value="${id}">${name}</option>`)
+                .join('');
+            
+            const currentMethod = getCalculationMethod();
+            
+            const html = `
+                <div style="margin: 15px 0;">
+                    <label>اختر طريقة الحساب:</label>
+                    <select id="methodSelect" style="width: 100%; padding: 8px; margin: 10px 0; background: var(--background); color: var(--text); border: 1px solid var(--accent); border-radius: 4px;">
+                        <option value="auto" ${selectedMethod === 'auto' ? 'selected' : ''}>تلقائي (حسب الموقع)</option>
+                        ${methods}
+                    </select>
+                    <button onclick="applyMethod()" class="method-btn">تطبيق</button>
+                    <button onclick="cancelMethodSelection()" class="method-btn">إلغاء</button>
+                </div>
+            `;
+            
+            document.querySelector('.method-selector').insertAdjacentHTML('beforeend', html);
+            
+            // تحديد الطريقة الحالية
+            if (selectedMethod !== 'auto') {
+                document.getElementById('methodSelect').value = selectedMethod;
+            } else {
+                document.getElementById('methodSelect').value = currentMethod;
+            }
+        }
+
+        // تطبيق طريقة الحساب المختارة
+        function applyMethod() {
+            const select = document.getElementById('methodSelect');
+            if (select) {
+                selectedMethod = select.value;
+                cancelMethodSelection();
+                loadPrayerTimes();
+            }
+        }
+
+        // إلغاء اختيار طريقة الحساب
+        function cancelMethodSelection() {
+            const selector = document.querySelector('.method-selector > div:last-child');
+            if (selector && selector.querySelector('#methodSelect')) {
+                selector.remove();
+            }
+        }
+
+        // تبديل عرض تحديد الموقع يدويًا
+        function toggleManualLocation() {
+            const form = document.getElementById('manualLocationForm');
+            if (form.style.display === 'block') {
+                form.style.display = 'none';
+            } else {
+                form.style.display = 'block';
+                if (userLocation) {
+                    document.getElementById('manualLat').value = userLocation.latitude.toFixed(4);
+                    document.getElementById('manualLon').value = userLocation.longitude.toFixed(4);
+                    document.getElementById('manualCity').value = userLocation.city || '';
+                    document.getElementById('manualCountry').value = userLocation.country || '';
+                }
+            }
+        }
+
+        // تطبيق الموقع اليدوي
+        function applyManualLocation() {
+            const lat = parseFloat(document.getElementById('manualLat').value);
+            const lon = parseFloat(document.getElementById('manualLon').value);
+            const city = document.getElementById('manualCity').value;
+            const country = document.getElementById('manualCountry').value;
+            
+            if (!isNaN(lat) && !isNaN(lon)) {
+                userLocation = {
+                    latitude: lat,
+                    longitude: lon,
+                    city: city,
+                    country: country
+                };
+                
+                document.getElementById('locationInfo').textContent = 
+                    city && country ? `📍 ${city}, ${country}` : `📍 ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+                
+                toggleManualLocation();
+                loadPrayerTimes();
+            } else {
+                alert('يرجى إدخال إحداثيات صحيحة');
+            }
+        }
+
+        // تحميل المواقيت عند تحميل الصفحة
+        window.addEventListener('load', loadPrayerTimes);
     </script>
 </body>
 </html>
