@@ -52,7 +52,6 @@ FILES_TO_DOWNLOAD=(
 log() {
     local message="$*"
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | tee -a "$TEMP_LOG"
-    # إذا كان مجلد التثبيت موجوداً، نسخ أيضاً إلى السجل الدائم
     if [ -d "$INSTALL_DIR" ]; then
         echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" >> "$INSTALL_DIR/install.log" 2>/dev/null || true
     fi
@@ -78,8 +77,18 @@ detect_distro() {
     esac
 
     # تحديد مدير الحزم وأسماء الحزم
+    # قيم افتراضية
+    PKG_MANAGER="unknown"
+    PKG_UPDATE=""
+    PKG_INSTALL=""
+    PYTHON3_PKG="python3"
+    PYTHON_PKG_PYSTRAY=""
+    PYTHON_PKG_PILLOW=""
+    JQ_PKG=""
+    IMAGEMAGICK_PKG=""
+
     case "$OS_TYPE-$DISTRO_ID" in
-        linux-ubuntu|linux-debian|linux-linuxmint|linux-pop|linux-raspbian|linux-kali)
+        linux-ubuntu|linux-debian|linux-linuxmint|linux-pop|linux-raspbian|linux-kali|linux-elementary|linux-zorin)
             PKG_MANAGER="apt"
             PKG_UPDATE="sudo apt update"
             PKG_INSTALL="sudo apt install -y"
@@ -89,7 +98,7 @@ detect_distro() {
             JQ_PKG="jq"
             IMAGEMAGICK_PKG="imagemagick"
             ;;
-        linux-fedora)
+        linux-fedora|linux-*fedora*)
             PKG_MANAGER="dnf"
             PKG_UPDATE="sudo dnf check-update"
             PKG_INSTALL="sudo dnf install -y"
@@ -99,13 +108,13 @@ detect_distro() {
             JQ_PKG="jq"
             IMAGEMAGICK_PKG="ImageMagick"
             ;;
-        linux-centos|linux-rhel)
-            PKG_MANAGER="yum"  # قديم، أو dnf حسب الإصدار
+        linux-centos|linux-rhel|linux-rocky|linux-almalinux)
             if command -v dnf >/dev/null 2>&1; then
                 PKG_MANAGER="dnf"
                 PKG_UPDATE="sudo dnf check-update"
                 PKG_INSTALL="sudo dnf install -y"
             else
+                PKG_MANAGER="yum"
                 PKG_UPDATE="sudo yum check-update"
                 PKG_INSTALL="sudo yum install -y"
             fi
@@ -115,7 +124,7 @@ detect_distro() {
             JQ_PKG="jq"
             IMAGEMAGICK_PKG="ImageMagick"
             ;;
-        linux-arch|linux-manjaro|linux-endeavouros|linux-arcolinux)
+        linux-arch|linux-manjaro|linux-endeavouros|linux-arcolinux|linux-artix)
             PKG_MANAGER="pacman"
             PKG_UPDATE="sudo pacman -Sy"
             PKG_INSTALL="sudo pacman -S --noconfirm"
@@ -125,7 +134,7 @@ detect_distro() {
             JQ_PKG="jq"
             IMAGEMAGICK_PKG="imagemagick"
             ;;
-        linux-opensuse*|linux-suse)
+        linux-opensuse*|linux-suse|linux-sles)
             PKG_MANAGER="zypper"
             PKG_UPDATE="sudo zypper refresh"
             PKG_INSTALL="sudo zypper install -y"
@@ -156,6 +165,7 @@ detect_distro() {
             IMAGEMAGICK_PKG="ImageMagick"
             ;;
         linux-gentoo)
+            # لا نقوم بالتثبيت التلقائي على gentoo بسبب طبيعة emerge
             PKG_MANAGER="emerge"
             PKG_UPDATE="sudo emerge --sync"
             PKG_INSTALL="sudo emerge -av"
@@ -164,8 +174,7 @@ detect_distro() {
             PYTHON_PKG_PILLOW="dev-python/pillow"
             JQ_PKG="app-misc/jq"
             IMAGEMAGICK_PKG="media-gfx/imagemagick"
-            # emerge يحتاج إلى موافقة المستخدم، قد نفضل عدم التثبيت التلقائي
-            # سنترك emerge خارج التثبيت التلقائي وسنكتفي بـ pip
+            # سنعتمد على pip في هذه الحالة
             PKG_MANAGER_AUTO=0
             ;;
         freebsd-*)
@@ -173,12 +182,15 @@ detect_distro() {
             PKG_UPDATE="sudo pkg update"
             PKG_INSTALL="sudo pkg install -y"
             PYTHON3_PKG="python3"
-            # أسماء الحزم في FreeBSD: py39-pystray, py39-pillow
-            # نستخدم pip بدلاً من ذلك
-            PKG_MANAGER_AUTO=0  # نعتمد على pip لاحقاً
+            # في FreeBSD نعتمد على pip لأن أسماء الحزم قد تختلف
+            PYTHON_PKG_PYSTRAY="py39-pystray"   # غير مضمون، سنستخدم pip
+            PYTHON_PKG_PILLOW="py39-pillow"
+            JQ_PKG="jq"
+            IMAGEMAGICK_PKG="ImageMagick7"
+            PKG_MANAGER_AUTO=0  # نعتمد على pip
             ;;
         *)
-            PKG_MANAGER="unknown"
+            # unknown
             ;;
     esac
 
@@ -189,10 +201,11 @@ detect_distro() {
 install_system_package() {
     local pkg_var="$1"
     local pkg_name="${!pkg_var}"
-    if [ -z "$pkg_name" ] || [ "$PKG_MANAGER" = "unknown" ]; then
-        log "⚠️ اسم الحزمة غير معروف أو مدير الحزم غير معتمد"
+    if [ -z "$pkg_name" ] || [ "$PKG_MANAGER" = "unknown" ] || [ "$PKG_MANAGER" = "emerge" ]; then
+        log "⚠️ لا يمكن تثبيت $pkg_var (اسم الحزمة غير معروف أو مدير غير مدعوم)"
         return 1
     fi
+    # تحقق مما إذا كانت الحزمة مثبتة بالفعل (محاولة بسيطة)
     if command -v "$pkg_name" >/dev/null 2>&1; then
         log "✅ $pkg_name موجود بالفعل"
         return 0
@@ -243,6 +256,21 @@ install_python_deps() {
     
     detect_distro
 
+    # تأكد من وجود python3 و pip3
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "❌ Python3 غير مثبت، جاري محاولة التثبيت..."
+        if [ "$PKG_MANAGER" != "unknown" ] && [ "${PKG_MANAGER_AUTO:-1}" = "1" ]; then
+            $PKG_UPDATE 2>/dev/null || true
+            install_system_package PYTHON3_PKG || {
+                echo "⚠️ فشل تثبيت Python3، لا يمكن المتابعة."
+                return 1
+            }
+        else
+            echo "⚠️ لا يمكن تثبيت Python3 تلقائياً، يرجى تثبيته يدوياً."
+            return 1
+        fi
+    fi
+
     # محاولة التثبيت عبر مدير الحزم أولاً
     if [ "$PKG_MANAGER" != "unknown" ] && [ "${PKG_MANAGER_AUTO:-1}" = "1" ]; then
         echo "🔍 استخدام مدير الحزم: $PKG_MANAGER"
@@ -254,12 +282,7 @@ install_python_deps() {
             install_system_package JQ_PKG
         fi
 
-        # تثبيت python3 إن لم يكن موجوداً
-        if ! command -v python3 >/dev/null 2>&1; then
-            install_system_package PYTHON3_PKG
-        fi
-
-        # تثبيت مكتبات Python المطلوبة
+        # تثبيت pystray و pillow عبر مدير الحزم
         install_system_package PYTHON_PKG_PYSTRAY
         install_system_package PYTHON_PKG_PILLOW
 
@@ -277,19 +300,53 @@ install_python_deps() {
     
     if python3 -c "import pystray, PIL" 2>/dev/null; then
         echo "✅ مكتبات Python مثبتة بالفعل"
-    else
-        echo "📦 تثبيت المكتبات عبر pip..."
-        pip3 install --user pystray pillow requests 2>/dev/null || {
-            echo "⚠️ فشل التثبيت عبر pip"
-            echo "💡 يمكنك تثبيتها يدوياً لاحقاً:"
-            echo "   pip3 install --user pystray pillow requests"
-        }
+        return 0
     fi
-    
-    return 0
+
+    # تأكد من وجود pip3
+    if ! command -v pip3 >/dev/null 2>&1; then
+        echo "⚠️ pip3 غير موجود، جاري تثبيته..."
+        if [ "$PKG_MANAGER" != "unknown" ]; then
+            # حاول تثبيت pip3 عبر مدير الحزم
+            case "$PKG_MANAGER" in
+                apt) sudo apt install -y python3-pip ;;
+                dnf|yum) sudo dnf install -y python3-pip ;;
+                pacman) sudo pacman -S --noconfirm python-pip ;;
+                zypper) sudo zypper install -y python3-pip ;;
+                apk) sudo apk add py3-pip ;;
+                xbps) sudo xbps-install -y python3-pip ;;
+                pkg) sudo pkg install -y py39-pip ;;
+                *) echo "⚠️ لا يمكن تثبيت pip تلقائياً";;
+            esac 2>/dev/null || true
+        fi
+        if ! command -v pip3 >/dev/null 2>&1; then
+            echo "❌ pip3 غير متوفر، يرجى تثبيته يدوياً."
+            return 1
+        fi
+    fi
+
+    echo "📦 تثبيت المكتبات عبر pip..."
+    pip3 install --user pystray pillow requests 2>/dev/null || {
+        echo "⚠️ فشل التثبيت عبر pip"
+        echo "💡 يمكنك تثبيتها يدوياً لاحقاً:"
+        echo "   pip3 install --user pystray pillow requests"
+        return 1
+    }
+
+    if python3 -c "import pystray, PIL" 2>/dev/null; then
+        echo "✅ تم تثبيت المكتبات عبر pip بنجاح"
+        return 0
+    else
+        echo "❌ فشل التثبيت حتى بعد محاولة pip."
+        return 1
+    fi
 }
 
-# ---------- دالة إنشاء الأيقونات ----------
+# ---------- باقي الدوال (download_icons, setup_system_tray, setup_autostart, setup_terminal, run_initial_setup, start_services, copy_log, setup_terminal_display) تبقى كما هي ----------
+# لقد أدرجتها بالكامل في الرد السابق، لذا سأختصر هنا وأكتب فقط التغييرات الهامة.
+
+# لكن سأدرج الدوال التي تعتمد على Python أو تحتاج للتأكد من توفر المكتبات.
+
 download_icons() {
     local ICON_DIR="$INSTALL_DIR/icons"
     mkdir -p "$ICON_DIR"
@@ -343,10 +400,8 @@ img.save('$icon_file')
     fi
 }
 
-# ---------- باقي الدوال (setup_system_tray, setup_autostart, setup_terminal, run_initial_setup, start_services, copy_log, setup_terminal_display) تبقى كما هي ----------
-# لاحظ أن setup_system_tray تستدعي install_python_deps المعدلة
-# وسأدرجها هنا كما كانت، مع الإبقاء على هيكلها، لكنني سأستخدم install_python_deps المعدلة
-# (الدوال التالية لم تتغير بشكل كبير، لكنني سأكتبها كاملة للتوثيق)
+# باقي الدوال كما هي (setup_system_tray, setup_autostart, setup_terminal, run_initial_setup, start_services, copy_log, setup_terminal_display) تم إدراجها كاملة في الرد السابق.
+# سأعيد كتابتها هنا بإيجاز (يمكنك نسخها من الرد السابق).
 
 setup_system_tray() {
     echo ""
@@ -686,6 +741,10 @@ main() {
         rm -f "/tmp/gt-salat-settings-backup-$$.conf" 2>/dev/null || true
         echo "✅ تم استعادة الإعدادات السابقة"
     fi
+
+    # تثبيت الاعتماديات قبل تنزيل الملفات (لضمان وجود jq و Python libraries)
+    install_python_deps
+    log "تم تثبيت اعتماديات Python"
     
     echo ""
     echo "📥 جاري تنزيل الملفات..."
@@ -713,9 +772,6 @@ main() {
     
     download_icons
     log "تم تنزيل/إنشاء الأيقونات"
-    
-    install_python_deps
-    log "تم تثبيت اعتماديات Python"
     
     setup_system_tray
     log "تم إعداد System Tray"
