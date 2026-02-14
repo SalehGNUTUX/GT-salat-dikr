@@ -14,6 +14,13 @@
 
 <img width="1440" height="900" alt="image" src="https://github.com/user-attachments/assets/f9921ceb-98c5-4df3-bc95-d6846069b610" />
 
+# 🚀 التثبيت
+
+### الطريقة المفضلة: التثبيت المباشر (مستودع GitHub)
+```bash
+curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh | bash
+```
+
 
 ## 📖 جدول المحتويات
 - [المقدمة](#المقدمة)
