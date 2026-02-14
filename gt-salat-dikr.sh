@@ -25,11 +25,8 @@ SHORT_ADHAN_FILE="${SCRIPT_DIR}/short_adhan.ogg"
 APPROACHING_SOUND="${SCRIPT_DIR}/prayer_approaching.ogg"
 ADHAN_PLAYER_SCRIPT="${SCRIPT_DIR}/adhan-player.sh"
 
-# إضافة المتغيرات الجديدة للتخزين المحلي
 MONTHLY_TIMETABLE_DIR="${SCRIPT_DIR}/monthly_timetables"
 CACHE_DAYS=30
-
-# إعدادات التحديث التلقائي - تم تعطيله افتراضياً
 LAST_AUTO_UPDATE_FILE="${SCRIPT_DIR}/.last_auto_update"
 AUTO_UPDATE_INTERVAL=7
 
@@ -38,13 +35,12 @@ REPO_AZKAR_URL="${REPO_BASE}/azkar.txt"
 REPO_SCRIPT_URL="${REPO_BASE}/gt-salat-dikr.sh"
 ALADHAN_API_URL="https://api.aladhan.com/v1/timings"
 
-# القيم الافتراضية - مفعلة جميعها
+# القيم الافتراضية
 DEFAULT_ZIKR_INTERVAL=300
 DEFAULT_PRE_NOTIFY=15
 DEFAULT_ADHAN_TYPE="full"
 DEFAULT_SALAT_NOTIFY=1
 DEFAULT_ZIKR_NOTIFY=1
-# اكتشاف نظام الخدمة تلقائياً
 if command -v systemctl >/dev/null 2>&1 && systemctl --user >/dev/null 2>&1; then
     DEFAULT_NOTIFY_SYSTEM="systemd"
 else
@@ -54,7 +50,7 @@ DEFAULT_TERMINAL_SALAT_NOTIFY=1
 DEFAULT_TERMINAL_ZIKR_NOTIFY=1
 DEFAULT_SYSTEM_SALAT_NOTIFY=1
 DEFAULT_SYSTEM_ZIKR_NOTIFY=1
-DEFAULT_AUTO_UPDATE_TIMETABLES=1  # مفعل افتراضياً
+DEFAULT_AUTO_UPDATE_TIMETABLES=1
 
 # ------------- دوال مساعدة وعرض -------------
 log() {
@@ -80,7 +76,7 @@ fetch_if_missing() {
     return 0
 }
 
-# دوال جديدة للتخزين المحلي
+# دوال التخزين المحلي
 create_monthly_timetable_dir() {
     mkdir -p "$MONTHLY_TIMETABLE_DIR"
     silent_log "تم إنشاء/التأكد من مجلد الجداول الشهرية: $MONTHLY_TIMETABLE_DIR"
@@ -92,17 +88,14 @@ get_monthly_filename() {
     printf "%s/timetable_%04d_%02d.json" "$MONTHLY_TIMETABLE_DIR" "$year" "$month"
 }
 
-# دالة موثوقة للتحقق من اتصال الإنترنت
 check_internet_connection() {
     local timeout=10
     local success=false
-
     local test_urls=(
         "https://www.google.com"
         "https://www.cloudflare.com"
         "https://1.1.1.1"
     )
-
     for url in "${test_urls[@]}"; do
         if command -v curl >/dev/null 2>&1; then
             if curl -fs --connect-timeout $timeout "$url" >/dev/null 2>&1; then
@@ -116,7 +109,6 @@ check_internet_connection() {
             fi
         fi
     done
-
     if [ "$success" = true ]; then
         return 0
     else
@@ -129,14 +121,12 @@ check_internet_connection() {
     fi
 }
 
-# دوال التحديث التلقائي - معطلة
+# دوال التحديث التلقائي (معطلة حالياً)
 check_auto_update_needed() {
-    # دائماً تعطيل التحديث التلقائي
     return 1
 }
 
 perform_auto_update() {
-    # لا تفعل شيئاً - التحديث التلقائي معطل
     silent_log "التحديث التلقائي معطل"
     return 1
 }
@@ -217,7 +207,6 @@ show_update_report() {
         file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
         if [ "$file_count" -gt 0 ]; then
             echo "✅ تم تخزين بيانات $file_count شهر"
-
             echo "📁 الملفات المحفوظة:"
             for file in "$MONTHLY_TIMETABLE_DIR"/timetable_*.json; do
                 [ -e "$file" ] || continue
@@ -226,7 +215,6 @@ show_update_report() {
                 size=$(du -h "$file" 2>/dev/null | cut -f1 || echo "?KB")
                 echo "   📄 $year_month ($size)"
             done
-
             echo ""
             echo "💾 يمكنك الآن استخدام البرنامج بدون اتصال بالإنترنت"
         else
@@ -348,12 +336,11 @@ read_timetable_enhanced() {
     return 0
 }
 
-# دوال التحكم في التحديث التلقائي
+# دوال التحكم في التحديث التلقائي (مشابهة لما سبق)
 enable_auto_update() {
     AUTO_UPDATE_TIMETABLES=1
     save_config
     echo "✅ تم تفعيل التحديث التلقائي لمواقيت الصلاة"
-    echo "📅 سيتم التحديث كل $AUTO_UPDATE_INTERVAL أيام عند توفر الإنترنت"
 }
 
 disable_auto_update() {
@@ -369,7 +356,6 @@ show_auto_update_status() {
             local last_update=$(cat "$LAST_AUTO_UPDATE_FILE")
             local last_date=$(date -d "@$last_update" "+%Y-%m-%d %H:%M" 2>/dev/null || echo "غير معروف")
             echo "   📅 آخر تحديث: $last_date"
-
             local next_update=$((last_update + (AUTO_UPDATE_INTERVAL * 24 * 3600)))
             local next_date=$(date -d "@$next_update" "+%Y-%m-%d" 2>/dev/null || echo "غير معروف")
             echo "   ⏰ التحديث القادم: $next_date"
@@ -691,15 +677,12 @@ choose_notify_system() {
     echo "اختر نظام الخدمة للإشعارات:"
     echo "  1) systemd (موصى به إذا كان متوفرًا)"
     echo "  2) sysvinit (تشغيل بالخلفية - لكل توزيعة)"
-
-    # استخدام النظام المكتشف كافتراضي
     local default_choice
     if [ "$DEFAULT_NOTIFY_SYSTEM" = "systemd" ]; then
         default_choice=1
     else
         default_choice=2
     fi
-
     read -p "الاختيار [$default_choice]: " sys_choice
     sys_choice=${sys_choice:-$default_choice}
     if [ "$sys_choice" = "2" ]; then
@@ -713,8 +696,6 @@ choose_notify_settings() {
     echo ""
     echo "⚙️ إعدادات الإشعارات المتقدمة:"
     echo ""
-
-    # كل الإشعارات مفعلة افتراضياً
     echo "🕌 إشعارات الصلاة:"
     echo "  💻 الطرفية: مفعلة ✓ (افتراضي)"
     echo "  🪟 النظام: مفعلة ✓ (افتراضي)"
@@ -747,7 +728,7 @@ METHOD_ID="${METHOD_ID:-1}"
 METHOD_NAME="${METHOD_NAME:-Muslim World League}"
 PRE_PRAYER_NOTIFY=${PRE_PRAYER_NOTIFY:-$DEFAULT_PRE_NOTIFY}
 ZIKR_NOTIFY_INTERVAL=${ZIKR_NOTIFY_INTERVAL:-$DEFAULT_ZIKR_INTERVAL}
-AUTO_SELF_UPDATE=0  # معطل
+AUTO_SELF_UPDATE=0
 ADHAN_TYPE="${ADHAN_TYPE:-$DEFAULT_ADHAN_TYPE}"
 ENABLE_SALAT_NOTIFY=${ENABLE_SALAT_NOTIFY:-$DEFAULT_SALAT_NOTIFY}
 ENABLE_ZIKR_NOTIFY=${ENABLE_ZIKR_NOTIFY:-$DEFAULT_ZIKR_NOTIFY}
@@ -763,18 +744,14 @@ EOF
 
 load_config() {
     if [ -f "$CONFIG_FILE" ]; then
-        # التحقق من أن الملف يحتوي على محتوى
         if [ ! -s "$CONFIG_FILE" ]; then
             echo "ملف الإعدادات فارغ" >&2
             return 1
         fi
-
-        # التحقق من أن الملف يحتوي على متغيرات أساسية
         if ! grep -q "LAT=" "$CONFIG_FILE" 2>/dev/null; then
             echo "ملف الإعدادات تالف" >&2
             return 1
         fi
-
         source "$CONFIG_FILE"
         return 0
     else
@@ -787,7 +764,6 @@ setup_wizard() {
 
     echo "=== إعداد GT-salat-dikr ==="
 
-    # إذا لم يكن التثبيت الأول والإعدادات موجودة، اسأل المستخدم
     if [ "$is_first_install" != "1" ] && [ -f "$CONFIG_FILE" ]; then
         echo "⚠️  الإعدادات موجودة بالفعل."
         read -p "هل تريد تغيير الإعدادات؟ [y/N]: " ans
@@ -798,7 +774,6 @@ setup_wizard() {
         fi
     fi
 
-    # إذا كانت الإعدادات موجودة، استخدمها كقيم افتراضية
     if [ -f "$CONFIG_FILE" ]; then
         echo "📂 تحميل الإعدادات الحالية كقيم افتراضية..."
         source "$CONFIG_FILE" 2>/dev/null || true
@@ -853,7 +828,6 @@ setup_wizard() {
     echo "  ✅ مفعل افتراضياً كل أسبوع"
     AUTO_UPDATE_TIMETABLES=1
 
-    # اكتشاف نظام الخدمة تلقائياً
     if command -v systemctl >/dev/null 2>&1 && systemctl --user >/dev/null 2>&1; then
         NOTIFY_SYSTEM="systemd"
         echo "🔧 نظام الخدمة: systemd (مكتشف تلقائياً)"
@@ -862,7 +836,6 @@ setup_wizard() {
         echo "🔧 نظام الخدمة: sysvinit (مكتشف تلقائياً)"
     fi
 
-    # كل الإشعارات مفعلة افتراضياً
     choose_notify_settings
 
     save_config
@@ -1203,34 +1176,28 @@ full_update() {
         return 1
     fi
 
-    # حفظ الإعدادات الحالية
     local backup_file="/tmp/gt-salat-backup-$$.conf"
     if [ -f "$CONFIG_FILE" ]; then
         cp "$CONFIG_FILE" "$backup_file"
         echo "💾 تم حفظ نسخة احتياطية من الإعدادات"
     fi
 
-    # تحميل سكربت التحديث من المستودع
-    echo "📥 جاري تحميل المثبت المحدث..."
     local update_script="/tmp/gt-salat-update-$$.sh"
 
     if curl -fsSL "${REPO_BASE}/install.sh" -o "$update_script" 2>/dev/null; then
         chmod +x "$update_script"
         echo "✅ تم تحميل المثبت المحدث"
 
-        # استعادة الإعدادات
         if [ -f "$backup_file" ]; then
             echo "🔄 استعادة الإعدادات..."
             cp "$backup_file" "$CONFIG_FILE" 2>/dev/null || true
         fi
 
-        # تشغيل المثبت
         echo "🚀 تشغيل المثبت المحدث..."
         exec "$update_script"
     else
         echo "❌ فشل تحميل المثبت المحدث"
 
-        # استعادة الإعدادات
         if [ -f "$backup_file" ]; then
             cp "$backup_file" "$CONFIG_FILE" 2>/dev/null || true
             rm -f "$backup_file"
@@ -1239,59 +1206,171 @@ full_update() {
     fi
 }
 
-# دالة التحديث اليدوي (القديمة للحفاظ على التوافق)
-check_script_update() {
-    echo "⚠️  هذه الدالة قديمة، استخدم: gtsalat --full-update"
-    echo "🔄 للترقية إلى أحدث نسخة، استخدم:"
-    echo "   curl -fsSL https://raw.githubusercontent.com/SalehGNUTUX/GT-salat-dikr/main/install.sh | bash"
+# ---------- دوال كشف التوزيعة وتثبيت الحزم (للاستخدام في --tray) ----------
+detect_distro_and_pkgs() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        DISTRO_ID="$ID"
+    elif command -v lsb_release >/dev/null 2>&1; then
+        DISTRO_ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+    else
+        DISTRO_ID="unknown"
+    fi
+
+    case "$(uname -s)" in
+        Linux) OS_TYPE="linux" ;;
+        FreeBSD) OS_TYPE="freebsd" ;;
+        *) OS_TYPE="unknown" ;;
+    esac
+
+    case "$OS_TYPE-$DISTRO_ID" in
+        linux-ubuntu|linux-debian|linux-linuxmint|linux-pop|linux-raspbian|linux-kali)
+            PKG_MANAGER="apt"
+            PKG_INSTALL="sudo apt install -y"
+            PYTHON3_PKG="python3"
+            PYTHON_PKG_PYSTRAY="python3-pystray"
+            PYTHON_PKG_PILLOW="python3-pil"
+            ;;
+        linux-fedora)
+            PKG_MANAGER="dnf"
+            PKG_INSTALL="sudo dnf install -y"
+            PYTHON3_PKG="python3"
+            PYTHON_PKG_PYSTRAY="python3-pystray"
+            PYTHON_PKG_PILLOW="python3-pillow"
+            ;;
+        linux-centos|linux-rhel)
+            if command -v dnf >/dev/null 2>&1; then
+                PKG_MANAGER="dnf"
+                PKG_INSTALL="sudo dnf install -y"
+            else
+                PKG_MANAGER="yum"
+                PKG_INSTALL="sudo yum install -y"
+            fi
+            PYTHON3_PKG="python3"
+            PYTHON_PKG_PYSTRAY="python3-pystray"
+            PYTHON_PKG_PILLOW="python3-pillow"
+            ;;
+        linux-arch|linux-manjaro|linux-endeavouros|linux-arcolinux)
+            PKG_MANAGER="pacman"
+            PKG_INSTALL="sudo pacman -S --noconfirm"
+            PYTHON3_PKG="python"
+            PYTHON_PKG_PYSTRAY="python-pystray"
+            PYTHON_PKG_PILLOW="python-pillow"
+            ;;
+        linux-opensuse*|linux-suse)
+            PKG_MANAGER="zypper"
+            PKG_INSTALL="sudo zypper install -y"
+            PYTHON3_PKG="python3"
+            PYTHON_PKG_PYSTRAY="python3-pystray"
+            PYTHON_PKG_PILLOW="python3-Pillow"
+            ;;
+        linux-alpine)
+            PKG_MANAGER="apk"
+            PKG_INSTALL="sudo apk add"
+            PYTHON3_PKG="python3"
+            PYTHON_PKG_PYSTRAY="py3-pystray"
+            PYTHON_PKG_PILLOW="py3-pillow"
+            ;;
+        linux-void)
+            PKG_MANAGER="xbps"
+            PKG_INSTALL="sudo xbps-install -y"
+            PYTHON3_PKG="python3"
+            PYTHON_PKG_PYSTRAY="python3-pystray"
+            PYTHON_PKG_PILLOW="python3-Pillow"
+            ;;
+        freebsd-*)
+            PKG_MANAGER="pkg"
+            PKG_INSTALL="sudo pkg install -y"
+            PYTHON3_PKG="python3"
+            # في FreeBSD نعتمد على pip لأن أسماء الحزم غير مستقرة
+            PKG_MANAGER_AUTO=0
+            ;;
+        *)
+            PKG_MANAGER="unknown"
+            ;;
+    esac
+}
+
+install_system_package() {
+    local pkg_var="$1"
+    local pkg_name="${!pkg_var}"
+    if [ -z "$pkg_name" ] || [ "$PKG_MANAGER" = "unknown" ]; then
+        return 1
+    fi
+    $PKG_INSTALL "$pkg_name" 2>/dev/null || return 1
     return 0
 }
 
-# ---------- System Tray Commands ----------
+# ---------- System Tray Commands (محدث) ----------
 start_system_tray() {
     echo "🖥️  تشغيل أيقونة شريط المهام..."
-    if command -v python3 >/dev/null 2>&1; then
-        if python3 -c "import pystray, PIL" 2>/dev/null; then
+    
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "❌ Python3 غير مثبت"
+        detect_distro_and_pkgs
+        if [ "$PKG_MANAGER" != "unknown" ] && [ "${PKG_MANAGER_AUTO:-1}" = "1" ]; then
+            echo "📥 جاري تثبيت Python3..."
+            install_system_package PYTHON3_PKG && echo "✅ تم تثبيت Python3" || echo "❌ فشل التثبيت"
+        else
+            echo "💡 قم بتثبيت Python3 يدوياً"
+        fi
+        return 1
+    fi
+
+    if python3 -c "import pystray, PIL" 2>/dev/null; then
+        if pgrep -f "gt-tray.py" >/dev/null 2>&1; then
+            echo "✅ System Tray يعمل بالفعل"
+        else
             if [ -f "${SCRIPT_DIR}/gt-tray.py" ]; then
-                if pgrep -f "gt-tray.py" >/dev/null 2>&1; then
-                    echo "✅ System Tray يعمل بالفعل"
-                else
-                    python3 "${SCRIPT_DIR}/gt-tray.py" &
-                    echo "✅ تم تشغيل System Tray"
-                    echo "💡 انقر بزر الماوس الأيمن على الأيقونة للتحكم"
-                fi
+                python3 "${SCRIPT_DIR}/gt-tray.py" &
+                echo "✅ تم تشغيل System Tray"
+                echo "💡 انقر بزر الماوس الأيمن على الأيقونة للتحكم"
             else
                 echo "❌ ملف gt-tray.py غير موجود"
                 echo "💡 قم بتشغيل التحديث الكامل: gtsalat --full-update"
             fi
-        else
-            echo "❌ مكتبات Python غير مثبتة"
-            echo "📦 جاري التثبيت التلقائي..."
-
-            if command -v apt >/dev/null 2>&1; then
-                sudo apt update && sudo apt install -y python3-pystray python3-pil && {
-                    python3 "${SCRIPT_DIR}/gt-tray.py" &
-                    echo "✅ تم تشغيل System Tray بعد التثبيت"
-                }
-            elif command -v pacman >/dev/null 2>&1; then
-                sudo pacman -Sy --noconfirm python-pystray python-pillow && {
-                    python3 "${SCRIPT_DIR}/gt-tray.py" &
-                    echo "✅ تم تشغيل System Tray بعد التثبيت"
-                }
-            elif command -v dnf >/dev/null 2>&1; then
-                sudo dnf install -y python3-pystray python3-pillow && {
-                    python3 "${SCRIPT_DIR}/gt-tray.py" &
-                    echo "✅ تم تشغيل System Tray بعد التثبيت"
-                }
-            else
-                echo "💡 قم بالتثبيت يدوياً:"
-                echo "   pip install --user pystray pillow"
-            fi
         fi
     else
-        echo "❌ Python3 غير مثبت"
-        echo "💡 قم بتثبيته أولاً:"
-        echo "   sudo apt install python3  أو  sudo pacman -S python"
+        echo "❌ مكتبات Python غير مثبتة"
+        detect_distro_and_pkgs
+        if [ "$PKG_MANAGER" != "unknown" ] && [ "${PKG_MANAGER_AUTO:-1}" = "1" ]; then
+            echo "📥 جاري تثبيت المكتبات عبر مدير الحزم..."
+            # تحديث الحزم أولاً (اختياري)
+            case "$PKG_MANAGER" in
+                apt) sudo apt update ;;
+                dnf) sudo dnf check-update ;;
+                pacman) sudo pacman -Sy ;;
+                zypper) sudo zypper refresh ;;
+                apk) sudo apk update ;;
+                xbps) sudo xbps-install -S ;;
+                pkg) sudo pkg update ;;
+            esac 2>/dev/null || true
+
+            install_system_package PYTHON_PKG_PYSTRAY
+            install_system_package PYTHON_PKG_PILLOW
+
+            if python3 -c "import pystray, PIL" 2>/dev/null; then
+                echo "✅ تم تثبيت المكتبات، تشغيل System Tray..."
+                python3 "${SCRIPT_DIR}/gt-tray.py" &
+            else
+                echo "⚠️ فشل التثبيت عبر مدير الحزم، جرب عبر pip"
+                echo "📦 تثبيت عبر pip..."
+                pip3 install --user pystray pillow && {
+                    python3 "${SCRIPT_DIR}/gt-tray.py" &
+                } || {
+                    echo "❌ لم نتمكن من تثبيت المكتبات"
+                    echo "💢 قم بتثبيتها يدوياً: pip install --user pystray pillow"
+                }
+            fi
+        else
+            echo "📦 محاولة التثبيت عبر pip..."
+            pip3 install --user pystray pillow && {
+                python3 "${SCRIPT_DIR}/gt-tray.py" &
+            } || {
+                echo "❌ فشل التثبيت عبر pip"
+                echo "💡 قم بتثبيت المكتبات يدوياً: pip install --user pystray pillow"
+            }
+        fi
     fi
 }
 
@@ -1327,35 +1406,19 @@ fi
 check_tools
 fetch_if_missing "$AZKAR_FILE" "$REPO_AZKAR_URL" >/dev/null 2>&1 || true
 
-# التحكم في معالج الإعدادات - الإصلاح النهائي
 if [ ! -f "$CONFIG_FILE" ]; then
-    # التثبيت الأول
     setup_wizard "1"
 else
-    # محاولة تحميل الإعدادات
     if load_config; then
-        # الإعدادات موجودة وصالحة
         :
     else
-        # ملف الإعدادات تالف
         echo "⚠️  ملف الإعدادات تالف أو غير مكتمل"
         echo "🔄 جاري إعادة الإعداد..."
         setup_wizard "1"
     fi
 fi
 
-# التعليق على التحديث التلقائي
-# if [ "${AUTO_UPDATE_TIMETABLES:-$DEFAULT_AUTO_UPDATE_TIMETABLES}" = "1" ] && check_auto_update_needed; then
-#     silent_log "بدء التحقق التلقائي للتحديث"
-#     perform_auto_update >/dev/null 2>&1 &
-# fi
-
-# التعليق على التحديث الذاتي
-# if [ "${AUTO_SELF_UPDATE:-0}" = "1" ]; then
-#     check_script_update >/dev/null 2>&1 || true
-# fi
-
-
+# باقي الأوامر كما هي (لم نغيرها)
 case "${1:-}" in
     --install)
         if [ -f "$INSTALL_DIR/install.sh" ]; then
@@ -1371,7 +1434,7 @@ case "${1:-}" in
             echo "ملف uninstall.sh غير موجود في $INSTALL_DIR"
         fi
         ;;
-    --settings) setup_wizard "0" ;;  # 0 يعني تعديل إعدادات موجودة
+    --settings) setup_wizard "0" ;;
     --show-timetable|-t) show_timetable ;;
     --notify-start) start_notify_service ;;
     --notify-stop) stop_notify_service ;;
@@ -1397,19 +1460,14 @@ case "${1:-}" in
     --test-adhan)
         ensure_dbus
         create_adhan_player
-
         if [ -f "$CONFIG_FILE" ]; then
             source "$CONFIG_FILE"
         fi
-
-        # إزالة كلمة local هنا
         adhan_file="$ADHAN_FILE"
         if [ ! -f "$adhan_file" ]; then
             echo "❌ ملف الأذان الكامل غير موجود: $adhan_file"
-            echo "💡 تأكد من وجود ملف adhan.ogg في مجلد البرنامج"
             exit 1
         fi
-
         echo "🔊 اختبار الأذان الكامل..."
         "$ADHAN_PLAYER_SCRIPT" "$adhan_file" "اختبار الأذان الكامل" &
         echo "✅ تم تشغيل اختبار الأذان الكامل"
@@ -1417,19 +1475,14 @@ case "${1:-}" in
     --test-adhan-short)
         ensure_dbus
         create_adhan_player
-
         if [ -f "$CONFIG_FILE" ]; then
             source "$CONFIG_FILE"
         fi
-
-        # إزالة كلمة local هنا
         adhan_file="$SHORT_ADHAN_FILE"
         if [ ! -f "$adhan_file" ]; then
             echo "❌ ملف الأذان القصير غير موجود: $adhan_file"
-            echo "💡 تأكد من وجود ملف short_adhan.ogg في مجلد البرنامج"
             exit 1
         fi
-
         echo "🔊 اختبار الأذان القصير..."
         "$ADHAN_PLAYER_SCRIPT" "$adhan_file" "اختبار الأذان القصير" &
         echo "✅ تم تشغيل اختبار الأذان القصير"
@@ -1449,17 +1502,14 @@ case "${1:-}" in
             echo "❌ لا يوجد اتصال بالإنترنت - لا يمكن تحديث الجداول"
             exit 1
         fi
-
         if [ -z "${LAT:-}" ] || [ -z "${LON:-}" ]; then
             echo "❌ لم يتم تحديد الموقع بعد"
             echo "   الرجاء تشغيل الإعدادات أولاً: gtsalat --settings"
             exit 1
         fi
-
         echo "📍 الموقع: ${CITY:-غير محدد} (${LAT}, ${LON})"
         echo "📖 طريقة الحساب: ${METHOD_NAME:-غير محدد}"
         echo ""
-
         fetch_future_timetables "manual"
         ;;
     --enable-auto-update)
@@ -1563,16 +1613,13 @@ case "${1:-}" in
             file_count=$(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f 2>/dev/null | wc -l)
             if [ "$file_count" -gt 0 ]; then
                 echo "  ✅ مخزن محلياً: $file_count شهر"
-
                 files=($(find "$MONTHLY_TIMETABLE_DIR" -name "timetable_*.json" -type f | sort))
                 if [ ${#files[@]} -gt 0 ]; then
                     first_file="${files[0]}"
                     last_file="${files[${#files[@]}-1]}"
-
                     first_date=$(basename "$first_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
                     last_date=$(basename "$last_file" | sed 's/timetable_\([0-9]*\)_\([0-9]*\).json/\1-\2/')
                     echo "  📅 الفترة: $first_date إلى $last_date"
-
                     current_year=$(date +%Y)
                     current_month=$(date +%m)
                     current_file="$MONTHLY_TIMETABLE_DIR/timetable_${current_year}_${current_month}.json"
@@ -1681,6 +1728,7 @@ case "${1:-}" in
    ✅ منع تكرار معالج الإعدادات
    ✅ تحديث كامل للبرنامج والمكونات
    ✅ إصلاح مشاكل التثبيت السابقة
+   ✅ دعم جميع التوزيعات (Linux و FreeBSD) مع مديري الحزم المتعددة
 
 🔧 الإعدادات الافتراضية:
    • إشعارات الصلاة: مفعلة (طرفية + نظام)
@@ -1695,13 +1743,10 @@ EOF
         ;;
     '')
         {
-            # عرض الذكر بتنسيق جميل
             if [ "${ENABLE_ZIKR_NOTIFY:-1}" = "1" ]; then
                 show_random_zekr 2>/dev/null
                 echo ""
             fi
-
-            # عرض الصلاة القادمة
             if get_next_prayer 2>/dev/null; then
                 leftmin=$((PRAYER_LEFT/60))
                 lefth=$((leftmin/60))
